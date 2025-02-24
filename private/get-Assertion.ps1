@@ -4,8 +4,14 @@ function Get-Assertion{
         CompanyName          = "Lieben Consultancy"
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
     #>        
-    Param()   
+    Param()
+    #check if there is a cert in the cert store with the target tenant ID:
     $cert = Get-ChildItem Cert:\CurrentUser\My | Where-Object {$_.Subject -eq "CN=$($global:octo.LCTenantId)"}
+    
+    if(!$cert){
+        Throw "No certificate found for tenant $($global:octo.LCTenantId) in the current user store. Please ensure the certificate is installed in the current user store by importing the PFX generated with new-SpnAuthCert."
+    }    
+
     $clientAssertion = @{
         Header        = @{
             alg = "RS256"
