@@ -7,11 +7,23 @@ function Get-CurrentUser {
 
     if($global:octo.authMode -eq "Delegated"){
         return New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/me' -NoPagination -Method GET
-    }else{
+    }elseif($global:octo.authMode -eq "ServicePrincipal"){
         $spnMetaData = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals(appId='$($global:octo.LCClientId)')" -NoPagination -Method GET 
         return @{
             userPrincipalName = $spnMetaData.displayName
         }
+    }else{
+        if($global:octo.autDetectedClientId){
+            $spnMetaData = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals(appId='$($global:octo.autDetectedClientId)')" -NoPagination -Method GET 
+            return @{
+                userPrincipalName = $spnMetaData.displayName
+            }
+        }else{
+            return @{
+                userPrincipalName = "ManagedIdentity-$($Env:COMPUTERNAME)"
+            }
+        }
+
     }
 
 }

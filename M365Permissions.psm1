@@ -50,6 +50,7 @@ if(!$global:octo){
     $global:octo.PnPGroupCache = @{}
     $global:octo.LCRefreshToken = $Null
     $global:octo.LCCachedTokens = @{}
+    $global:octo.isConnected = $False
 
     $global:octo.moduleVersion = (Get-Content -Path (Join-Path -Path $($PSScriptRoot) -ChildPath "M365Permissions.psd1") | Out-String | Invoke-Expression).ModuleVersion
     if((Split-Path $PSScriptRoot -Leaf) -eq "M365Permissions"){

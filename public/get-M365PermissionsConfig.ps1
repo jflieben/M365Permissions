@@ -1,4 +1,4 @@
-﻿Function set-M365PermissionsConfig{
+﻿Function get-M365PermissionsConfig{
     <#
         Author               = "Jos Lieben (jos@lieben.nu)"
         CompanyName          = "Lieben Consultancy"

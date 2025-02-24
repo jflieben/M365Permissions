@@ -6,17 +6,22 @@
     #>        
     Param(
         [Switch]$Delegated,
-        [Switch]$ServicePrincipal
+        [Switch]$ServicePrincipal,
+        [Switch]$ManagedIdentity
     )
 
     $connected = $True
 
     #choose auth mode, env var trumps passed in param, trumps default / persisted from set-M365PermissionsConfig
-    if($Env:LCAUTHMODE){
-        $global:octo.authMode = $Env:LCAUTHMODE
+    if($ManagedIdentity){
+        $global:octo.authMode = "ManagedIdentity"
     }elseif($ServicePrincipal){
         $global:octo.authMode = "ServicePrincipal"
     }elseif($Delegated){
+        $global:octo.authMode = "Delegated"
+    }elseif($Env:LCAUTHMODE){
+        $global:octo.authMode = $Env:LCAUTHMODE
+    }else{
         $global:octo.authMode = "Delegated"
     }
 
@@ -40,12 +45,23 @@
             Write-Error "Service Principal authentication requires a ClientId and TenantId to be set, please run set-M365PermissionsConfig -LCClientId <clientid> -LCTenantId <tenantid> before connecting or configure LCCLIENTID and LCTENANTID as env variables" -ErrorAction Continue
         }
     }
+
+    #Managed Identity auth requires a tenantid by the customer either through env vars or set-M365PermissionsConfig
+    if($global:octo.authMode -eq "ManagedIdentity"){
+        Write-Host "Using $($global:octo.authMode) authentication..."
+    }
     
     if($connected){
         Write-Host ""
-        $global:octo.currentUser = Get-CurrentUser
-        $global:octo.OnMicrosoft = (New-GraphQuery -Method GET -Uri 'https://graph.microsoft.com/v1.0/domains?$top=999' | Where-Object -Property isInitial -EQ $true).id 
-        $global:octo.tenantName = $($global:octo.OnMicrosoft).Split(".")[0]
+        try{
+            $global:octo.currentUser = Get-CurrentUser
+            $global:octo.OnMicrosoft = (New-GraphQuery -Method GET -Uri 'https://graph.microsoft.com/v1.0/domains?$top=999' | Where-Object -Property isInitial -EQ $true).id 
+            $global:octo.tenantName = $($global:octo.OnMicrosoft).Split(".")[0]
+            $global:octo.isConnected = $True
+        }catch{
+            Throw $_
+        }
+
         Write-Host "Authenticated successfully! Here are some examples using this module:"
         Write-Host ""
         Write-Host ">> Get-AllM365Permissions -expandGroups" -ForegroundColor Magenta

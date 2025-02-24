@@ -25,7 +25,7 @@
         [Boolean]$autoConnect,
         [String]$LCClientId,
         [String]$LCTenantId,
-        [ValidateSet('Delegated','ServicePrincipal')]
+        [ValidateSet('Delegated','ServicePrincipal','ManagedIdentity')]	
         [String]$authMode
     )
 
