@@ -161,7 +161,7 @@
             }
         }
     
-        Add-ToReportQueue -permissions $permissionRows -category $siteCategory -statistics @($global:unifiedStatistics.$($siteCategory).$($site.Url))
+        Add-ToReportQueue -permissions $permissionRows -category $siteCategory
         Remove-Variable -Name SPOPermissions -Scope Global -Force -Confirm:$False
         Remove-Variable -Name permissionRows -Force -Confirm:$False
 

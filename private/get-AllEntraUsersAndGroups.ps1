@@ -102,5 +102,5 @@ function get-AllEntraUsersAndGroups {
 
     Write-Progress -Id 2 -Completed -Activity "Processing users and groups"
     Stop-StatisticsObject -category "GroupsAndMembers" -subject "Entities"
-    Add-ToReportQueue -permissions $groupMemberRows -category "GroupsAndMembers" -statistics @($global:unifiedStatistics."GroupsAndMembers"."Entities")   
+    Add-ToReportQueue -permissions $groupMemberRows -category "GroupsAndMembers"
 }

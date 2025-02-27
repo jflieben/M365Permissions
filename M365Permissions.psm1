@@ -40,9 +40,6 @@ ForEach ($helperFunction in (($helperFunctions.private + $helperFunctions.public
 if ($helperFunctions.public) { Export-ModuleMember -Alias * -Function @($helperFunctions.public.BaseName) }
 if ($env:username -like "*joslieben*"){Export-ModuleMember -Alias * -Function @($helperFunctions.private.BaseName) }
 
-#variables that need to be cleared for each thread
-$global:unifiedStatistics = @{}
-
 #first load config, subsequent loads will detect global var and skip this section (multi-threading)
 if(!$global:octo){
     $global:octo = [Hashtable]::Synchronized(@{})

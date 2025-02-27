@@ -14,4 +14,7 @@ function Stop-StatisticsObject{
     )
 
     $global:unifiedStatistics.$category.$subject."Scan end time" = Get-Date
+    Add-ToReportQueue -category $category -statistics $global:unifiedStatistics.$category.$subject
+    Remove-Variable -Name unifiedStatistics -Scope Global -Force -Confirm:$false
+    [System.GC]::GetTotalMemory($true) | out-null  
 }        

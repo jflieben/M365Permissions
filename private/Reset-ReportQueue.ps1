@@ -23,8 +23,8 @@ function Reset-ReportQueue{
                 Export-WithRetry -category $category -data $permissions
             }
         }   
-        [System.GC]::GetTotalMemory($true) | out-null  
     }else{
         Write-Verbose "No reports to write to report file..."
     }
+    [System.GC]::GetTotalMemory($true) | out-null  
 }

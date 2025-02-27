@@ -173,7 +173,7 @@
         }
     }
 
-    Add-ToReportQueue -permissions $permissionRows -category "Entra" -statistics @($global:unifiedStatistics."Entra"."Roles")
+    Add-ToReportQueue -permissions $permissionRows -category "Entra"
     Remove-Variable -Name EntraPermissions -Scope Global -Force -Confirm:$False
     Reset-ReportQueue
 

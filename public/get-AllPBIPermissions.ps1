@@ -206,7 +206,7 @@
         }
     }
    
-    Add-ToReportQueue -permissions $permissionRows -category "PowerBI" -statistics @($global:unifiedStatistics."PowerBI"."Securables")
+    Add-ToReportQueue -permissions $permissionRows -category "PowerBI"
     Remove-Variable -Name PBIPermissions -Scope Global -Force -Confirm:$False
     Reset-ReportQueue
     Write-Progress -Id 1 -Completed -Activity $activity

@@ -192,7 +192,7 @@
         }
     }  
     
-    Add-ToReportQueue -permissions $permissionRows -category "ExoRecipients" -statistics @($global:unifiedStatistics."ExoRecipients".$($recipient.displayName)) 
+    Add-ToReportQueue -permissions $permissionRows -category "ExoRecipients"
     Remove-Variable -Name permissionRows -Force -Confirm:$False
     Remove-Variable -Name ExOPermissions -Scope Global -Force -Confirm:$False
     if(!$isParallel){
