@@ -12,6 +12,10 @@
         -includeCurrentUser: add entries for the user performing the audit (as this user will have all access, it'll clutter the report)
         -defaultTimeoutMinutes: the default timeout in minutes for all parallelized jobs, by default 120 minutes
         -maxJobRetries: the amount of times a job will be retried if it fails, by default 3
+        -autoConnect: if set, the script will automatically connect to M365 using the configured authentication method, or default to Delegated if none has been set
+        -LCClientId: the client id of the service principal to use for Service Principal authentication
+        -LCTenantId: the tenant id of the service principal to use for Service Principal authentication
+        -authMode: the authentication method to use, either Delegated (Interactive), ServicePrincipal or ManagedIdentity (Azure VM/Runbook/Functions etc)
     #>        
     Param(
         [Int]$maxThreads,
