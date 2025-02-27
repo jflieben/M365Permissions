@@ -180,8 +180,8 @@ Function get-PnPObjectPermissions{
                 Write-Verbose "List contains $($List.ItemCount) items"
                 $allListItems = $Null; $allListItems = New-GraphQuery -resource "https://www.sharepoint.com" -Uri "$($Object.Url)/_api/web/lists/getbyid('$($List.Id.Guid)')/items?`$select=ID,HasUniqueRoleAssignments&`$top=5000&`$format=json" -Method GET -expectedTotalResults $List.ItemCount
                 $allUniqueListItemIDs = $Null; $allUniqueListItemIDs = @($allListItems | Where-Object { $_.HasUniqueRoleAssignments -eq $True }) | select -ExpandProperty Id
-                if(($global:octo.defaultTimeoutMinutes*20) -lt $allUniqueListItemIDs.Count){
-                    Write-Error "List $($List.Title) has too many ($($allUniqueListItemIDs.Count)) items with unique permissions, we probably can't process them inside the current default timeout of $($global:octo.defaultTimeoutMinutes). Please set it to at least $($allUniqueListItemIDs.Count/20) using set-M365PermissionsConfig -defaultTimeoutMinutes XXX" -ErrorAction Continue
+                if(($global:octo.userConfig.defaultTimeoutMinutes*20) -lt $allUniqueListItemIDs.Count){
+                    Write-Error "List $($List.Title) has too many ($($allUniqueListItemIDs.Count)) items with unique permissions, we probably can't process them inside the current default timeout of $($global:octo.userConfig.defaultTimeoutMinutes). Please set it to at least $($allUniqueListItemIDs.Count/20) using set-M365PermissionsConfig -defaultTimeoutMinutes XXX" -ErrorAction Continue
                 }
 
                 for($a=0;$a -lt $allUniqueListItemIDs.Count;$a++){

@@ -92,7 +92,7 @@
         
         $wasOwner = $False
         try{
-            if($site.Owners -notcontains $global:octo.currentUser.userPrincipalName -and $global:octo.authMode -eq "Delegated"){
+            if($site.Owners -notcontains $global:octo.currentUser.userPrincipalName -and $global:octo.userConfig.authMode -eq "Delegated"){
                 Write-Host "Adding you as site collection owner to ensure all permissions can be read from $($site.Url)..."
                 Set-PnPTenantSite -Identity $site.Url -Owners $global:octo.currentUser.userPrincipalName -Connection (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl) -WarningAction Stop -ErrorAction Stop
                 Write-Host "Owner added and marked for removal upon scan completion"
@@ -162,12 +162,13 @@
         }
     
         Add-ToReportQueue -permissions $permissionRows -category $siteCategory -statistics @($global:unifiedStatistics.$($siteCategory).$($site.Url))
+        Remove-Variable -Name SPOPermissions -Scope Global -Force -Confirm:$False
         Remove-Variable -Name permissionRows -Force -Confirm:$False
 
         if(!$isParallel){
             Reset-ReportQueue          
         }else{
-            [System.GC]::Collect()
+            [System.GC]::GetTotalMemory($true) | out-null
         }    
         
         Write-Host "Done"

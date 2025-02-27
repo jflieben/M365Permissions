@@ -73,7 +73,7 @@ function New-GraphQuery {
             while ($attempts -lt $MaxAttempts) {
                 $attempts ++
                 try {
-                    [System.GC]::Collect()        
+                    [System.GC]::GetTotalMemory($true) | out-null   
                     $Data = (Invoke-RestMethod -Uri $nextURL -Method $Method -Headers $headers -Body $Body -ContentType $ContentType -ErrorAction Stop -Verbose:$False)
                     $attempts = $MaxAttempts
                 }
@@ -98,7 +98,7 @@ function New-GraphQuery {
                 while ($attempts -lt $MaxAttempts) {
                     $attempts ++
                     try {
-                        [System.GC]::Collect()
+                        [System.GC]::GetTotalMemory($true) | out-null
                         $Data = (Invoke-RestMethod -Uri $nextURL -Method $Method -Headers $headers -ContentType $ContentType -ErrorAction Stop -Verbose:$false)
                         $attempts = $MaxAttempts
                     }
@@ -160,7 +160,7 @@ function New-GraphQuery {
         } until ($null -eq $nextURL)
         Write-Progress -Id 10 -Completed -Activity "Querying $resource API"
         if ($ReturnedData -and !$ReturnedData.value -and $ReturnedData.PSObject.Properties["value"]) { return $null }
-        [System.GC]::Collect()
+        [System.GC]::GetTotalMemory($true) | out-null
 
         return $ReturnedData
     }

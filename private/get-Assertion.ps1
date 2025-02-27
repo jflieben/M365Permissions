@@ -6,10 +6,10 @@ function Get-Assertion{
     #>        
     Param()
     #check if there is a cert in the cert store with the target tenant ID:
-    $cert = Get-ChildItem Cert:\CurrentUser\My | Where-Object {$_.Subject -eq "CN=$($global:octo.LCTenantId)"}
+    $cert = Get-ChildItem Cert:\CurrentUser\My | Where-Object {$_.Subject -eq "CN=$($global:octo.userConfig.LCTenantId)"}
     
     if(!$cert){
-        Throw "No certificate found for tenant $($global:octo.LCTenantId) in the current user store. Please ensure the certificate is installed in the current user store by importing the PFX generated with new-SpnAuthCert."
+        Throw "No certificate found for tenant $($global:octo.userConfig.LCTenantId) in the current user store. Please ensure the certificate is installed in the current user store by importing the PFX generated with new-SpnAuthCert."
     }    
 
     $clientAssertion = @{
@@ -19,12 +19,12 @@ function Get-Assertion{
             x5t = [System.Convert]::ToBase64String(($cert.GetCertHash()))
         }
         ClaimsPayload = @{
-            aud = "https://login.microsoftonline.com/$($global:octo.LCTenantId)/oauth2/token"
+            aud = "https://login.microsoftonline.com/$($global:octo.userConfig.LCTenantId)/oauth2/token"
             exp = [math]::Round(((New-TimeSpan -Start ((Get-Date "1970-01-01T00:00:00Z" ).ToUniversalTime()) -End (Get-Date).ToUniversalTime().AddMinutes(2)).TotalSeconds), 0)
-            iss = $($global:octo.LCClientId)
+            iss = $($global:octo.userConfig.LCClientId)
             jti = (New-Guid).Guid
             nbf = [math]::Round(((New-TimeSpan -Start ((Get-Date "1970-01-01T00:00:00Z" ).ToUniversalTime()) -End ((Get-Date).ToUniversalTime())).TotalSeconds), 0)
-            sub = $($global:octo.LCClientId)
+            sub = $($global:octo.userConfig.LCClientId)
         }
     }
     $clientAssertion['Base64Header'] = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes(($clientAssertion.Header | ConvertTo-Json -Compress))).Split('=')[0].Replace('+', '-').Replace('/', '_')

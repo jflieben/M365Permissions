@@ -15,7 +15,7 @@
     $activity = "Scanning PowerBI"
 
     #check if user has a powerbi license or this function will fail
-    if($global:octo.authMode -eq "Delegated"){
+    if($global:octo.userConfig.authMode -eq "Delegated"){
         $powerBIServicePlans = @("PBI_PREMIUM_EM1_ADDON","PBI_PREMIUM_EM2_ADDON","BI_AZURE_P_2_GOV","PBI_PREMIUM_P1_ADDON_GCC","PBI_PREMIUM_P1_ADDON","BI_AZURE_P3","BI_AZURE_P2","BI_AZURE_P1")
         $hasPowerBI = $False
         $licenses = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/users/$($global:octo.currentUser.userPrincipalName)/licenseDetails" -Method GET
@@ -59,7 +59,7 @@
         $scanJobs += New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/workspaces/getInfo?datasourceDetails=True&getArtifactUsers=True" -Method POST -Body $body -resource "https://api.fabric.microsoft.com"
     }
 
-    if($global:octo.authMode -eq "Delegated"){
+    if($global:octo.userConfig.authMode -eq "Delegated"){
         Write-Progress -Id 1 -PercentComplete 10 -Activity $activity -Status "Retrieving gateways..."
         $gateways = New-GraphQuery -Uri "https://api.powerbi.com/v2.0/myorg/gatewayclusters?`$expand=permissions&`$skip=0&`$top=5000" -resource "https://api.fabric.microsoft.com" -method "GET"
         for($g = 0; $g -lt $gateways.count; $g++){
@@ -205,8 +205,9 @@
             }
         }
     }
-
+   
     Add-ToReportQueue -permissions $permissionRows -category "PowerBI" -statistics @($global:unifiedStatistics."PowerBI"."Securables")
+    Remove-Variable -Name PBIPermissions -Scope Global -Force -Confirm:$False
     Reset-ReportQueue
     Write-Progress -Id 1 -Completed -Activity $activity
 }

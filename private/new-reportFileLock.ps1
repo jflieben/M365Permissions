@@ -5,7 +5,7 @@ function New-ReportFileLock {
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
     #>     
 
-    $lockFilePath = Join-Path -Path $global:octo.outputFolder -ChildPath "M365Permissions.lock"
+    $lockFilePath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions.lock"
     if(!(Test-Path -Path $lockFilePath)){
         Write-Verbose "Creating lock file..."  
         $Null = New-Item -Path $lockFilePath -ItemType File -Force | Out-Null

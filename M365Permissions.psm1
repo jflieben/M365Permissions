@@ -52,6 +52,13 @@ if(!$global:octo){
     $global:octo.LCCachedTokens = @{}
     $global:octo.isConnected = $False
 
+    if ([Environment]::GetCommandLineArgs().Contains('-NonInteractive') -or $False -eq [System.Environment]::UserInteractive) {
+        $global:octo.interactiveMode=$false
+    } else {
+        $global:octo.interactiveMode=$true
+        cls
+    }
+
     $global:octo.moduleVersion = (Get-Content -Path (Join-Path -Path $($PSScriptRoot) -ChildPath "M365Permissions.psd1") | Out-String | Invoke-Expression).ModuleVersion
     if((Split-Path $PSScriptRoot -Leaf) -eq "M365Permissions"){
         $global:octo.modulePath = $PSScriptRoot
@@ -59,27 +66,26 @@ if(!$global:octo){
         $global:octo.modulePath = (Split-Path -Path $PSScriptRoot -Parent)
     }
 
-    cls
-
     #sets default config of user-configurable settings, can be overridden by user calls to set-M365PermissionsConfig
+    $global:octo.userConfig = @{}
     set-M365PermissionsConfig 
         
-    $global:runspacePool = [runspacefactory]::CreateRunspacePool(1, $global:octo.maxThreads, ([system.management.automation.runspaces.initialsessionstate]::CreateDefault()), $Host)
+    $global:runspacePool = [runspacefactory]::CreateRunspacePool(1, $global:octo.userConfig.maxThreads, ([system.management.automation.runspaces.initialsessionstate]::CreateDefault()), $Host)
     $global:runspacePool.ApartmentState = "STA"
     $global:runspacepool.Open() 
     
     write-host "----------------------------------"
-    Write-Host "Welcome to M365Permissions v$($global:octo.moduleVersion)!" -ForegroundColor DarkCyan
-    Write-Host "Visit https://www.lieben.nu/liebensraum/m365permissions/ for documentation" -ForegroundColor DarkCyan
+    Write-Host "Welcome to M365Permissions v$($global:octo.moduleVersion)!"
+    Write-Host "Visit https://www.lieben.nu/liebensraum/m365permissions/ for documentation"
     write-host "----------------------------------"
     Write-Host ""
 
-    if($global:octo.autoConnect -eq $true){
+    if($global:octo.userConfig.autoConnect -eq $true){
         connect-M365
     }else{
-        Write-Host "Before you can run a scan, please run connect-M365" -ForegroundColor Yellow
+        Write-Host "Before you can run a scan, please run connect-M365"
         Write-Host ""
-        Write-Host "If you do not want to see this message in the future, run `"set-M365PermissionsConfig -autoConnect `$True`"" -ForegroundColor White
+        Write-Host "If you do not want to see this message in the future, run `"set-M365PermissionsConfig -autoConnect `$True`""
         Write-Host ""
     }
 }

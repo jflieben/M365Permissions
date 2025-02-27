@@ -21,7 +21,7 @@ function Add-ToReportQueue{
                 permissions = $permissions
                 category = $category
             } | Export-Clixml -Path (Join-Path -Path $global:octo.outputTempFolder -ChildPath "$((Get-Date).ToString("HHmmss"))$($randomId).xml") -Depth 99 -Force
-            [System.GC]::Collect()
+            [System.GC]::GetTotalMemory($true) | out-null
        }
     }
 }

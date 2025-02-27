@@ -14,41 +14,41 @@
 
     #choose auth mode, env var trumps passed in param, trumps default / persisted from set-M365PermissionsConfig
     if($ManagedIdentity){
-        $global:octo.authMode = "ManagedIdentity"
+        $global:octo.userConfig.authMode = "ManagedIdentity"
     }elseif($ServicePrincipal){
-        $global:octo.authMode = "ServicePrincipal"
+        $global:octo.userConfig.authMode = "ServicePrincipal"
     }elseif($Delegated){
-        $global:octo.authMode = "Delegated"
+        $global:octo.userConfig.authMode = "Delegated"
     }elseif($Env:LCAUTHMODE){
-        $global:octo.authMode = $Env:LCAUTHMODE
+        $global:octo.userConfig.authMode = $Env:LCAUTHMODE
     }else{
-        $global:octo.authMode = "Delegated"
+        $global:octo.userConfig.authMode = "Delegated"
     }
 
     #if we're doing delegated auth, use my multi-tenant app id
-    if($global:octo.authMode -eq "Delegated"){
-        Write-Host "Using default $($global:octo.authMode) authentication..."
-        $global:octo.LCClientId = "0ee7aa45-310d-4b82-9cb5-11cc01ad38e4"
+    if($global:octo.userConfig.authMode -eq "Delegated"){
+        Write-Host "Using default $($global:octo.userConfig.authMode) authentication..."
+        $global:octo.userConfig.LCClientId = "0ee7aa45-310d-4b82-9cb5-11cc01ad38e4"
     }
 
     #SPN auth requires a clientid and tenantid by the customer either through env vars or set-M365PermissionsConfig
-    if($global:octo.authMode -eq "ServicePrincipal"){
-        Write-Host "Using $($global:octo.authMode) authentication..."
+    if($global:octo.userConfig.authMode -eq "ServicePrincipal"){
+        Write-Host "Using $($global:octo.userConfig.authMode) authentication..."
         if($Env:LCCLIENTID){
-            $global:octo.LCClientId = $Env:LCCLIENTID
+            $global:octo.userConfig.LCClientId = $Env:LCCLIENTID
         }
         if($Env:LCTENANTID){
-            $global:octo.LCTenantId = $Env:LCTENANTID
+            $global:octo.userConfig.LCTenantId = $Env:LCTENANTID
         }   
-        if(!$global:octo.LCClientId -or !$global:octo.LCTenantId){
+        if(!$global:octo.userConfig.LCClientId -or !$global:octo.userConfig.LCTenantId){
             $connected = $False
             Write-Error "Service Principal authentication requires a ClientId and TenantId to be set, please run set-M365PermissionsConfig -LCClientId <clientid> -LCTenantId <tenantid> before connecting or configure LCCLIENTID and LCTENANTID as env variables" -ErrorAction Continue
         }
     }
 
     #Managed Identity auth requires a tenantid by the customer either through env vars or set-M365PermissionsConfig
-    if($global:octo.authMode -eq "ManagedIdentity"){
-        Write-Host "Using $($global:octo.authMode) authentication..."
+    if($global:octo.userConfig.authMode -eq "ManagedIdentity"){
+        Write-Host "Using $($global:octo.userConfig.authMode) authentication..."
     }
     
     if($connected){
@@ -64,23 +64,23 @@
 
         Write-Host "Authenticated successfully! Here are some examples using this module:"
         Write-Host ""
-        Write-Host ">> Get-AllM365Permissions -expandGroups" -ForegroundColor Magenta
+        Write-Host ">> Get-AllM365Permissions -expandGroups"
         
-        Write-Host ">> Get-AllExOPermissions -includeFolderLevelPermissions" -ForegroundColor Magenta
+        Write-Host ">> Get-AllExOPermissions -includeFolderLevelPermissions"
         
-        Write-Host ">> Get-ExOPermissions -recipientIdentity `$mailbox.Identity -includeFolderLevelPermissions" -ForegroundColor Magenta
+        Write-Host ">> Get-ExOPermissions -recipientIdentity `$mailbox.Identity -includeFolderLevelPermissions"
         
-        Write-Host ">> Get-SpOPermissions -siteUrl `"https://tenant.sharepoint.com/sites/site`" -ExpandGroups" -ForegroundColor Magenta
+        Write-Host ">> Get-SpOPermissions -siteUrl `"https://tenant.sharepoint.com/sites/site`" -ExpandGroups"
         
-        Write-Host ">> Get-SpOPermissions -teamName `"INT-Finance Department`"" -ForegroundColor Magenta
+        Write-Host ">> Get-SpOPermissions -teamName `"INT-Finance Department`""
         
-        Write-Host ">> get-AllSPOPermissions -ExpandGroups -IncludeOneDriveSites -ExcludeOtherSites" -ForegroundColor Magenta
+        Write-Host ">> get-AllSPOPermissions -ExpandGroups -IncludeOneDriveSites -ExcludeOtherSites"
         
-        Write-Host ">> get-AllEntraPermissions -excludeGroupsAndUsers" -ForegroundColor Magenta    
+        Write-Host ">> get-AllEntraPermissions -excludeGroupsAndUsers"    
 
-        Write-Host ">> get-AllPBIPermissions" -ForegroundColor Magenta 
+        Write-Host ">> get-AllPBIPermissions" 
         
-        Write-Host ">> Get-ChangedPermissions" -ForegroundColor Magenta   
+        Write-Host ">> Get-ChangedPermissions"   
 
         Write-Host ""
     }  

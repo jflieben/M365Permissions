@@ -22,7 +22,7 @@ function get-AuthorizationCode{
         }
     }
 
-    $targetUrl = "https://login.microsoftonline.com/common/oauth2/authorize?client_id=$($global:octo.LCClientId)&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A1985&response_mode=query&resource=https://graph.microsoft.com$($adminPrompt)"
+    $targetUrl = "https://login.microsoftonline.com/common/oauth2/authorize?client_id=$($global:octo.userConfig.LCClientId)&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A1985&response_mode=query&resource=https://graph.microsoft.com$($adminPrompt)"
 
     try{
         Write-Verbose "Opening $targetUrl in your browser..."
@@ -54,7 +54,7 @@ function get-AuthorizationCode{
         Body = @{
             scope                 = "offline_access https://graph.microsoft.com/.default"
             code                  = $code
-            client_id             = $global:octo.LCClientId
+            client_id             = $global:octo.userConfig.LCClientId
             grant_type            = 'authorization_code'
             redirect_uri          = "http://localhost:1985"
         }

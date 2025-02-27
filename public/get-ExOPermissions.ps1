@@ -194,10 +194,11 @@
     
     Add-ToReportQueue -permissions $permissionRows -category "ExoRecipients" -statistics @($global:unifiedStatistics."ExoRecipients".$($recipient.displayName)) 
     Remove-Variable -Name permissionRows -Force -Confirm:$False
+    Remove-Variable -Name ExOPermissions -Scope Global -Force -Confirm:$False
     if(!$isParallel){
         Reset-ReportQueue          
     }else{
-        [System.GC]::Collect()           
+        [System.GC]::GetTotalMemory($true) | out-null         
     }     
     Write-Progress -Id 2 -Completed -Activity "Scanning $($recipient.Identity)"
 }

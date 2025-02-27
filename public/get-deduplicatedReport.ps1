@@ -12,9 +12,9 @@
     )
 
     if(!$permissionsFilePath){
-        $reportFiles = Get-ChildItem -Path $global:octo.outputFolder -Filter "*.xlsx" | Where-Object { $_.Name -notlike "*delta*" }
+        $reportFiles = Get-ChildItem -Path $global:octo.userConfig.outputFolder -Filter "*.xlsx" | Where-Object { $_.Name -notlike "*delta*" }
         if($reportFiles.Count -lt 1){
-            Write-Error "Less than 1 XLSX reports found in $($global:octo.outputFolder). Please run a scan first or make sure you set the output format to XLSX. Deduplication is not possible when scanning to CSV format." -ErrorAction Stop
+            Write-Error "Less than 1 XLSX reports found in $($global:octo.userConfig.outputFolder). Please run a scan first or make sure you set the output format to XLSX. Deduplication is not possible when scanning to CSV format." -ErrorAction Stop
         }
         $lastReportFile = $reportFiles | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1
         $permissionsFile = $lastReportFile
@@ -54,13 +54,13 @@
         $duplicateCount = $tab.Count - $tabDeduped.Count
         if($duplicateCount -eq 0){
             Write-Host "No duplicate rows found in $tabName"
-            [System.GC]::Collect() 
+            [System.GC]::GetTotalMemory($true) | out-null
             continue
         }else{
             Write-Progress -Id 1 -Activity "Deduplicating $($permissionsFile.Name)" -Status "Exporting $tabName $($tabDeduped.Count) rows" -PercentComplete $percentComplete
             Write-Host "$($tab.Count) reduced to $($tabDeduped.Count) rows in $tabName, writing to file..." 
             $tabDeduped | Export-Excel -Path $permissionsFile.FullName -WorksheetName $tabName -TableName $tabName -TableStyle Medium10 -AutoSize -ClearSheet
-            [System.GC]::Collect() 
+            [System.GC]::GetTotalMemory($true) | out-null
         }
         
     }

@@ -18,9 +18,9 @@
     $excludeProps = @("modified")
 
     if(!$oldPermissionsFilePath -or !$newPermissionsFilePath){
-        $reportFiles = Get-ChildItem -Path $global:octo.outputFolder -Filter "*.xlsx" | Where-Object { $_.Name -notlike "*delta*" }
+        $reportFiles = Get-ChildItem -Path $global:octo.userConfig.outputFolder -Filter "*.xlsx" | Where-Object { $_.Name -notlike "*delta*" }
         if($reportFiles.Count -lt 2){
-            Write-Error "Less than 2 XLSX reports found in $($global:octo.outputFolder). Please run a scan first or make sure you set the output format to XLSX. Comparison is not possible when scanning to CSV format." -ErrorAction Stop
+            Write-Error "Less than 2 XLSX reports found in $($global:octo.userConfig.outputFolder). Please run a scan first or make sure you set the output format to XLSX. Comparison is not possible when scanning to CSV format." -ErrorAction Stop
         }
         $lastTwoReportFiles = $reportFiles | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 2
         $oldPermissionsFile = $lastTwoReportFiles[1]
@@ -127,7 +127,7 @@
 
     Write-Host ""
 
-    $targetPath = Join-Path -Path $global:octo.outputFolder -ChildPath "M365Permissions_delta.xlsx"
+    $targetPath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions_delta.xlsx"
     foreach($tab in $diffResults.GetEnumerator().Name){
         if($diffResults.$($tab).count -eq 0){
             continue
@@ -152,7 +152,7 @@
     }
 
     Remove-Variable -Name diffResults -Force -Confirm:$False
-    [System.GC]::Collect() 
+    [System.GC]::GetTotalMemory($true) | out-null
     
     Write-Progress -Id 1 -Activity "Comparing $($oldPermissionsFile.LastWriteTime) and $($newPermissionsFile.LastWriteTime)" -Completed
 }

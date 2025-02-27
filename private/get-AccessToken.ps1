@@ -10,7 +10,7 @@ function get-AccessToken{
     )   
 
     if(!$global:octo.LCRefreshToken){
-        if($global:octo.authMode -eq "Delegated"){
+        if($global:octo.userConfig.authMode -eq "Delegated"){
             get-AuthorizationCode
         }        
     }
@@ -23,15 +23,15 @@ function get-AccessToken{
     }
 
     if(!$global:octo.LCCachedTokens.$($resource).accessToken -or $global:octo.LCCachedTokens.$($resource).validFrom -lt (Get-Date).AddMinutes(-25)){
-        Write-Verbose "Token cache miss, refreshing $($global:octo.authMode) V1 token for $resource..."
-        if($global:octo.authMode -eq "ServicePrincipal"){
+        Write-Verbose "Token cache miss, refreshing $($global:octo.userConfig.authMode) V1 token for $resource..."
+        if($global:octo.userConfig.authMode -eq "ServicePrincipal"){
             $assertion = Get-Assertion
-            $response = (Invoke-RestMethod "https://login.microsoftonline.com/$($global:octo.LCTenantId)/oauth2/token" -Method POST -Body "resource=$([System.Web.HttpUtility]::UrlEncode($resource))&grant_type=client_credentials&client_id=$([System.Web.HttpUtility]::UrlEncode($global:octo.LCClientId))&client_assertion=$([System.Web.HttpUtility]::UrlEncode($assertion))&client_assertion_type=$([System.Web.HttpUtility]::UrlEncode('urn:ietf:params:oauth:client-assertion-type:jwt-bearer'))" -ErrorAction Stop -Verbose:$false)
-        }elseif($global:octo.authMode -eq "ManagedIdentity"){   
+            $response = (Invoke-RestMethod "https://login.microsoftonline.com/$($global:octo.userConfig.LCTenantId)/oauth2/token" -Method POST -Body "resource=$([System.Web.HttpUtility]::UrlEncode($resource))&grant_type=client_credentials&client_id=$([System.Web.HttpUtility]::UrlEncode($global:octo.userConfig.LCClientId))&client_assertion=$([System.Web.HttpUtility]::UrlEncode($assertion))&client_assertion_type=$([System.Web.HttpUtility]::UrlEncode('urn:ietf:params:oauth:client-assertion-type:jwt-bearer'))" -ErrorAction Stop -Verbose:$false)
+        }elseif($global:octo.userConfig.authMode -eq "ManagedIdentity"){   
             $endpoint = "$($env:IDENTITY_ENDPOINT)?resource=$($resource)"
             $response = Invoke-RestMethod -Uri $endpoint -Headers @{"X-IDENTITY-HEADER"=$env:IDENTITY_HEADER;Metadata="true"} -Method GET
         }else{
-            $response = (Invoke-RestMethod "https://login.microsoftonline.com/common/oauth2/token" -Method POST -Body "resource=$([System.Web.HttpUtility]::UrlEncode($resource))&grant_type=refresh_token&refresh_token=$($global:octo.LCRefreshToken)&client_id=$($global:octo.LCClientId)&scope=openid" -ErrorAction Stop -Verbose:$false)
+            $response = (Invoke-RestMethod "https://login.microsoftonline.com/common/oauth2/token" -Method POST -Body "resource=$([System.Web.HttpUtility]::UrlEncode($resource))&grant_type=refresh_token&refresh_token=$($global:octo.LCRefreshToken)&client_id=$($global:octo.userConfig.LCClientId)&scope=openid" -ErrorAction Stop -Verbose:$false)
         }
         
         if($response.access_token){
@@ -42,7 +42,7 @@ function get-AccessToken{
             Write-Verbose "Access token valid from $((Get-Date).ToString()), stored in cache"
             $global:octo.LCCachedTokens.$($resource).accessToken = $response.access_token
             $global:octo.LCCachedTokens.$($resource).validFrom = Get-Date
-            if($global:octo.authMode -ne "Delegated"){
+            if($global:octo.userConfig.authMode -ne "Delegated"){
                 #see if we can get a client ID from the token
                 try{
                     Write-Verbose "Parsing client ID from token..."

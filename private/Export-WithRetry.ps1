@@ -4,9 +4,9 @@ function Export-WithRetry {
         [parameter(Mandatory = $true)][object]$data
     )
 
-    $basePath = Join-Path -Path $global:octo.outputFolder -ChildPath "M365Permissions_$((Get-Date).ToString("yyyyMMdd")).@@@"
+    $basePath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions_$((Get-Date).ToString("yyyyMMdd")).@@@"
 
-    switch ($global:octo.outputFormat) {
+    switch ($global:octo.userConfig.outputFormat) {
         "XLSX" { 
             $targetPath = $basePath.Replace("@@@", "xlsx")
         }
@@ -16,7 +16,7 @@ function Export-WithRetry {
     }           
 
     try {
-        if ($global:octo.outputFormat -eq "XLSX") {
+        if ($global:octo.userConfig.outputFormat -eq "XLSX") {
             $lock = New-ReportFileLock
         }        
         $maxRetries = 60
@@ -24,7 +24,7 @@ function Export-WithRetry {
         while ($attempts -lt $maxRetries) {
             $attempts++
             try {
-                switch ($global:octo.outputFormat) {
+                switch ($global:octo.userConfig.outputFormat) {
                     "XLSX" { $data | Export-Excel -NoNumberConversion "Module version" -Path $targetPath -WorksheetName $($category) -TableName $($category) -TableStyle Medium10 -Append -AutoSize }
                     "CSV" { $data | Export-Csv -Path $targetPath -NoTypeInformation -Append }
                 }
@@ -43,7 +43,7 @@ function Export-WithRetry {
         Write-Error $_ -ErrorAction Continue
         Write-Error "Failed to write to $targetPath" -ErrorAction Stop
     } finally {
-        if ($global:octo.outputFormat -eq "XLSX") {
+        if ($global:octo.userConfig.outputFormat -eq "XLSX") {
             Remove-ReportFileLock -lock $lock
         }
     }

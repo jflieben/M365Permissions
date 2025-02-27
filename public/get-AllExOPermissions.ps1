@@ -16,7 +16,7 @@
     $activity = "Scanning Exchange Online"
 
     if($includeFolderLevelPermissions){
-        Write-Host "Including folder level permissions, this will lengthen the scan duration significantly" -ForegroundColor Yellow
+        Write-Host "Including folder level permissions, this will lengthen the scan duration significantly"
     }
 
     Write-Progress -Id 1 -PercentComplete 1 -Activity $activity -Status "Scanning roles..."
@@ -34,5 +34,6 @@
         }
     }
     Start-ScanJobs -Title $activity
+    $global:octo.recipients = $Null
     Write-Progress -Id 1 -Completed -Activity $activity
 }

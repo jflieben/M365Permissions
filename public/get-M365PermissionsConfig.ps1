@@ -22,11 +22,25 @@
         $preferredConfig = Get-Content -Path $configLocation | ConvertFrom-Json -AsHashtable
     }
 
-    Write-Host "The following has been configured for M365Permissions by you:"
+    $output = @()
 
     foreach($key in $preferredConfig.Keys){
-        Write-Host "$($key): $($preferredConfig[$key])"
+        $output += [PSCustomObject]@{
+            "Option" = $key
+            "Value" = $preferredConfig.$key
+            "IsDefault" = $false
+        }
     }
 
-    Write-Host "End of configuration."
+
+    foreach($key in $global:octo.userConfig.Keys){
+        if($Null -eq $preferredConfig.$key){
+            $output += [PSCustomObject]@{
+                "Option" = $key
+                "Value" = $global:octo.userConfig[$key]
+                "IsDefault" = $true
+            }
+        }
+    }
+    return $output
 }

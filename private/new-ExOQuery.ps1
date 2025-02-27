@@ -82,6 +82,5 @@ function New-ExOQuery {
     }until($null -eq $nextURL)
 
     [System.GC]::GetTotalMemory($true) | out-null
-    [System.GC]::Collect()
     return $ReturnedData
 }

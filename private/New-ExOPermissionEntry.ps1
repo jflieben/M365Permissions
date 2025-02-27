@@ -17,7 +17,7 @@ Function New-ExOPermissionEntry{
         [Parameter(Mandatory=$true)]$kind
     )
 
-    if($global:octo.currentUser.userPrincipalName -eq $principalUpn -and !$global:octo.includeCurrentUser){
+    if($global:octo.currentUser.userPrincipalName -eq $principalUpn -and !$global:octo.userConfig.includeCurrentUser){
         Write-Verbose "Skipping permission $($role) scoped at $path for $($principalUpn) as it is the auditor account"
         return $Null
     }

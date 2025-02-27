@@ -98,6 +98,7 @@
 
     Add-ToReportQueue -permissions $permissionRows -category "ExoRoles" -statistics @($global:unifiedStatistics."ExoRoles"."AdminRoles") 
     Remove-Variable -Name permissionRows -Force -Confirm:$False
+    Remove-Variable -Name ExOPermissions -Scope Global -Force -Confirm:$False
     Reset-ReportQueue
     Write-Progress -Id 2 -Completed -Activity "Scanning Exchange Roles"
 }

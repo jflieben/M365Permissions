@@ -75,9 +75,9 @@
     foreach($configurable in $defaultConfig.GetEnumerator()){
         if($Null -ne $preferredConfig.$($configurable.Name)){
             Write-Verbose "Loaded $($configurable.Key) ($($preferredConfig.$($configurable.Name))) from persisted settings in $configLocation"
-            $global:octo.$($configurable.Name) = $preferredConfig.$($configurable.Name)
+            $global:octo.userConfig.$($configurable.Name) = $preferredConfig.$($configurable.Name)
         }else{
-            $global:octo.$($configurable.Name) = $configurable.Value
+            $global:octo.userConfig.$($configurable.Name) = $configurable.Value
         }
     }
 
@@ -87,12 +87,12 @@
     }
 
     #override output folder with actual path
-    if($global:octo.outputFolder -eq "CURRENTFOLDER"){
-        $global:octo.outputFolder = Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy"
+    if($global:octo.userConfig.outputFolder -eq "CURRENTFOLDER"){
+        $global:octo.userConfig.outputFolder = Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy"
     }
 
     #configure a temp folder specific for this run
-    $global:octo.outputTempFolder = Join-Path -Path $global:octo.outputFolder -ChildPath "Temp$((Get-Date).ToString("yyyyMMddHHmm"))"
+    $global:octo.outputTempFolder = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "Temp$((Get-Date).ToString("yyyyMMddHHmm"))"
 
     #run verbose log to file if verbose is on
     if($global:VerbosePreference -eq "Continue"){

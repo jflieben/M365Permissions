@@ -18,7 +18,7 @@ Function New-PBIPermissionEntry{
         [Parameter(Mandatory=$false)]$modified="Unknown"
     )
 
-    if($global:octo.currentUser.userPrincipalName -eq $principalUpn -and !$global:octo.includeCurrentUser){
+    if($global:octo.currentUser.userPrincipalName -eq $principalUpn -and !$global:octo.userConfig.includeCurrentUser){
         Write-Verbose "Skipping permission $($roleDefinitionName) scoped at $path for $($principalUpn) as it is the auditor account"
         return $Null
     }

@@ -56,7 +56,7 @@
     Please note that this module is provided AS-IS, no guarantees or warranties provided. Use at your own risk."
 
     # Minimum version of the Windows PowerShell engine required by this module
-    PowerShellVersion    = '7.4'
+    PowerShellVersion    = '7.2'
 
     # Modules that must be imported into the global environment prior to importing this module
     RequiredModules      = @(
