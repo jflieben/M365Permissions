@@ -23,30 +23,10 @@ Function Get-PnPGroupMembers{
     }
 
     try{$groupGuid = $Null; $groupGuid = $group.LoginName.Split("|")[2].Split("_")[0]}catch{$groupGuid = $Null}
-    if($group.LoginName.Split("|")[0] -eq "c:0(.s"){
-        Write-Verbose "Found $($group.Title) special group"
-        $global:octo.PnPGroupCache.$($group.Title) += [PSCustomObject]@{
-            "Title" = $group.Title
-            "LoginName" = $group.LoginName
-            "PrincipalType" = "ANYONE"
-            "Email" = "N/A"
-        }
-    }elseif($group.LoginName.Split("|")[0] -eq "c:0-.f"){
-        Write-Verbose "Found $($group.Title) special group"
-        $global:octo.PnPGroupCache.$($group.Title) += [PSCustomObject]@{
-            "Title" = $group.Title
-            "LoginName" = $group.LoginName
-            "PrincipalType" = "ORG-WIDE"
-            "Email" = "N/A"
-        }
-    }elseif($group.LoginName.Split("|")[0] -eq "c:0t.c"){
-        Write-Verbose "Found $($group.Title) special group (global administrators)"
-        $global:octo.PnPGroupCache.$($group.Title) += [PSCustomObject]@{
-            "Title" = $group.Title
-            "LoginName" = $group.LoginName
-            "PrincipalType" = "Role"
-            "Email" = "N/A"
-        }
+
+    $harmonizedMember = $Null; $harmonizedMember = Get-SpOHarmonizedEntity -entity $group
+    if($harmonizedMember){
+        $global:octo.PnPGroupCache.$($group.Title) += $harmonizedMember
     }elseif($groupGuid -and [guid]::TryParse($groupGuid, $([ref][guid]::Empty))){
         try{
             $graphMembers = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/groups/$groupGuid/transitiveMembers" -Method GET -ErrorAction Stop | Where-Object { $_."@odata.type" -eq "#microsoft.graph.user" }
@@ -78,26 +58,12 @@ Function Get-PnPGroupMembers{
         }
         foreach($member in $members){   
             $groupGuid = $Null; try{$groupGuid = $member.LoginName.Split("|")[2].Split("_")[0]}catch{$groupGuid = $Null}
-            if($member.LoginName -like "*spo-grid-all-users*"){
-                Write-Verbose "Found $($member.Title) special group"
-                $global:octo.PnPGroupCache.$($group.Title) += [PSCustomObject]@{
-                    "Title" = $member.Title
-                    "LoginName" = $member.LoginName
-                    "PrincipalType" = "ORG-WIDE"
-                    "Email" = "N/A"
-                }                
+            $harmonizedMember = $Null; $harmonizedMember = Get-SpOHarmonizedEntity -entity $member
+            if($harmonizedMember){
+                $global:octo.PnPGroupCache.$($group.Title) += $harmonizedMember
                 continue
             }
-            if($member.LoginName -eq "c:0(.s|true"){
-                Write-Verbose "Found $($member.Title) special group"
-                $global:octo.PnPGroupCache.$($group.Title) += [PSCustomObject]@{
-                    "Title" = $member.Title
-                    "LoginName" = $member.LoginName
-                    "PrincipalType" = "ANYONE"
-                    "Email" = "N/A"
-                }      
-                continue
-            }
+
             if($groupGuid -and [guid]::TryParse($groupGuid, $([ref][guid]::Empty))){
                 try{
                     $graphMembers = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/groups/$groupGuid/transitiveMembers" -Method GET -ErrorAction Stop | Where-Object { $_."@odata.type" -eq "#microsoft.graph.user" }

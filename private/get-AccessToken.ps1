@@ -9,6 +9,10 @@ function get-AccessToken{
         [Switch]$returnHeader
     )   
 
+    if($Null -eq $global:octo.userConfig.authMode){
+        Throw "Failed to determine authentication mode, please run connect-M365 first!"
+    }
+
     if(!$global:octo.LCRefreshToken){
         if($global:octo.userConfig.authMode -eq "Delegated"){
             get-AuthorizationCode

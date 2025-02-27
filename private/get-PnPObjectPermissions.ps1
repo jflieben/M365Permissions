@@ -90,9 +90,9 @@ Function get-PnPObjectPermissions{
                 Write-Verbose "Ignoring $($permission.Name) permission type for $($member.Member.Title) because it is only relevant at a deeper level or hidden"
                 continue
             }
-            if($member.Member.PrincipalType -eq 1){
+            if($member.Member.PrincipalType -eq 1){ #users
                 New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity $member.Member -object $obj -permission $permission.Name -Through "DirectAssignment")
-            }else{
+            }else{ #groups
                 if($member.Member.LoginName -like "SharingLinks*"){
                     $sharingLinkInfo = $Null; $sharingLinkInfo = get-SpOSharingLinkInfo -sharingLinkGuid $member.Member.LoginName.Split(".")[3]
                     if($sharingLinkInfo){
