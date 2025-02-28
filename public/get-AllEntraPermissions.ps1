@@ -6,23 +6,41 @@
         
         Parameters:
         -expandGroups: if set, group memberships will be expanded to individual users
-        -excludeGroupsAndUsers: exclude group and user memberships from the report, only show role assignments
     #>        
     Param(
         [Switch]$expandGroups,
-        [Switch]$excludeGroupsAndUsers,
         [Switch]$skipReportGeneration
     )
 
     Write-LogMessage -message "Starting Entra scan..." -level 4
-    $global:EntraPermissions = @{}
-    New-StatisticsObject -category "Entra" -subject "Roles"    
 
-    if(!$excludeGroupsAndUsers){
-        get-AllEntraUsersAndGroups
-        [System.GC]::GetTotalMemory($true) | out-null
-        Reset-ReportQueue   
-    }    
+    New-StatisticsObject -category "GroupsAndMembers" -subject "Entities"
+    Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Entra ID" -Status "Getting users and groups" 
+
+    $userCount = (New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/users?$top=1' -Method GET -ComplexFilter -nopagination)."@odata.count"
+    Write-LogMessage -message "Retrieving metadata for $userCount users..."
+    Write-Progress -Id 1 -PercentComplete 1 -Activity "Scanning Entra ID" -Status "Getting users and groups" 
+
+    $allUsers = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/users?$select=id,userPrincipalName,displayName' -Method GET
+    Write-LogMessage -message "Got metadata for $userCount users"
+
+    $activity = "Entra ID users"
+    for ($i = 0; $i -lt $allUsers.Count; $i += 100) {
+        New-ScanJob -Title $activity -Target "users_$($i)_$($userCount)" -FunctionToRun "get-EntraUsersAndGroupsBatch" -FunctionArguments @{
+            "entraUsers" = ($allUsers[$i..([math]::Min($i + 99, $allUsers.Count - 1))])
+        }        
+    }
+
+    Update-StatisticsObject -category "GroupsAndMembers" -subject "Entities" -Amount $allUsers.Count
+    Stop-StatisticsObject -category "GroupsAndMembers" -subject "Entities"
+
+    Start-ScanJobs -Title $activity
+    Remove-Variable -name allUsers -Force -Confirm:$False
+
+    [System.GC]::GetTotalMemory($true) | out-null
+
+    $global:EntraPermissions = @{}
+    New-StatisticsObject -category "Entra" -subject "Roles"  
 
     Write-Progress -Id 1 -PercentComplete 5 -Activity "Scanning Entra ID" -Status "Retrieving role definitions"
 
