@@ -4,7 +4,7 @@ function Export-WithRetry {
         [parameter(Mandatory = $true)][object]$data
     )
 
-    $basePath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions_$((Get-Date).ToString("yyyyMMdd")).@@@"
+    $basePath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions_$($global:octo.sessionIdentifier).@@@"
 
     switch ($global:octo.userConfig.outputFormat) {
         "XLSX" { 

@@ -127,7 +127,7 @@
 
     Write-LogMessage -message ""
 
-    $targetPath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions_delta.xlsx"
+    $targetPath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions_$($global:octo.sessionIdentifier)_delta.xlsx"
     foreach($tab in $diffResults.GetEnumerator().Name){
         if($diffResults.$($tab).count -eq 0){
             continue

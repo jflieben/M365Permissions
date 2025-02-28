@@ -14,10 +14,11 @@
 
     .ROADMAP
     1.1.x Dynamically add entra groups and users while scanning other resources
+    1.1.x Save entra groups/users in batches and use parallelization
     1.1.x Staging of permissions for tenants without all resource categories and auto-setup of permissions
     1.1.x check defender xdr options 
     1.1.x Assess if Azure RM should be added or if a good open source tool already exists
-    1.1.x Assess SQL or PBI as data destinations                                                                                                                                                                                                                                            
+    1.1.x Assess SQL or PBI as data destinations                                                                                                                                                                                                                                      
 #>                                                                                                                                              
 
 $helperFunctions = @{
@@ -47,7 +48,7 @@ if(!$global:octo){
     $global:octo.PnPGroupCache = @{}
     $global:octo.LCRefreshToken = $Null
     $global:octo.LCCachedTokens = @{}
-    $global:octo.isConnected = $False
+    $global:octo.connection = "Pending"
 
     if ([Environment]::GetCommandLineArgs().Contains('-NonInteractive') -or $False -eq [System.Environment]::UserInteractive) {
         $global:octo.interactiveMode=$false
@@ -71,10 +72,10 @@ if(!$global:octo){
     $global:runspacePool.ApartmentState = "STA"
     $global:runspacepool.Open() 
     
-    write-host "----------------------------------"
+    Write-Host "----------------------------------"
     Write-Host "Welcome to M365Permissions v$($global:octo.moduleVersion)!"
     Write-Host "Visit https://www.lieben.nu/liebensraum/m365permissions/ for documentation"
-    write-host "----------------------------------"
+    Write-Host "----------------------------------"
     Write-Host ""
 
     if($global:octo.userConfig.autoConnect -eq $true){

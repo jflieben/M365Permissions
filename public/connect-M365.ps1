@@ -58,6 +58,7 @@
             $global:octo.currentUser = Get-CurrentUser
             $global:octo.OnMicrosoft = (New-GraphQuery -Method GET -Uri 'https://graph.microsoft.com/v1.0/domains?$top=999' | Where-Object -Property isInitial -EQ $true).id 
             $global:octo.tenantName = $($global:octo.OnMicrosoft).Split(".")[0]
+            $global:octo.sessionIdentifier = "$($global:octo.tenantName)_$((Get-Date).ToString("yyyyMMdd"))"
             $global:octo.connection = "Connected"
         }catch{
             Throw $_
