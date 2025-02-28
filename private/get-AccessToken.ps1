@@ -63,8 +63,6 @@ function get-AccessToken{
         }else{
             Write-Error "Failed to retrieve access and/or refresh token! Please reload PowerShell / this module to refresh or google this error: $_" -ErrorAction Stop
         }
-    }else{
-        Write-LogMessage -level 5 -message "Token cache hit, using cached token :)"
     }
 
     if($returnHeader){

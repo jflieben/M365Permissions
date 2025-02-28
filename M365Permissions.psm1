@@ -87,3 +87,18 @@ if(!$global:octo){
         Write-Host ""
     }
 }
+
+#automatically block display of progress bars in non-interactive mode
+if(!$global:octo.interactiveMode){
+    $ProgressPreference -eq "SilentlyContinue"
+}
+
+if($global:octo.userConfig.logLevel -eq "Full"){
+    $global:VerbosePreference = "Continue"
+    $global:InformationPreference = "Continue"
+    $global:DebugPreference = "Continue"
+}else{
+    $global:VerbosePreference = "SilentlyContinue"
+    $global:InformationPreference = "SilentlyContinue"
+    $global:DebugPreference = "SilentlyContinue"
+}
