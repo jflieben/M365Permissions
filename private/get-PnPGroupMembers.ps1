@@ -10,7 +10,7 @@ Function Get-PnPGroupMembers{
         [Parameter(Mandatory=$true)]$siteConn
     )
 
-    Write-Verbose "Getting members for group $($group.Title)"
+    Write-LogMessage -level 5 -message "Getting members for group $($group.Title)"
 
     if($Null -eq $global:octo.PnPGroupCache){
         $global:octo.PnPGroupCache = @{}
@@ -41,7 +41,7 @@ Function Get-PnPGroupMembers{
         }
         foreach($graphMember in $graphMembers){
             if(!($global:octo.PnPGroupCache.$($group.Title).LoginName | Where-Object {$_ -and $_.EndsWith($graphMember.userPrincipalName)})){
-                Write-Verbose "Found $($graphMember.displayName) in graph group"
+                Write-LogMessage -level 5 -message "Found $($graphMember.displayName) in graph group"
                 $global:octo.PnPGroupCache.$($group.Title) += [PSCustomObject]@{
                     "Title" = $graphMember.displayName
                     "LoginName" = "i:0#.f|membership|$($graphMember.userPrincipalName)"
@@ -78,7 +78,7 @@ Function Get-PnPGroupMembers{
                 }
                 foreach($graphMember in $graphMembers){
                     if(!($global:octo.PnPGroupCache.$($group.Title).LoginName | Where-Object {$_ -and $_.EndsWith($graphMember.userPrincipalName)})){
-                        Write-Verbose "Found $($graphMember.displayName) in graph group"
+                        Write-LogMessage -level 5 -message "Found $($graphMember.displayName) in graph group"
                         $global:octo.PnPGroupCache.$($group.Title) += [PSCustomObject]@{
                             "Title" = $graphMember.displayName
                             "LoginName" = "i:0#.f|membership|$($graphMember.userPrincipalName)"
@@ -91,7 +91,7 @@ Function Get-PnPGroupMembers{
             }
             if($member.Id -ne $parentId){
                 if($member.PrincipalType -eq "User" -and $global:octo.PnPGroupCache.$($group.Title) -notcontains $member){
-                    Write-Verbose "Found $($member.Title) in sec group"
+                    Write-LogMessage -level 5 -message "Found $($member.Title) in sec group"
                     $global:octo.PnPGroupCache.$($group.Title) += $member
                     continue
                 }
@@ -99,7 +99,7 @@ Function Get-PnPGroupMembers{
                     $subMembers = Get-PnPGroupMembers -name $member.Title -parentId $member.Id -siteConn $siteConn
                     foreach($subMember in $subMembers){
                         if($global:octo.PnPGroupCache.$($group.Title) -notcontains $subMember){
-                            Write-Verbose "Found $($subMember.Title) in sub sec group"
+                            Write-LogMessage -level 5 -message "Found $($subMember.Title) in sub sec group"
                             $global:octo.PnPGroupCache.$($group.Title) += $subMember
                         }
                     }

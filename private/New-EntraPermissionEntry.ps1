@@ -20,7 +20,7 @@ Function New-EntraPermissionEntry{
     )
 
     if($global:octo.currentUser.userPrincipalName -eq $principalUpn -and !$global:octo.userConfig.includeCurrentUser){
-        Write-Verbose "Skipping permission $($roleDefinitionName) scoped at $path for $($principalUpn) as it is the auditor account"
+        Write-LogMessage -level 5 -message "Skipping permission $($roleDefinitionName) scoped at $path for $($principalUpn) as it is the auditor account"
         return $Null
     }
 
@@ -28,7 +28,7 @@ Function New-EntraPermissionEntry{
         $roleDefinitionName = "Legacy Role"
     }
 
-    Write-Verbose "Adding permission $($roleDefinitionName) scoped at $path for $($principalUpn)"
+    Write-LogMessage -level 5 -message "Adding permission $($roleDefinitionName) scoped at $path for $($principalUpn)"
     if(!$global:EntraPermissions.$path){
         $global:EntraPermissions.$path = @()
     }

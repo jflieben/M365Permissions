@@ -1,10 +1,10 @@
 function Reset-ReportQueue{
-    Write-Verbose "Start Flushing report queue to report file...."
+    Write-LogMessage -level 5 -message "Start Flushing report queue to report file...."
     
     $dataBatch = @()
     $queuedFiles = Get-ChildItem -Path $global:octo.outputTempFolder -Filter "*.xml"
     if($queuedFiles.Count -gt 0){
-        Write-Verbose "Reading batch of $($queuedFiles.Count) reports from $($global:octo.outputTempFolder)..."
+        Write-LogMessage -level 5 -message "Reading batch of $($queuedFiles.Count) reports from $($global:octo.outputTempFolder)..."
         foreach($queuedFile in $queuedFiles){
             $dataBatch += Import-Clixml -Path $queuedFile.FullName
             Remove-Item -Path $queuedFile.FullName -Force
@@ -24,7 +24,7 @@ function Reset-ReportQueue{
             }
         }   
     }else{
-        Write-Verbose "No reports to write to report file..."
+        Write-LogMessage -level 5 -message "No reports to write to report file..."
     }
     [System.GC]::GetTotalMemory($true) | out-null  
 }

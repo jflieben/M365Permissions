@@ -22,7 +22,6 @@
         [String]$outputFolder,
         [ValidateSet('XLSX','CSV')]
         [String]$outputFormat,
-        [Boolean]$Verbose,
         [Boolean]$includeCurrentUser,
         [Int]$defaultTimeoutMinutes,
         [Int]$maxJobRetries,
@@ -30,14 +29,15 @@
         [String]$LCClientId,
         [String]$LCTenantId,
         [ValidateSet('Delegated','ServicePrincipal','ManagedIdentity')]	
-        [String]$authMode
+        [String]$authMode,
+        [ValidateSet('Full','Normal','Minimal','None')]	
+        [String]$logLevel    
     )
 
     $defaultConfig = @{
         "maxThreads" = [Int]5
         "outputFolder" = [String]"CURRENTFOLDER"
         "outputFormat" = [String]"XLSX"
-        "Verbose" = [Boolean]$false
         "includeCurrentUser" = [Boolean]$false
         "defaultTimeoutMinutes" = [Int]120
         "maxJobRetries" = [Int]3
@@ -45,6 +45,7 @@
         "LCClientId" = [String]$Null
         "LCTenantId" = [String]$Null
         "authMode" = [String]"Delegated"
+        "logLevel" = [String]"Minimal"
     }
 
     $configLocation = Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy\M365Permissions.conf"
@@ -55,10 +56,14 @@
     }
 
     #ensure verbose preferences are set in all child processes
-    if($True -eq $Verbose -or $True -eq $preferredConfig.Verbose){
+    if($logLevel  -eq "Full" -or $preferredConfig.logLevel -eq "Full"){
         $global:VerbosePreference = "Continue"
+        $global:InformationPreference = "Continue"
+        $global:DebugPreference = "Continue"
     }else{
         $global:VerbosePreference = "SilentlyContinue"
+        $global:InformationPreference = "SilentlyContinue"
+        $global:DebugPreference = "SilentlyContinue"
     }
 
     #override cached config with any passed in parameters (and only those we explicitly defined in the default config options)
@@ -66,7 +71,7 @@
     foreach($passedParam in $PSBoundParameters.GetEnumerator()){
         if($defaultConfig.ContainsKey($passedParam.Key)){
             $preferredConfig.$($passedParam.Key) = $passedParam.Value
-            Write-Verbose "Persisted $($passedParam.Key) to $($passedParam.Value) for your account"
+            Write-LogMessage -level 5 -message "Persisted $($passedParam.Key) to $($passedParam.Value) for your account"
             $updateConfigFile = $true
         }
     }
@@ -74,7 +79,7 @@
     #set global vars based on customization and/or defaults
     foreach($configurable in $defaultConfig.GetEnumerator()){
         if($Null -ne $preferredConfig.$($configurable.Name)){
-            Write-Verbose "Loaded $($configurable.Key) ($($preferredConfig.$($configurable.Name))) from persisted settings in $configLocation"
+            Write-LogMessage -level 5 -message "Loaded $($configurable.Key) ($($preferredConfig.$($configurable.Name))) from persisted settings in $configLocation"
             $global:octo.userConfig.$($configurable.Name) = $preferredConfig.$($configurable.Name)
         }else{
             $global:octo.userConfig.$($configurable.Name) = $configurable.Value
@@ -97,7 +102,7 @@
     #run verbose log to file if verbose is on
     if($global:VerbosePreference -eq "Continue"){
         try{Start-Transcript -Path $(Join-Path -Path $global:octo.outputTempFolder -ChildPath "M365PermissionsVerbose.log") -Force -Confirm:$False}catch{
-            Write-Verbose "Transcript already running"
+            Write-LogMessage -level 5 -message "Transcript already running"
         }
     }
 }

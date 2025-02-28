@@ -12,7 +12,7 @@
         [Switch]$expandGroups
     )
 
-    Write-Host "Starting Exo role scan..."
+    Write-LogMessage -message "Starting Exo role scan..." -level 4
     
     Write-Progress -Id 2 -PercentComplete 0 -Activity "Scanning Exchange Roles" -Status "Retrieving all role assignments"
     $global:ExOPermissions = @{}

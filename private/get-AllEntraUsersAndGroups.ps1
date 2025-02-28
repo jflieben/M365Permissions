@@ -9,13 +9,13 @@ function get-AllEntraUsersAndGroups {
     Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Entra ID" -Status "Getting users and groups" 
 
     $userCount = (New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/users?$top=1' -Method GET -ComplexFilter -nopagination)."@odata.count"
-    Write-Host "Retrieving metadata for $userCount users..."
+    Write-LogMessage -message "Retrieving metadata for $userCount users..."
     Write-Progress -Id 1 -PercentComplete 1 -Activity "Scanning Entra ID" -Status "Getting users and groups" 
 
     $allUsersAndOwnedObjects = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/users?$select=id,userPrincipalName,displayName&$expand=ownedObjects' -Method GET
-    Write-Host "Got ownership metadata"
+    Write-LogMessage -message "Got ownership metadata"
     $allUsersAndTheirGroups = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/users?$select=id,userPrincipalName,displayName&$expand=transitiveMemberOf/microsoft.graph.group' -Method GET
-    Write-Host "Got group membership metadata"
+    Write-LogMessage -message "Got group membership metadata"
 
     [System.GC]::GetTotalMemory($true) | out-null
 

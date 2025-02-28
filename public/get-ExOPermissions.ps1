@@ -31,10 +31,9 @@
     
     New-StatisticsObject -category "ExoRecipients" -subject $recipient.displayName
 
-    $ignoredFolderTypes = @("RecoverableItemsSubstrateHolds","RecoverableItemsPurges","RecoverableItemsVersions","RecoverableItemsDeletions","RecoverableItemsDiscoveryHolds","Audits","CalendarLogging","RecoverableItemsRoot","SyncIssues","Conflicts","LocalFailures","ServerFailures")
     Update-StatisticsObject -category "ExoRecipients" -subject $recipient.displayName
     if(!$recipient.PrimarySmtpAddress){
-        Write-Warning "skipping $($recipient.identity) as it has no primary smtp address"
+        Write-LogMessage -level 2 -message "skipping $($recipient.identity) as it has no primary smtp address"
         return $Null
     }
     
@@ -91,22 +90,25 @@
             try{
                 $folders = $Null; $folders = New-ExOQuery -cmdlet "Get-MailboxFolderStatistics" -cmdParams @{"ResultSize"="unlimited";"Identity"= $mailbox.UserPrincipalName}
             }catch{
-                Write-Warning "Failed to retrieve folder list for $($mailbox.UserPrincipalName)"
+                Write-LogMessage -level 2 -message "Failed to retrieve folder list for $($mailbox.UserPrincipalName)"
             }      
 
+            $ignoredFolderTypes = @("PersonMetadata","ConversationActions","RecipientCache","RecoverableItemsSubstrateHolds","RecoverableItemsPurges","RecoverableItemsVersions","RecoverableItemsDeletions","RecoverableItemsDiscoveryHolds","Audits","CalendarLogging","RecoverableItemsRoot","SyncIssues","Conflicts","LocalFailures","ServerFailures")
+            $ignoredFolderNames = @("SearchDiscoveryHoldsFolder")
             $folderCounter = 0
             foreach($folder in $folders){
                 Update-StatisticsObject -category "ExoRecipients" -subject $recipient.displayName
                 $folderCounter++
                 Write-Progress -Id 3 -PercentComplete (($folderCounter/$folders.Count)*100) -Activity "Scanning folders $($recipient.Identity)" -Status "Examining $($folder.Name) ($($folderCounter) of $($folders.Count))"
-                if($ignoredFolderTypes -contains $folder.FolderType -or $folder.Name -in @("SearchDiscoveryHoldsFolder")){
-                    Write-Verbose "Ignoring folder $($folder.Name) as it is in the ignored list"
+                if($ignoredFolderTypes -contains $folder.FolderType -or $ignoredFolderNames -contains $folder.Name){
+                    Write-LogMessage -level 5 -message "Ignoring folder $($folder.Name) as it is in the ignored list"
                     continue
                 }
                 if($folder.ItemsInFolder -lt 1){
-                    Write-Verbose "Ignoring folder $($folder.Name) as it is empty"
+                    Write-LogMessage -level 5 -message "Ignoring folder $($folder.Name) as it is empty"
                     continue
-                }                
+                }           
+                
                 try{
                     $folderPermissions = $Null; $folderPermissions = New-ExoQuery -cmdlet "Get-MailboxFolderPermission" -cmdParams @{Identity = "$($mailbox.UserPrincipalName):$($folder.FolderId)"}
                     foreach($folderPermission in $folderPermissions){
@@ -115,7 +117,7 @@
                             $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.DisplayName -eq $folderPermission.User})[0] 
                         }
                         if($entity -and $entity.Identity -eq $recipient.Identity){
-                            Write-Verbose "Skipping permission $($folderPermission.AccessRights) scoped at $($mailbox.UserPrincipalName)$($folder.FolderPath) for $($recipient.Identity) as it is the owner"
+                            Write-LogMessage -level 5 -message "Skipping permission $($folderPermission.AccessRights) scoped at $($mailbox.UserPrincipalName)$($folder.FolderPath) for $($recipient.Identity) as it is the owner"
                             continue
                         }
                         #handle external permissions for e.g. calendars
@@ -144,7 +146,7 @@
                         }
                     }
                 }catch{
-                    Write-Warning "Failed to retrieve folder permissions for $($mailbox.UserPrincipalName)$($folder.FolderPath)"
+                    Write-LogMessage -level 2 -message "Failed to retrieve folder permissions for $($mailbox.UserPrincipalName)$($folder.FolderPath)"
                 }
             }
             Write-Progress -Id 3 -Completed -Activity "Scanning folders $($recipient.Identity)"

@@ -11,7 +11,10 @@ function New-RetryCommand {
         [int]$MaxNumberOfRetries = 5,
 
         [Parameter(Mandatory = $false)]
-        [int]$RetryDelayInSeconds = 30
+        [int]$RetryDelayInSeconds = 30,
+
+        [Parameter(Mandatory = $false)]
+        [String[]]$ignoreableErrors
     )
 
     $RetryCommand = $true
@@ -24,12 +27,20 @@ function New-RetryCommand {
             $RetryCommand = $false
         }catch {
             if ($RetryCount -le $MaxNumberOfRetries) {
-                Write-Verbose "$Command failed, retrying in $($RetryDelayInSeconds * $RetryMultiplier) seconds..."
+                if($ignoreableErrors){
+                    foreach($ignoreableError in $ignoreableErrors){
+                        if($_ -like "*$ignoreableError*"){
+                            Write-Verbose "Ignoring error: $($_)"
+                            throw $_
+                        }
+                    }
+                }
+                Write-LogMessage -level 5 -message "$Command failed, retrying in $($RetryDelayInSeconds * $RetryMultiplier) seconds..."
                 Start-Sleep -Seconds ($RetryDelayInSeconds * $RetryMultiplier)
                 $RetryMultiplier *= 1.2
                 $RetryCount++
             }else {
-                Write-Verbose "$Command failed permanently after $RetryCount attempts"
+                Write-LogMessage -level 5 -message "$Command failed permanently after $RetryCount attempts"
                 throw $_
             }
         }

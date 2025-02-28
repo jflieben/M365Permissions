@@ -34,7 +34,7 @@
         }
     }
 
-    Write-Host "Starting PowerBI scan..."
+    Write-LogMessage -message "Starting PowerBI scan..." -level 4
     New-StatisticsObject -category "PowerBI" -subject "Securables"
     Write-Progress -Id 1 -PercentComplete 0 -Activity $activity -Status "Retrieving workspaces..."
 
@@ -53,7 +53,7 @@
     for($i=0;$i -lt $workspaceParts;$i++){
         $body = @{"workspaces" = $workspaces.id[($i*100)..($i*100+99)]} | ConvertTo-Json
         if($i/16 -eq 1){
-            Write-Host "Sleeping for 60 seconds to prevent throttling..."
+            Write-LogMessage -message "Sleeping for 60 seconds to prevent throttling..." -level 4
             Start-Sleep -Seconds 60
         }
         $scanJobs += New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/workspaces/getInfo?datasourceDetails=True&getArtifactUsers=True" -Method POST -Body $body -resource "https://api.fabric.microsoft.com"
@@ -75,7 +75,7 @@
                                 New-PBIPermissionEntry -path "/gateways/$($gateways[$g].type)/$($gateways[$g].id)" -type "Gateway" -principalId $groupMember.id -principalName $groupMember.displayName -principalUpn $groupMember.userPrincipalName -principalType $groupmember.principalType -roleDefinitionName $user.role -through "Group" -parent $user.id
                             }                        
                         }catch{
-                            Write-Warning "Failed to retrieve group members for $($user.id), adding as group principal type instead"
+                            Write-LogMessage -level 2 -message "Failed to retrieve group members for $($user.id), adding as group principal type instead"
                         }
                     }
                     if(!$groupMembers){
@@ -102,7 +102,7 @@
 
         Write-Progress -Id 2 -Completed -Activity "Analyzing gateways..."
     }else{
-        Write-Warning "Skipping gateway analysis, this function requires delegated authentication mode"
+        Write-LogMessage -level 2 -message "Skipping gateway analysis, this function requires delegated authentication mode"
     }
 
     Write-Progress -Id 1 -PercentComplete 15 -Activity $activity -Status "Waiting for scan jobs to complete..."
@@ -110,11 +110,11 @@
         do{
             $res = New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/workspaces/scanStatus/$($scanJob.id)" -Method GET -resource "https://api.fabric.microsoft.com"
             if($res.status -ne "Succeeded"){
-                Write-Host "Scan job $($scanJob.id) status $($res.status), sleeping for 30 seconds..."
+                Write-LogMessage -message "Scan job $($scanJob.id) status $($res.status), sleeping for 30 seconds..." -level 4
                 Start-Sleep -Seconds 30
             }
         }until($res.status -eq "Succeeded")
-        Write-Host "Scan job $($scanJob.id) completed"
+        Write-LogMessage -message "Scan job $($scanJob.id) completed" -level 4
     }
 
     Write-Progress -Id 1 -PercentComplete 25 -Activity $activity -Status "Receiving scan job results..."
@@ -168,7 +168,7 @@
                                     New-PBIPermissionEntry -path "/workspaces/$($scanResults[$s].name)/$secureableType/$($secureable.name)" -type $secureableTypes.$secureableType.Type -principalId $groupMember.id -principalName $groupMember.displayName -principalUpn $groupMember.userPrincipalName -principalType $groupmember.principalType -roleDefinitionName $user.$($secureableTypes.$secureableType.UserAccessRightProperty) -through "Group" -parent $user.graphId -created $created -modified $modified
                                 }                                
                             }catch{
-                                Write-Warning "Failed to retrieve group members for $($user.displayName), adding as group principal type instead"
+                                Write-LogMessage -level 2 -message "Failed to retrieve group members for $($user.displayName), adding as group principal type instead"
                             }                          
                         }
                         if(!$groupMembers){

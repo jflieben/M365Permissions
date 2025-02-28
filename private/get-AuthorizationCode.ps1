@@ -4,6 +4,9 @@ function get-AuthorizationCode{
         CompanyName          = "Lieben Consultancy"
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
     #>        
+    Param(
+        [Switch]$reConsent
+    )
 
     $tcpListener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, 1985)
     $tcpListener.Start()
@@ -18,17 +21,19 @@ function get-AuthorizationCode{
         if(([System.Version]::Parse((Get-Content -Path $cachedModuleVersion -Raw)) -lt [System.Version]::Parse($global:octo.moduleVersion))){
             Set-Content -Path $cachedModuleVersion -Value $global:octo.moduleVersion -Force
         }else{
-            $adminPrompt = $Null
+            if(!$reConsent){
+                $adminPrompt = $Null
+            }
         }
     }
 
     $targetUrl = "https://login.microsoftonline.com/common/oauth2/authorize?client_id=$($global:octo.userConfig.LCClientId)&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A1985&response_mode=query&resource=https://graph.microsoft.com$($adminPrompt)"
 
     try{
-        Write-Verbose "Opening $targetUrl in your browser..."
+        Write-LogMessage -level 5 -message "Opening $targetUrl in your browser..."
         Start-Process $targetUrl
     }catch{
-        Write-Host "Failed to open your browser, please go to $targetUrl"
+        Write-LogMessage -message "Failed to open your browser, please go to $targetUrl"
     }
 
     $client = $tcpListener.AcceptTcpClient()
@@ -36,7 +41,7 @@ function get-AuthorizationCode{
     $stream = $client.GetStream();$reader = New-Object System.IO.StreamReader($stream);$writer = New-Object System.IO.StreamWriter($stream);$requestLine = $reader.ReadLine()
     Start-Sleep -s 1
     if($requestLine.Split("?")[1].StartsWith("code")){
-        Write-Verbose "Authorization code received, retrieving refresh token..."
+        Write-LogMessage -level 5 -message "Authorization code received, retrieving refresh token..."
         $code = $requestLine.Split("?")[1].Split("=")[1].Split("&")[0]
     }else{
         Throw "Failed to receive auth code, please try again"
@@ -63,5 +68,5 @@ function get-AuthorizationCode{
     #retrieve the refresh token
     $authResponse = (Invoke-RestMethod @irmSplat)
     $global:octo.LCRefreshToken = $authResponse.refresh_token
-    Write-Verbose "Refresh token cached until next module call :)"
+    Write-LogMessage -level 5 -message "Refresh token cached until next module call :)"
 }

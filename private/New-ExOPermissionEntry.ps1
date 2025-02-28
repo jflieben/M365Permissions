@@ -18,7 +18,7 @@ Function New-ExOPermissionEntry{
     )
 
     if($global:octo.currentUser.userPrincipalName -eq $principalUpn -and !$global:octo.userConfig.includeCurrentUser){
-        Write-Verbose "Skipping permission $($role) scoped at $path for $($principalUpn) as it is the auditor account"
+        Write-LogMessage -level 5 -message "Skipping permission $($role) scoped at $path for $($principalUpn) as it is the auditor account"
         return $Null
     }
 
@@ -40,26 +40,26 @@ Function New-ExOPermissionEntry{
             #entry starts with intended entry
             if($path -contains $exoPath){
                 if($global:ExOPermissions.$exoPath -contains $Permission){
-                    Write-Verbose "Skipping permission $($role) scoped at $path for $($principalName) as it is already present"
+                    Write-LogMessage -level 5 -message "Skipping permission $($role) scoped at $path for $($principalName) as it is already present"
                     return $Null
                 }
                 foreach($ExistingPermission in $global:ExOPermissions.$exoPath){
                     if($ExistingPermission.Kind -eq $kind -and $ExistingPermission.Through -eq $through -and $ExistingPermission.Type -eq $type){
                         if($ExistingPermission.Role -eq "FullAccess"){
-                            Write-Verbose "Skipping permission $($role) scoped at $path for $($principalName) as FullAccess already present"
+                            Write-LogMessage -level 5 -message "Skipping permission $($role) scoped at $path for $($principalName) as FullAccess already present"
                             return $Null
                         }
                         if($ExistingPermission.Role -eq $role){
                             if($principalUpn -and $ExistingPermission.PrincipalUpn -eq $principalUpn){
-                                Write-Verbose "Skipping permission $($role) scoped at $path for $($principalUpn) as it is already present"
+                                Write-LogMessage -level 5 -message "Skipping permission $($role) scoped at $path for $($principalUpn) as it is already present"
                                 return $Null
                             }
                             if($principalEntraId -and $ExistingPermission.PrincipalEntraId -eq $principalEntraId){
-                                Write-Verbose "Skipping permission $($role) scoped at $path for $($principalEntraId) as it is already present"
+                                Write-LogMessage -level 5 -message "Skipping permission $($role) scoped at $path for $($principalEntraId) as it is already present"
                                 return $Null
                             }
                             if($principalName -and $ExistingPermission.PrincipalName -eq $principalName){
-                                Write-Verbose "Skipping permission $($role) scoped at $path for $($principalName) as it is already present"
+                                Write-LogMessage -level 5 -message "Skipping permission $($role) scoped at $path for $($principalName) as it is already present"
                                 return $Null
                             }
                         }
@@ -68,7 +68,7 @@ Function New-ExOPermissionEntry{
             }
         }
     }
-    Write-Verbose "Adding permission $($role) scoped at $path for $($principalName)"
+    Write-LogMessage -level 5 -message "Adding permission $($role) scoped at $path for $($principalName)"
     if(!$global:ExOPermissions.$path){
         $global:ExOPermissions.$path = @()
     }

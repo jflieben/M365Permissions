@@ -9,7 +9,7 @@
     )
     
     if (-not [Guid]::TryParse($tenantId, [ref]([Guid]::Empty))) {
-        Write-Verbose "Tenant ID is not a valid GUID, assuming it is a domain name and autodetect..."
+        Write-LogMessage -level 5 -message "Tenant ID is not a valid GUID, assuming it is a domain name and autodetect..."
         $tenantId = (Invoke-RestMethod "https://login.windows.net/$($tenantId)/.well-known/openid-configuration" -Method GET).userinfo_endpoint.Split("/")[3]
     }
 
@@ -26,7 +26,7 @@
     Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password $password
     Export-Certificate -Cert $cert -FilePath $cerPath
 
-    Write-Host "Certificate generated successfully!"
-    Write-Host "CER file: $cerPath (Import this into Entra ID)"
-    Write-Host "PFX file: $pfxPath (Ensure this is imported on your automation machine)"
+    Write-LogMessage -message "Certificate generated successfully!"
+    Write-LogMessage -message "CER file: $cerPath (Import this into Entra ID)"
+    Write-LogMessage -message "PFX file: $pfxPath (Ensure this is imported on your automation machine)"
 }

@@ -15,7 +15,7 @@
         [String[]]$tabs = @("Onedrive","Teams","O365Group","PowerBI","GroupsAndMembers","Entra","ExoRecipients","ExoRoles")
     )
 
-    $excludeProps = @("modified")
+    $excludeProps = @("modified","endDateTime")
 
     if(!$oldPermissionsFilePath -or !$newPermissionsFilePath){
         $reportFiles = Get-ChildItem -Path $global:octo.userConfig.outputFolder -Filter "*.xlsx" | Where-Object { $_.Name -notlike "*delta*" }
@@ -24,15 +24,15 @@
         }
         $lastTwoReportFiles = $reportFiles | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 2
         $oldPermissionsFile = $lastTwoReportFiles[1]
-        Write-Host "Auto detected old permissions file: $($oldPermissionsFile.FullName)"
+        Write-LogMessage -message "Auto detected old permissions file: $($oldPermissionsFile.FullName)"
         $newPermissionsFile = $lastTwoReportFiles[0]
-        Write-Host "Auto detected new permissions file: $($newPermissionsFile.FullName)"
+        Write-LogMessage -message "Auto detected new permissions file: $($newPermissionsFile.FullName)"
     }else{
         $oldPermissionsFile = Get-Item -Path $oldPermissionsFilePath
         $newPermissionsFile = Get-Item -Path $newPermissionsFilePath
     }
 
-    Write-Host ""
+    Write-LogMessage -message ""
 
     $diffResults = @{}
     $count = 0
@@ -100,7 +100,7 @@
                 $diffResults.$($tabName) += $diffItem
             }
         }
-        Write-Host "Found $($diffResults.$($tabName).count) removed permissions for $tabName"
+        Write-LogMessage -message "Found $($diffResults.$($tabName).count) removed permissions for $tabName"
         Write-Progress -Id 2 -Activity "Processing removals for $tabName" -Completed      
 
         #current workload found, check for additions
@@ -116,7 +116,7 @@
                 $diffResults.$($tabName) += $diffItem
             }
         }
-        Write-Host "Found $($diffResults.$($tabName).count) added or updated permissions for $tabName"
+        Write-LogMessage -message "Found $($diffResults.$($tabName).count) added or updated permissions for $tabName"
         Write-Progress -Id 2 -Activity "Processing additions for $tabName" -Completed        
     }
 
@@ -125,7 +125,7 @@
     Remove-Variable -Name newTab -Force -Confirm:$False
     Remove-Variable -Name oldTab -Force -Confirm:$False
 
-    Write-Host ""
+    Write-LogMessage -message ""
 
     $targetPath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions_delta.xlsx"
     foreach($tab in $diffResults.GetEnumerator().Name){
@@ -138,13 +138,13 @@
             $attempts++
             try{
                 $diffResults.$($tab) | Export-Excel -Path $targetPath -WorksheetName $tab -TableName $tab -TableStyle Medium10 -Append -AutoSize
-                Write-Host "$($diffResults.$($tab).count) $tab delta's written to $targetPath"
+                Write-LogMessage -message "$($diffResults.$($tab).count) $tab delta's written to $targetPath"
                 $attempts = $maxRetries
             }catch{
                 if($attempts -eq $maxRetries){
                     Throw
                 }else{
-                    Write-Verbose "File locked, waiting..."
+                    Write-LogMessage -level 5 -message "File locked, waiting..."
                     Start-Sleep -s (Get-Random -Minimum 1 -Maximum 3)
                 }
             }

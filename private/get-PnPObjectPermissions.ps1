@@ -46,7 +46,7 @@ Function get-PnPObjectPermissions{
                 Update-StatisticsObject -Category $Category -Subject $siteUrl
                 $Null = Get-PnPProperty -ClientObject $Object -Property HasUniqueRoleAssignments, RoleAssignments -Connection (Get-SpOConnection -Type User -Url $siteUrl)
                 if($Object.HasUniqueRoleAssignments -eq $False){
-                    Write-Verbose "Skipping $($obj.Title) as it fully inherits permissions from parent"
+                    Write-LogMessage -level 5 -message "Skipping $($obj.Title) as it fully inherits permissions from parent"
                     continue
                 }else{
                     $ACLs = New-GraphQuery -resource "https://www.sharepoint.com" -Uri "$($Object.Url)/_api/web/roleAssignments?`$expand=Member,RoleDefinitionBindings&`$top=5000&`$format=json" -Method GET -expectedTotalResults $Object.RoleAssignments.Count
@@ -60,7 +60,7 @@ Function get-PnPObjectPermissions{
                 Update-StatisticsObject -Category $Category -Subject $siteUrl
                 $Null = Get-PnPProperty -ClientObject $Object -Property HasUniqueRoleAssignments, RoleAssignments -Connection (Get-SpOConnection -Type User -Url $siteUrl)
                 if($Object.HasUniqueRoleAssignments -eq $False){
-                    Write-Verbose "Skipping $($obj.Title) as it fully inherits permissions from parent"
+                    Write-LogMessage -level 5 -message "Skipping $($obj.Title) as it fully inherits permissions from parent"
                     continue
                 }else{            
                     $ACLs = New-GraphQuery -resource "https://www.sharepoint.com" -Uri "$($siteUrl)/_api/web/lists/getbyid('$($Object.Id)')/roleassignments?`$expand=Member,RoleDefinitionBindings&`$top=5000&`$format=json" -Method GET -expectedTotalResults $Object.RoleAssignments.Count
@@ -73,7 +73,7 @@ Function get-PnPObjectPermissions{
                 if($obj.Url.Contains($folder)){
                     foreach($permission in $global:SPOPermissions.$folder){
                         if($Permission.Object -eq "root"){
-                            Write-Verbose "Added: $($permission.Permission) for $($permission.Name) because of forced inheritance through the site root"
+                            Write-LogMessage -level 5 -message "Added: $($permission.Permission) for $($permission.Name) because of forced inheritance through the site root"
                             New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity @{Email = $Permission.Email; LoginName = $Permission.Identity;Title = $Permission.Name;PrincipalType=$Permission.Type} -object $obj -permission $Permission.Permission -Through "ForcedInheritance" -parent $folder)
                         }
                     }
@@ -85,9 +85,9 @@ Function get-PnPObjectPermissions{
     #processes all ACL's on the object
     Foreach($member in $ACLs){
         foreach($permission in $member.RoleDefinitionBindings){
-            Write-Verbose "Detected: $($member.Member.Title) $($permission.Name) ($($permission.RoleTypeKind))"
+            Write-LogMessage -level 5 -message "Detected: $($member.Member.Title) $($permission.Name) ($($permission.RoleTypeKind))"
             if($ignoreablePermissions -contains $permission.RoleTypeKind -or $member.Member.IsHiddenInUI){
-                Write-Verbose "Ignoring $($permission.Name) permission type for $($member.Member.Title) because it is only relevant at a deeper level or hidden"
+                Write-LogMessage -level 5 -message "Ignoring $($permission.Name) permission type for $($member.Member.Title) because it is only relevant at a deeper level or hidden"
                 continue
             }
             if($member.Member.PrincipalType -eq 1){ #users
@@ -129,19 +129,19 @@ Function get-PnPObjectPermissions{
     #retrieve permissions for any (if present) child objects and recursively call this function for each
     If(!$Object.ListGuid -and $Object.TypedObject.ToString() -eq "Microsoft.SharePoint.Client.Web"){
         Write-Progress -Id 2 -PercentComplete 0 -Activity $($siteUrl.Split("/")[4]) -Status "Getting child objects..."
-        $Null = Get-PnPProperty -ClientObject $Object -Property Webs -Connection (Get-SpOConnection -Type User -Url $siteUrl)
+        $Null = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object; Property = "Webs"; Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
         $childObjects = $Null; $childObjects = $Object.Webs
         foreach($childObject in $childObjects){
             #check if permissions are unique
             $Null = Get-PnPProperty -ClientObject $childObject -Property HasUniqueRoleAssignments -Connection (Get-SpOConnection -Type User -Url $siteUrl)
             if($childObject.HasUniqueRoleAssignments -eq $False){
-                Write-Verbose "Skipping $($childObject.Title) child web as it fully inherits permissions from parent"
+                Write-LogMessage -level 5 -message "Skipping $($childObject.Title) child web as it fully inherits permissions from parent"
                 continue
             }                
-            Write-Verbose "Enumerating permissions for sub web $($childObject.Title)..."
+            Write-LogMessage -level 5 -message "Enumerating permissions for sub web $($childObject.Title)..."
             get-PnPObjectPermissions -Object $childObject -Category $Category
         }
-        $childObjects = $Null; $childObjects = Get-PnPProperty -ClientObject $Object -Property Lists -Connection (Get-SpOConnection -Type User -Url $siteUrl)
+        $childObjects = $Null; $childObjects = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object; Property = "Lists"; Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
         $ExcludedListTitles = @("Access Requests","App Packages","appdata","appfiles","Apps in Testing","Cache Profiles","Composed Looks","Content and Structure Reports","Content type publishing error log","Converted Forms",
         "Device Channels","Form Templates","fpdatasources","Get started with Apps for Office and SharePoint","List Template Gallery", "Long Running Operation Status","Maintenance Log Library", "Images", "site collection images"
         ,"Master Docs","Master Page Gallery","MicroFeed","NintexFormXml","Quick Deploy Items","Relationships List","Reusable Content","Reporting Metadata", "Reporting Templates", "Search Config List","Site Assets","Preservation Hold Library",
@@ -154,12 +154,12 @@ Function get-PnPObjectPermissions{
                 $global:sharedLinks = $Null;$global:sharedLinks = (New-RetryCommand -Command 'Get-PnPListItem' -Arguments @{List = $sharedLinksList.Id; PageSize = 500;Fields = ("ID","AvailableLinks"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)}) | ForEach-Object {
                     $_.FieldValues["AvailableLinks"] | ConvertFrom-Json
                 }
-                Write-Host "Cached $($sharedLinks.Count) shared links in $($Object.Title)..."
+                Write-LogMessage -message "Cached $($sharedLinks.Count) shared links in $($Object.Title)..." -level 4
             }catch{
                 Write-Error "Failed to retrieve shared links in $($Object.Title) because $_" -ErrorAction Continue
             }
         }else{
-            Write-Host "No shared links in $($Object.Title) discovered"
+            Write-LogMessage -message "No shared links in $($Object.Title) discovered" -level 4
         }
 
         $counter = 0
@@ -173,11 +173,11 @@ Function get-PnPObjectPermissions{
 
                 Get-PnPProperty -ClientObject $List -Property Title, HasUniqueRoleAssignments, DefaultDisplayFormUrl -Connection (Get-SpOConnection -Type User -Url $siteUrl)
                 if($List.HasUniqueRoleAssignments -eq $False){
-                    Write-Verbose "Skipping $($List.Title) List as it fully inherits permissions from parent"
+                    Write-LogMessage -level 5 -message "Skipping $($List.Title) List as it fully inherits permissions from parent"
                     continue
                 }     
 
-                Write-Verbose "List contains $($List.ItemCount) items"
+                Write-LogMessage -level 5 -message "List contains $($List.ItemCount) items"
                 $allListItems = $Null; $allListItems = New-GraphQuery -resource "https://www.sharepoint.com" -Uri "$($Object.Url)/_api/web/lists/getbyid('$($List.Id.Guid)')/items?`$select=ID,HasUniqueRoleAssignments&`$top=5000&`$format=json" -Method GET -expectedTotalResults $List.ItemCount
                 $allUniqueListItemIDs = $Null; $allUniqueListItemIDs = @($allListItems | Where-Object { $_.HasUniqueRoleAssignments -eq $True }) | select -ExpandProperty Id
                 if(($global:octo.userConfig.defaultTimeoutMinutes*20) -lt $allUniqueListItemIDs.Count){
@@ -195,7 +195,7 @@ Function get-PnPObjectPermissions{
                 }
                 Write-Progress -Id 3 -Completed -Activity $($siteUrl.Split("/")[4])
             }else{
-                Write-Verbose "Skipping $($List.Title) as it is hidden, empty or excluded"
+                Write-LogMessage -level 5 -message "Skipping $($List.Title) as it is hidden, empty or excluded"
             }
         }
         Write-Progress -Id 2 -Completed -Activity $($siteUrl.Split("/")[4])            

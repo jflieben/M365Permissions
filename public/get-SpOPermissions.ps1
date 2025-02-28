@@ -24,10 +24,12 @@
         [Boolean]$isParallel=$False
     )
 
-    Write-Host "Starting SpO Scan of $($teamName)$($siteUrl)"
+    $env:PNPPOWERSHELL_UPDATECHECK="off"
+
+    Write-LogMessage -message "Starting SpO Scan of $($teamName)$($siteUrl)" -level 4
 
     $spoBaseAdmUrl = "https://$($global:octo.tenantName)-admin.sharepoint.com"
-    Write-Verbose "Using Sharepoint base URL: $spoBaseAdmUrl"
+    Write-LogMessage -level 5 -message "Using Sharepoint base URL: $spoBaseAdmUrl"
 
     $ignoredSiteTypes = @("REDIRECTSITE#0","SRCHCEN#0", "SPSMSITEHOST#0", "APPCATALOG#0", "POINTPUBLISHINGHUB#0", "EDISC#0", "STS#-1","EHS#1","POINTPUBLISHINGTOPIC#0")
     if($siteUrl){
@@ -48,11 +50,11 @@
 
     if($sites[0].IsTeamsConnected){
         try{
-            Write-Host "Retrieving channels for this site/team..."
+            Write-LogMessage -message "Retrieving channels for this site/team..." -level 4
             $channels = New-GraphQuery -Uri "https://graph.microsoft.com/beta/teams/$($sites[0].GroupId.Guid)/channels" -Method GET -NoRetry
-            Write-Host "Found $($channels.Count) channels"
+            Write-LogMessage -message "Found $($channels.Count) channels" -level 4
         }catch{
-            Write-Warning "Failed to retrieve channels for this site/team, assuming no additional sub sites to scan"
+            Write-LogMessage -level 2 -message "Failed to retrieve channels for this site/team, assuming no additional sub sites to scan"
             $channels = @()
         }
         foreach($channel in $channels){
@@ -61,7 +63,7 @@
             }
             if($targetUrl -and $sites.Url -notcontains $targetUrl){
                 try{
-                    Write-Host "Adding Channel $($channel.displayName) with URL $targetUrl to scan list as it has its own site"
+                    Write-LogMessage -message "Adding Channel $($channel.displayName) with URL $targetUrl to scan list as it has its own site" -level 4
                     $extraSite = $Null; $extraSite = Get-PnPTenantSite -Connection (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl) -Identity $targetUrl
                     if($extraSite -and $extraSite.Template -NotIn $ignoredSiteTypes){
                         $sites += $extraSite
@@ -81,11 +83,11 @@
         }
         if($site.IsTeamsConnected -or $site.IsTeamsChannelConnected){
             $siteCategory = "Teams"
-            Write-Host "Site is connected to a Team will be categorized as Teams site"
+            Write-LogMessage -message "Site is connected to a Team will be categorized as Teams site" -level 4
         }
         if($site.Url -like "*-my.sharepoint.com*"){
             $siteCategory = "OneDrive"
-            Write-Host "Site is a OneDrive site"
+            Write-LogMessage -message "Site is a OneDrive site" -level 4
         }
 
         New-StatisticsObject -Category $siteCategory -Subject $site.Url
@@ -93,12 +95,12 @@
         $wasOwner = $False
         try{
             if($site.Owners -notcontains $global:octo.currentUser.userPrincipalName -and $global:octo.userConfig.authMode -eq "Delegated"){
-                Write-Host "Adding you as site collection owner to ensure all permissions can be read from $($site.Url)..."
+                Write-LogMessage -message "Adding you as site collection owner to ensure all permissions can be read from $($site.Url)..." -level 4
                 Set-PnPTenantSite -Identity $site.Url -Owners $global:octo.currentUser.userPrincipalName -Connection (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl) -WarningAction Stop -ErrorAction Stop
-                Write-Host "Owner added and marked for removal upon scan completion"
+                Write-LogMessage -message "Owner added and marked for removal upon scan completion" -level 4
             }else{
                 $wasOwner = $True
-                Write-Host "Site collection ownership verified for $($site.Url) :)"
+                Write-LogMessage -message "Site collection ownership verified for $($site.Url) :)" -level 4
             }            
             $spoWeb = (New-RetryCommand -Command 'Get-PnPWeb' -Arguments @{Connection = (Get-SpOConnection -Type User -Url $site.Url); ErrorAction = "Stop"})
         }catch{
@@ -110,7 +112,7 @@
             continue
         }
         
-        Write-Host "Scanning root $($spoWeb.Url)..."
+        Write-LogMessage -message "Scanning root $($spoWeb.Url)..." -level 4
         $spoSiteAdmins = (New-RetryCommand -Command 'Get-PnPSiteCollectionAdmin' -Arguments @{Connection = (Get-SpOConnection -Type User -Url $site.Url)})
         $global:SPOPermissions.$($spoWeb.Url) = @()
 
@@ -132,16 +134,16 @@
         Stop-StatisticsObject -Category $siteCategory -Subject $site.Url
 
         if(!$wasOwner){
-            Write-Host "Cleanup: Removing you as site collection owner of $($site.Url)..."
+            Write-LogMessage -message "Cleanup: Removing you as site collection owner of $($site.Url)..." -level 4
             try{
                 (New-RetryCommand -Command 'Remove-PnPSiteCollectionAdmin' -Arguments @{Owners = $global:octo.currentUser.userPrincipalName; Connection = (Get-SpOConnection -Type User -Url $site.Url)})
-                Write-Host "Cleanup: Owner removed"
+                Write-LogMessage -message "Cleanup: Owner removed" -level 4
             }catch{
                 Write-Error "Cleanup: Failed to remove you as site collection owner of $($site.Url) because $_" -ErrorAction Continue
             }
         }       
 
-        Write-Host "Finalizing data and adding to report queue..."
+        Write-LogMessage -message "Finalizing data and adding to report queue..." -level 4
         
         $permissionRows = foreach($row in $global:SPOPermissions.Keys){
             foreach($permission in $global:SPOPermissions.$row){
@@ -171,6 +173,6 @@
             [System.GC]::GetTotalMemory($true) | out-null
         }    
         
-        Write-Host "Done"
+        Write-LogMessage -message "Done" -level 4
     }
 }

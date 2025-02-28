@@ -13,7 +13,7 @@
         [Switch]$excludeGroupsAndUsers
     )
 
-    Write-Host "Starting Entra scan..."
+    Write-LogMessage -message "Starting Entra scan..." -level 4
     $global:EntraPermissions = @{}
     New-StatisticsObject -category "Entra" -subject "Roles"    
 
@@ -43,7 +43,7 @@
             try{
                 $groupMembers = get-entraGroupMembers -groupId $roleAssignment.principal.id    
             }catch{
-                Write-Warning "Failed to retrieve group members for $($roleAssignment.principal.displayName), adding as group principal type instead"
+                Write-LogMessage -level 2 -message "Failed to retrieve group members for $($roleAssignment.principal.displayName), adding as group principal type instead"
             }
             foreach($groupMember in $groupMembers){
                 Update-StatisticsObject -category "Entra" -subject "Roles"
@@ -63,7 +63,7 @@
     try{
         $roleEligibilities = (New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/roleManagement/directory/roleEligibilityScheduleInstances' -Method GET -NoRetry | Where-Object {$_})
     }catch{
-        Write-Warning "Failed to retrieve flexible assignments, this is fine if you don't use PIM and/or don't have P2 licensing."
+        Write-LogMessage -level 2 -message "Failed to retrieve flexible assignments, this is fine if you don't use PIM and/or don't have P2 licensing."
         $roleEligibilities = @()
     }
 
@@ -80,14 +80,14 @@
             $principal = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/directoryObjects/$($roleEligibility.principalId)" -Method GET
             $principalType = $principal."@odata.type".Split(".")[2]
         }catch{
-            Write-Warning "Failed to resolve principal $($roleEligibility.principalId) to a directory object, was it deleted?"    
+            Write-LogMessage -level 2 -message "Failed to resolve principal $($roleEligibility.principalId) to a directory object, was it deleted?"    
             $principal = $Null
         }
         if($principalType -eq "group" -and $expandGroups){
             try{
                 $groupMembers = get-entraGroupMembers -groupId $principal.id
             }catch{
-                Write-Warning "Failed to retrieve group members for $($principal.displayName), adding as group principal type instead"
+                Write-LogMessage -level 2 -message "Failed to retrieve group members for $($principal.displayName), adding as group principal type instead"
             }
             foreach($groupMember in $groupMembers){
                 Update-StatisticsObject -category "Entra" -subject "Roles"
@@ -126,7 +126,7 @@
 
     Write-Progress -Id 1 -PercentComplete 75 -Activity "Scanning Entra ID" -Status "Getting Graph Subscriptions"
     if($global:octo.userConfig.authMode -ne "Delegated"){
-        Write-Warning "Graph subscriptions can only be retrieved in delegated mode, and will not be added to your report."
+        Write-LogMessage -level 2 -message "Graph subscriptions can only be retrieved in delegated mode, and will not be added to your report."
     }else{
         $graphSubscriptions = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/subscriptions' -Method GET
         foreach($graphSubscription in $graphSubscriptions){

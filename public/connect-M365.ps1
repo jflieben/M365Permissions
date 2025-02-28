@@ -27,13 +27,13 @@
 
     #if we're doing delegated auth, use my multi-tenant app id
     if($global:octo.userConfig.authMode -eq "Delegated"){
-        Write-Host "Using default $($global:octo.userConfig.authMode) authentication..."
+        Write-LogMessage -message "Using default $($global:octo.userConfig.authMode) authentication..."
         $global:octo.userConfig.LCClientId = "0ee7aa45-310d-4b82-9cb5-11cc01ad38e4"
     }
 
     #SPN auth requires a clientid and tenantid by the customer either through env vars or set-M365PermissionsConfig
     if($global:octo.userConfig.authMode -eq "ServicePrincipal"){
-        Write-Host "Using $($global:octo.userConfig.authMode) authentication..."
+        Write-LogMessage -message "Using $($global:octo.userConfig.authMode) authentication..."
         if($Env:LCCLIENTID){
             $global:octo.userConfig.LCClientId = $Env:LCCLIENTID
         }
@@ -48,40 +48,41 @@
 
     #Managed Identity auth requires a tenantid by the customer either through env vars or set-M365PermissionsConfig
     if($global:octo.userConfig.authMode -eq "ManagedIdentity"){
-        Write-Host "Using $($global:octo.userConfig.authMode) authentication..."
+        Write-LogMessage -message "Using $($global:octo.userConfig.authMode) authentication..."
     }
     
     if($connected){
-        Write-Host ""
+        Write-LogMessage -message ""
         try{
+            $global:octo.connection = "Connecting"
             $global:octo.currentUser = Get-CurrentUser
             $global:octo.OnMicrosoft = (New-GraphQuery -Method GET -Uri 'https://graph.microsoft.com/v1.0/domains?$top=999' | Where-Object -Property isInitial -EQ $true).id 
             $global:octo.tenantName = $($global:octo.OnMicrosoft).Split(".")[0]
-            $global:octo.isConnected = $True
+            $global:octo.connection = "Connected"
         }catch{
             Throw $_
         }
 
-        Write-Host "Authenticated successfully! Here are some examples using this module:"
-        Write-Host ""
-        Write-Host ">> Get-AllM365Permissions -expandGroups"
+        Write-LogMessage -message "Authenticated successfully! Here are some examples using this module:"
+        Write-LogMessage -message ""
+        Write-LogMessage -message ">> Get-AllM365Permissions -expandGroups"
         
-        Write-Host ">> Get-AllExOPermissions -includeFolderLevelPermissions"
+        Write-LogMessage -message ">> Get-AllExOPermissions -includeFolderLevelPermissions"
         
-        Write-Host ">> Get-ExOPermissions -recipientIdentity `$mailbox.Identity -includeFolderLevelPermissions"
+        Write-LogMessage -message ">> Get-ExOPermissions -recipientIdentity `$mailbox.Identity -includeFolderLevelPermissions"
         
-        Write-Host ">> Get-SpOPermissions -siteUrl `"https://tenant.sharepoint.com/sites/site`" -ExpandGroups"
+        Write-LogMessage -message ">> Get-SpOPermissions -siteUrl `"https://tenant.sharepoint.com/sites/site`" -ExpandGroups"
         
-        Write-Host ">> Get-SpOPermissions -teamName `"INT-Finance Department`""
+        Write-LogMessage -message ">> Get-SpOPermissions -teamName `"INT-Finance Department`""
         
-        Write-Host ">> get-AllSPOPermissions -ExpandGroups -IncludeOneDriveSites -ExcludeOtherSites"
+        Write-LogMessage -message ">> get-AllSPOPermissions -ExpandGroups -IncludeOneDriveSites -ExcludeOtherSites"
         
-        Write-Host ">> get-AllEntraPermissions -excludeGroupsAndUsers"    
+        Write-LogMessage -message ">> get-AllEntraPermissions -excludeGroupsAndUsers"    
 
-        Write-Host ">> get-AllPBIPermissions" 
+        Write-LogMessage -message ">> get-AllPBIPermissions" 
         
-        Write-Host ">> Get-ChangedPermissions"   
+        Write-LogMessage -message ">> Get-ChangedPermissions"   
 
-        Write-Host ""
+        Write-LogMessage -message ""
     }  
 }

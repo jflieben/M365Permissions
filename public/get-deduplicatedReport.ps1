@@ -18,7 +18,7 @@
         }
         $lastReportFile = $reportFiles | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 1
         $permissionsFile = $lastReportFile
-        Write-Host "Auto detected permissions file to deduplicate: $($permissionsFile.FullName)"
+        Write-LogMessage -message "Auto detected permissions file to deduplicate: $($permissionsFile.FullName)"
     }else{
         $permissionsFile = Get-Item -Path $permissionsFilePath
     }
@@ -27,7 +27,7 @@
 
     $tabNames = Get-ExcelSheetInfo -Path $permissionsFile.FullName | Select-Object -ExpandProperty Name
 
-    Write-Host ""
+    Write-LogMessage -message ""
 
     $count = 0
     foreach ($tabName in $tabNames) {
@@ -36,9 +36,9 @@
         Write-Progress -Id 1 -Activity "Deduplicating $($permissionsFile.Name)" -Status "Loading $tabName into memory..." -PercentComplete $percentComplete
 
         $tab = Import-Excel -Path $permissionsFile.FullName -WorksheetName $tabName -DataOnly
-        Write-Host "Loaded $($tab.Count) rows from $tabName"
+        Write-LogMessage -message "Loaded $($tab.Count) rows from $tabName"
         if($tab.Count -eq 0){
-            Write-Host "No data found in $tabName, skipping"
+            Write-LogMessage -message "No data found in $tabName, skipping"
             continue
         }
 
@@ -53,12 +53,12 @@
 
         $duplicateCount = $tab.Count - $tabDeduped.Count
         if($duplicateCount -eq 0){
-            Write-Host "No duplicate rows found in $tabName"
+            Write-LogMessage -message "No duplicate rows found in $tabName"
             [System.GC]::GetTotalMemory($true) | out-null
             continue
         }else{
             Write-Progress -Id 1 -Activity "Deduplicating $($permissionsFile.Name)" -Status "Exporting $tabName $($tabDeduped.Count) rows" -PercentComplete $percentComplete
-            Write-Host "$($tab.Count) reduced to $($tabDeduped.Count) rows in $tabName, writing to file..." 
+            Write-LogMessage -message "$($tab.Count) reduced to $($tabDeduped.Count) rows in $tabName, writing to file..." 
             $tabDeduped | Export-Excel -Path $permissionsFile.FullName -WorksheetName $tabName -TableName $tabName -TableStyle Medium10 -AutoSize -ClearSheet
             [System.GC]::GetTotalMemory($true) | out-null
         }

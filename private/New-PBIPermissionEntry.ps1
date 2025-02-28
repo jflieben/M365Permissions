@@ -19,13 +19,13 @@ Function New-PBIPermissionEntry{
     )
 
     if($global:octo.currentUser.userPrincipalName -eq $principalUpn -and !$global:octo.userConfig.includeCurrentUser){
-        Write-Verbose "Skipping permission $($roleDefinitionName) scoped at $path for $($principalUpn) as it is the auditor account"
+        Write-LogMessage -level 5 -message "Skipping permission $($roleDefinitionName) scoped at $path for $($principalUpn) as it is the auditor account"
         return $Null
     }
 
     $principalType = $principalType.Replace("User (Member)","Internal User").Replace("User (Guest)","External User")
 
-    Write-Verbose "Adding permission $($roleDefinitionName) scoped at $path for $($principalUpn)"
+    Write-LogMessage -level 5 -message "Adding permission $($roleDefinitionName) scoped at $path for $($principalUpn)"
     if(!$global:PBIPermissions.$path){
         $global:PBIPermissions.$path = @()
     }

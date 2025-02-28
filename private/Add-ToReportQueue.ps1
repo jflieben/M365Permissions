@@ -6,7 +6,7 @@ function Add-ToReportQueue{
         [string]$category
     )
 
-    Write-Verbose "Adding $category report to write queue..."
+    Write-LogMessage -level 5 -message "Adding $category report to write queue..."
 
     #add report to queue
     if($statistics -or $permissions){

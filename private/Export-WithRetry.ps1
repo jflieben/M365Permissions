@@ -29,12 +29,12 @@ function Export-WithRetry {
                     "CSV" { $data | Export-Csv -Path $targetPath -NoTypeInformation -Append }
                 }
                 $attempts = $maxRetries
-                Write-Output "Wrote $($data.count) rows for $category to $targetPath"
+                Write-LogMessage "Wrote $($data.count) rows for $category to $targetPath"
             } catch {
                 if ($attempts -eq $maxRetries) {
                     Throw
                 } else {
-                    Write-Verbose "File locked, waiting..."
+                    Write-LogMessage -level 5 -message "File locked, waiting..."
                     Start-Sleep -s (Get-Random -Minimum 1 -Maximum 3)
                 }
             }

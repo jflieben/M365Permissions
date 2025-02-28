@@ -8,13 +8,13 @@
         [Switch]$expandGroups
     )
 
-    Write-Host "Starting FULL M365 Tenant scan as $($global:octo.currentUser.userPrincipalName)"
-    Write-Host "Planned scan order:"
-    Write-Host "1. PowerBI permissions"
-    Write-Host "2. Entra permissions"
-    Write-Host "3. Exchange permissions"
-    Write-Host "4. Onedrive permissions"
-    Write-Host "5. Teams and Sharepoint permissions"
+    Write-LogMessage -message "Starting FULL M365 Tenant scan as $($global:octo.currentUser.userPrincipalName)"
+    Write-LogMessage -message "Planned scan order:"
+    Write-LogMessage -message "1. PowerBI permissions"
+    Write-LogMessage -message "2. Entra permissions"
+    Write-LogMessage -message "3. Exchange permissions"
+    Write-LogMessage -message "4. Onedrive permissions"
+    Write-LogMessage -message "5. Teams and Sharepoint permissions"
 
     get-AllPBIPermissions -expandGroups:$expandGroups.IsPresent
     get-AllEntraPermissions -expandGroups:$expandGroups.IsPresent
