@@ -7,7 +7,8 @@
     Param(
         [Switch]$includeOnedriveSites,
         [Switch]$excludeOtherSites,
-        [Switch]$expandGroups
+        [Switch]$expandGroups,
+        [Switch]$skipReportGeneration
     )
 
     $env:PNPPOWERSHELL_UPDATECHECK="off"
@@ -42,4 +43,9 @@
     }
 
     Start-ScanJobs -Title "Scanning Sharepoint Online"
+
+    if(!$skipReportGeneration){
+        Write-LogMessage -message "Generating report..." -level 4
+        Write-Report
+    }    
 }

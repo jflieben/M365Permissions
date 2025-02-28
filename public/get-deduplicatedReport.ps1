@@ -12,7 +12,7 @@
     )
 
     if(!$permissionsFilePath){
-        $reportFiles = Get-ChildItem -Path $global:octo.userConfig.outputFolder -Filter "*.xlsx" | Where-Object { $_.Name -notlike "*delta*" }
+        $reportFiles = Get-ChildItem -Path $global:octo.userConfig.outputFolder -Recurse -Filter "*.xlsx" | Where-Object { $_.Name -notlike "*delta*" }
         if($reportFiles.Count -lt 1){
             Write-Error "Less than 1 XLSX reports found in $($global:octo.userConfig.outputFolder). Please run a scan first or make sure you set the output format to XLSX. Deduplication is not possible when scanning to CSV format." -ErrorAction Stop
         }

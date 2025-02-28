@@ -5,32 +5,20 @@
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
         
         Parameters:
-        -oldPermissionsFilePath: the path to the old permissions file. Leave one empty to auto-detect both
-        -newPermissionsFilePath: the path to the new permissions file. Leave one empty to auto-detect both
+        -oldPermissionsFilePath: the path to the old permissions file.
+        -newPermissionsFilePath: the path to the new permissions file.
         -tabs: the tabs to compare, default is all tabs
     #>        
     Param(
-        [String]$oldPermissionsFilePath,
-        [String]$newPermissionsFilePath,
+        [Parameter(Mandatory = $true)][String]$oldPermissionsFilePath,
+        [Parameter(Mandatory = $true)][String]$newPermissionsFilePath,
         [String[]]$tabs = @("Onedrive","Teams","O365Group","PowerBI","GroupsAndMembers","Entra","ExoRecipients","ExoRoles")
     )
 
     $excludeProps = @("modified","endDateTime")
 
-    if(!$oldPermissionsFilePath -or !$newPermissionsFilePath){
-        $reportFiles = Get-ChildItem -Path $global:octo.userConfig.outputFolder -Filter "*.xlsx" | Where-Object { $_.Name -notlike "*delta*" }
-        if($reportFiles.Count -lt 2){
-            Write-Error "Less than 2 XLSX reports found in $($global:octo.userConfig.outputFolder). Please run a scan first or make sure you set the output format to XLSX. Comparison is not possible when scanning to CSV format." -ErrorAction Stop
-        }
-        $lastTwoReportFiles = $reportFiles | Sort-Object -Property LastWriteTime -Descending | Select-Object -First 2
-        $oldPermissionsFile = $lastTwoReportFiles[1]
-        Write-LogMessage -message "Auto detected old permissions file: $($oldPermissionsFile.FullName)"
-        $newPermissionsFile = $lastTwoReportFiles[0]
-        Write-LogMessage -message "Auto detected new permissions file: $($newPermissionsFile.FullName)"
-    }else{
-        $oldPermissionsFile = Get-Item -Path $oldPermissionsFilePath
-        $newPermissionsFile = Get-Item -Path $newPermissionsFilePath
-    }
+    $oldPermissionsFile = Get-Item -Path $oldPermissionsFilePath
+    $newPermissionsFile = Get-Item -Path $newPermissionsFilePath
 
     Write-LogMessage -message ""
 
@@ -127,7 +115,7 @@
 
     Write-LogMessage -message ""
 
-    $targetPath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions_$($global:octo.sessionIdentifier)_delta.xlsx"
+    $targetPath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions_delta.xlsx"
     foreach($tab in $diffResults.GetEnumerator().Name){
         if($diffResults.$($tab).count -eq 0){
             continue

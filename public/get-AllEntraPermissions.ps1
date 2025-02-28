@@ -10,7 +10,8 @@
     #>        
     Param(
         [Switch]$expandGroups,
-        [Switch]$excludeGroupsAndUsers
+        [Switch]$excludeGroupsAndUsers,
+        [Switch]$skipReportGeneration
     )
 
     Write-LogMessage -message "Starting Entra scan..." -level 4
@@ -175,7 +176,12 @@
 
     Add-ToReportQueue -permissions $permissionRows -category "Entra"
     Remove-Variable -Name EntraPermissions -Scope Global -Force -Confirm:$False
-    Reset-ReportQueue
+    if(!$skipReportGeneration){
+        Write-LogMessage -message "Generating report..." -level 4
+        Write-Report
+    }else{
+        Reset-ReportQueue
+    }
 
     Write-Progress -Id 1 -Completed -Activity "Scanning Entra ID"
 }

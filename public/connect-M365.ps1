@@ -59,6 +59,12 @@
             $global:octo.OnMicrosoft = (New-GraphQuery -Method GET -Uri 'https://graph.microsoft.com/v1.0/domains?$top=999' | Where-Object -Property isInitial -EQ $true).id 
             $global:octo.tenantName = $($global:octo.OnMicrosoft).Split(".")[0]
             $global:octo.sessionIdentifier = "$($global:octo.tenantName)_$((Get-Date).ToString("yyyyMMdd"))"
+            if(!$global:octo.userConfig.outputFolder.EndsWith($global:octo.sessionIdentifier)){
+                $global:octo.userConfig.outputFolder = "$($global:octo.userConfig.outputFolder)\$($global:octo.sessionIdentifier)"
+            }
+            if(!(Test-Path -Path $global:octo.userConfig.outputFolder)){
+                New-Item -Path $global:octo.userConfig.outputFolder -ItemType Directory -Force | Out-Null
+            }
             $global:octo.connection = "Connected"
         }catch{
             Throw $_

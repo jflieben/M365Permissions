@@ -10,7 +10,8 @@
     #>        
     Param(
         [Switch]$expandGroups,
-        [Switch]$includeFolderLevelPermissions
+        [Switch]$includeFolderLevelPermissions,
+        [Switch]$skipReportGeneration
     )
 
     $activity = "Scanning Exchange Online"
@@ -35,5 +36,9 @@
     }
     Start-ScanJobs -Title $activity
     $global:octo.recipients = $Null
+    if(!$skipReportGeneration){
+        Write-LogMessage -message "Generating report..." -level 4
+        Write-Report
+    }
     Write-Progress -Id 1 -Completed -Activity $activity
 }

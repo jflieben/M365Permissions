@@ -6,7 +6,7 @@
         
         Parameters:
         -maxThreads: the maximum amount of threads to use for parallel processing, by default 5. Ensure you've read my blog before increasing this.
-        -outputFolder: the path to the folder where you want to save permissions. By default it'll create the file in AppData\Roaming\LiebenConsultancy\M365Permissions
+        -outputFolder: the path to the folder where you want to save permissions. By default it'll create the file under AppData\Roaming\LiebenConsultancy\M365Permissions\Reports
         -outputFormat: XLSX or CSV
         -Verbose: if set, verbose output will be shown everywhere (=very chatty)
         -includeCurrentUser: add entries for the user performing the audit (as this user will have all access, it'll clutter the report)
@@ -55,6 +55,16 @@
         $preferredConfig = Get-Content -Path $configLocation | ConvertFrom-Json -AsHashtable
     }
 
+    $reportsFolder = Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy\Reports"
+    if(!(Test-Path $reportsFolder)){
+        New-Item -Path $reportsFolder -ItemType Directory -Force | Out-Null
+    }
+
+    $tempFolder = Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy\Temp"
+    if(!(Test-Path $tempFolder)){
+        New-Item -Path $tempFolder -ItemType Directory -Force | Out-Null
+    }    
+
     #ensure verbose preferences are set in all child processes
     if($logLevel  -eq "Full" -or $preferredConfig.logLevel -eq "Full"){
         $global:VerbosePreference = "Continue"
@@ -93,11 +103,11 @@
 
     #override output folder with actual path
     if($global:octo.userConfig.outputFolder -eq "CURRENTFOLDER"){
-        $global:octo.userConfig.outputFolder = Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy"
+        $global:octo.userConfig.outputFolder = $reportsFolder
     }
 
     #configure a temp folder specific for this run
-    $global:octo.outputTempFolder = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "Temp$((Get-Date).ToString("yyyyMMddHHmm"))"
+    $global:octo.outputTempFolder = Join-Path -Path $tempFolder -ChildPath "$((Get-Date).ToString("yyyyMMddHHmm"))"
 
     #run verbose log to file if verbose is on
     if($global:VerbosePreference -eq "Continue"){

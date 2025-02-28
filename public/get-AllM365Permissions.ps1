@@ -16,8 +16,9 @@
     Write-LogMessage -message "4. Onedrive permissions"
     Write-LogMessage -message "5. Teams and Sharepoint permissions"
 
-    get-AllPBIPermissions -expandGroups:$expandGroups.IsPresent
-    get-AllEntraPermissions -expandGroups:$expandGroups.IsPresent
-    get-AllExOPermissions -expandGroups:$expandGroups.IsPresent -includeFolderLevelPermissions
-    get-AllSpOPermissions -expandGroups:$expandGroups.IsPresent -includeOnedriveSites
+    get-AllPBIPermissions -expandGroups:$expandGroups.IsPresent -skipReportGeneration
+    get-AllEntraPermissions -expandGroups:$expandGroups.IsPresent -skipReportGeneration
+    get-AllExOPermissions -expandGroups:$expandGroups.IsPresent -includeFolderLevelPermissions -skipReportGeneration
+    get-AllSpOPermissions -expandGroups:$expandGroups.IsPresent -includeOnedriveSites -skipReportGeneration
+    Write-Report
 }

@@ -1,5 +1,5 @@
 function Reset-ReportQueue{
-    Write-LogMessage -level 5 -message "Start Flushing report queue to report file...."
+    Write-LogMessage -level 5 -message "Start Flushing report queue to data storage...."
     
     $dataBatch = @()
     $queuedFiles = Get-ChildItem -Path $global:octo.outputTempFolder -Filter "*.xml"
@@ -14,17 +14,19 @@ function Reset-ReportQueue{
     if($dataBatch){
         $statistics =$Null; $statistics = ($dataBatch | Where-Object{$_.statistics}).statistics
         if($statistics){
-            Export-WithRetry -category "Statistics" -data $statistics
+            $filePath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions_statistics.json"
+            Write-ToJSONStorage -data $statistics -FilePath $filePath
         }
         $categories = $Null; $categories = ($dataBatch | Where-Object{$_.category}).category | select-object -Unique
         foreach($category in $categories){
             $permissions = $Null; $permissions = ($dataBatch | Where-Object {$_.category -eq $category -and $_.permissions}).permissions
             if($permissions){
-                Export-WithRetry -category $category -data $permissions
+                $filePath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions_$($category).json"
+                Write-ToJSONStorage -data $permissions -FilePath $filePath
             }
         }   
     }else{
-        Write-LogMessage -level 5 -message "No reports to write to report file..."
+        Write-LogMessage -level 5 -message "No reports to write to data storage..."
     }
     [System.GC]::GetTotalMemory($true) | out-null  
 }
