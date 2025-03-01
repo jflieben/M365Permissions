@@ -99,6 +99,7 @@ if(!$global:octo){
     Write-Host "----------------------------------"
     Write-Host "Welcome to M365Permissions v$($global:octo.moduleVersion)!"
     Write-Host "Visit https://www.lieben.nu/liebensraum/m365permissions/ for documentation"
+    Write-Host "Free for non-commercial use, see https://www.lieben.nu/liebensraum/commercial-use/ for commercial use"
     Write-Host "----------------------------------"
     Write-Host ""
 

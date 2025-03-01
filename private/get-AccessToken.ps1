@@ -16,11 +16,11 @@ function get-AccessToken{
     if(!$global:octo.LCRefreshToken){
         if($global:octo.userConfig.authMode -eq "Delegated"){
             try{
-                get-AuthorizationCode | Out-Null
+                $global:octo.LCRefreshToken = get-AuthorizationCode -clientId $global:octo.userConfig.LCClientId
             }catch{
                 Write-Error $_ -ErrorAction Continue
                 Write-Error "Failed to authorize, trying again by forcing reconsent...." -ErrorAction Continue
-                get-AuthorizationCode -reConsent | Out-Null
+                $global:octo.LCRefreshToken = get-AuthorizationCode -clientId $global:octo.userConfig.LCClientId -reConsent
             }
         }        
     }

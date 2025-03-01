@@ -5,6 +5,9 @@ function get-AuthorizationCode{
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
     #>        
     Param(
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [String]$clientId,
         [Switch]$reConsent
     )
 
@@ -15,11 +18,11 @@ function get-AuthorizationCode{
 
     $cachedModuleVersion = Join-Path -Path $env:APPDATA -ChildPath "LiebenConsultancy\M365Permissions.version"
     if(!(Test-Path $cachedModuleVersion)){
-        New-Item -Path (Split-Path $cachedModuleVersion) -ItemType Directory -Force
-        Set-Content -Path $cachedModuleVersion -Value $global:octo.moduleVersion -Force
+        New-Item -Path (Split-Path $cachedModuleVersion) -ItemType Directory -Force | Out-Null
+        Set-Content -Path $cachedModuleVersion -Value $global:octo.moduleVersion -Force | Out-Null
     }else{
         if(([System.Version]::Parse((Get-Content -Path $cachedModuleVersion -Raw)) -lt [System.Version]::Parse($global:octo.moduleVersion))){
-            Set-Content -Path $cachedModuleVersion -Value $global:octo.moduleVersion -Force
+            Set-Content -Path $cachedModuleVersion -Value $global:octo.moduleVersion -Force | Out-Null
         }else{
             if(!$reConsent){
                 $adminPrompt = $Null
@@ -27,13 +30,13 @@ function get-AuthorizationCode{
         }
     }
 
-    $targetUrl = "https://login.microsoftonline.com/common/oauth2/authorize?client_id=$($global:octo.userConfig.LCClientId)&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A1985&response_mode=query&resource=https://graph.microsoft.com$($adminPrompt)"
+    $targetUrl = "https://login.microsoftonline.com/common/oauth2/authorize?client_id=$($clientId)&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A1985&response_mode=query&resource=https://graph.microsoft.com$($adminPrompt)"
 
     try{
         Write-LogMessage -level 5 -message "Opening $targetUrl in your browser..."
-        Start-Process $targetUrl
+        Start-Process $targetUrl | out-null
     }catch{
-        Write-LogMessage -message "Failed to open your browser, please go to $targetUrl"
+        Write-LogMessage -message "Failed to open your browser, please go to $targetUrl" -level 2
     }
 
     $client = $tcpListener.AcceptTcpClient()
@@ -59,7 +62,7 @@ function get-AuthorizationCode{
         Body = @{
             scope                 = "offline_access https://graph.microsoft.com/.default"
             code                  = $code
-            client_id             = $global:octo.userConfig.LCClientId
+            client_id             = $clientId
             grant_type            = 'authorization_code'
             redirect_uri          = "http://localhost:1985"
         }
@@ -67,6 +70,5 @@ function get-AuthorizationCode{
 
     #retrieve the refresh token
     $authResponse = (Invoke-RestMethod @irmSplat)
-    $global:octo.LCRefreshToken = $authResponse.refresh_token
-    Write-LogMessage -level 5 -message "Refresh token cached until next module call :)"
+    return $authResponse.refresh_token
 }
