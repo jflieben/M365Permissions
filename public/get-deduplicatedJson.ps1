@@ -45,9 +45,15 @@
             $hash = ($_ | ConvertTo-Json -Depth 1)
             $uniqueObjects.Add($hash)
         }
-        Write-LogMessage -message "$($report.Count) reduced to $($dedupedReport.Count) rows in $($reportFile.Name), writing to file..." 
-        Write-Progress -Id 1 -Activity "Deduplicating reports" -Status "$count/$($reportFiles.count) Writing back to $($reportFile.Name)" -PercentComplete 0
-        $dedupedReport | ConvertTo-Json -Depth 100 | Out-File -Path $reportFile.FullName -Force
+        
+        if($report.Count -gt $dedupedReport.Count){
+            Write-LogMessage -message "Deduplicated $($report.Count) rows to $($dedupedReport.Count) rows in $($reportFile.Name)"
+            Write-LogMessage -message "$($report.Count) reduced to $($dedupedReport.Count) rows in $($reportFile.Name), writing to file..." 
+            Write-Progress -Id 1 -Activity "Deduplicating reports" -Status "$count/$($reportFiles.count) Writing back to $($reportFile.Name)" -PercentComplete 0
+            $dedupedReport | ConvertTo-Json -Depth 100 | Out-File -Path $reportFile.FullName -Force
+        }else{
+            Write-LogMessage -message "No duplicates found in $($reportFile.Name)"
+        }
         [System.GC]::GetTotalMemory($true) | out-null
     }
 

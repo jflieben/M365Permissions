@@ -85,7 +85,12 @@ if(!$global:octo){
         $Null = New-Item -Path $global:octo.outputTempFolder -ItemType Directory -Force
     }      
 
-    set-M365PermissionsConfig 
+    set-M365PermissionsConfig
+
+    #run verbose log to file if verbose is on
+    if($global:octo.userConfig.LogLevel -eq "Full"){
+        Start-Transcript -Path $(Join-Path -Path $global:octo.outputTempFolder -ChildPath "M365PermissionsVerbose.log") -Force -Confirm:$False
+    }    
         
     $global:runspacePool = [runspacefactory]::CreateRunspacePool(1, $global:octo.userConfig.maxThreads, ([system.management.automation.runspaces.initialsessionstate]::CreateDefault()), $Host)
     $global:runspacePool.ApartmentState = "STA"

@@ -7,6 +7,9 @@
         Parameters:
         -expandGroups: if set, group memberships will be expanded to individual users
         -includeFolderLevelPermissions: if set, folder level permissions for each mailbox will be retrieved. This can be (very) slow
+
+        Potential to do:
+        only reason we need GA rights for EXO scanning is because get-recipientpermission doesn't support Global Reader, this could be fixed by modifying the scope in EXO but is a config change a customer would need to accept
     #>        
     Param(
         [Switch]$expandGroups,

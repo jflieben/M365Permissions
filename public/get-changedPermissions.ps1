@@ -52,7 +52,7 @@
         $diffResults = @()
         $targetFileName = $newReportFile.FullName.Replace(".json","_delta.json")
         $oldReportFile = $oldReportFiles | Where-Object { $_.Name -eq $newReportFile.Name }        
-        try{$percentComplete = (($count  / ($resources.Count)) * 100)}catch{$percentComplete = 0}
+        try{$percentComplete = (($count  / ($newReportFiles.Count)) * 100)}catch{$percentComplete = 0}
         $resource = $newReportFile.Name.Split(".")[0].Split("_")[1]
         if($resources -notcontains $resource){
             continue

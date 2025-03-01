@@ -10,7 +10,7 @@
         [Switch]$ManagedIdentity
     )
 
-    $connected = $True
+    $readyToConnect = $True
 
     #choose auth mode, env var trumps passed in param, trumps default / persisted from set-M365PermissionsConfig
     if($ManagedIdentity){
@@ -41,7 +41,7 @@
             $global:octo.userConfig.LCTenantId = $Env:LCTENANTID
         }   
         if(!$global:octo.userConfig.LCClientId -or !$global:octo.userConfig.LCTenantId){
-            $connected = $False
+            $readyToConnect = $False
             Write-Error "Service Principal authentication requires a ClientId and TenantId to be set, please run set-M365PermissionsConfig -LCClientId <clientid> -LCTenantId <tenantid> before connecting or configure LCCLIENTID and LCTENANTID as env variables" -ErrorAction Continue
         }
     }
@@ -51,7 +51,7 @@
         Write-LogMessage -message "Using $($global:octo.userConfig.authMode) authentication..."
     }
     
-    if($connected){
+    if($readyToConnect){
         Write-LogMessage -message ""
         try{
             $global:octo.connection = "Connecting"

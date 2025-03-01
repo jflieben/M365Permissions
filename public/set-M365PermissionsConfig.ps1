@@ -95,11 +95,4 @@
     if($global:octo.userConfig.outputFolder -eq "CURRENTFOLDER"){
         $global:octo.userConfig.outputFolder = (Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy\Reports")
     }
-
-    #run verbose log to file if verbose is on
-    if($global:octo.userConfig.LogLevel -eq "Full"){
-        try{Start-Transcript -Path $(Join-Path -Path $global:octo.outputTempFolder -ChildPath "M365PermissionsVerbose.log") -Force -Confirm:$False}catch{
-            Write-LogMessage -level 5 -message "Transcript already running"
-        }
-    }
 }

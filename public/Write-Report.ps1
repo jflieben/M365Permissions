@@ -3,7 +3,12 @@ function Write-Report {
     Reset-ReportQueue
 
     #ensure the JSON files have been deduplicated to reduce noise
-    Get-dedeplicatedJson
+    Get-deduplicatedJson
+
+    #add a change detection run, silently (e.g. in case this is a first time run)
+    try{
+        Get-changedPermissions
+    }catch{$null}
 
     $basePath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions.@@@"
       
@@ -12,15 +17,20 @@ function Write-Report {
         Write-LogMessage -Level 5 -Message "Found $($sourceJSONFiles.Count) JSON files to process"
         foreach($JSONFile in $sourceJSONFiles){
             $data = Get-Content -Path $JSONFile.FullName | ConvertFrom-Json -Depth 5
-            $category = $JSONFile.Name.Split("_")[-1].replace(".json","")
-            switch ($global:octo.userConfig.outputFormat) {
-                "XLSX" { 
+            $category = $JSONFile.Name.Split("_")[1].replace(".json","")
+            if($global:octo.userConfig.outputFormat -eq "XLSX"){
+                if($JSONFile.Name.Split("_")[-1] -eq "delta.json"){
+                    $targetPath = $basePath.Replace("M365Permissions", "M365Permissions_delta").Replace("@@@", "xlsx")
+                }else{
                     $targetPath = $basePath.Replace("@@@", "xlsx")
                 }
-                "CSV" { 
-                    $targetPath = $basePath.Replace(".@@@", "$($category).csv")
+            }else {
+                if($JSONFile.Name.Split("_")[-1] -eq "delta.json"){
+                    continue #change detection is only for XLSX output
                 }
-            }   
+                $targetPath = $basePath.Replace(".@@@", "$($category).csv")
+            }
+
             $maxRetries = 60
             $attempts = 0
             while ($attempts -lt $maxRetries) {
