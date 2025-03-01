@@ -24,16 +24,16 @@
             Throw "Please run connect-M365 before using this function, OR specify the report folders manually using -oldPermissionsReportFolder and -newPermissionsReportFolder"
         }
         $newPermissionsReportFolder = $global:octo.userConfig.outputFolder
-        $newReportFiles = Get-ChildItem -Path $newPermissionsReportFolder -Recurse -Filter "*.json" | Where-Object { $_.Name -notlike "*delta*" }
+        $newReportFiles = Get-ChildItem -Path $newPermissionsReportFolder -Filter "*.json" | Where-Object { $_.Name -notlike "*delta*" }
         $allSessions = Get-ChildItem -Path (Split-Path -Path $newPermissionsReportFolder -Parent) -Filter "$($global:octo.tenantName)_*" | Sort-Object -Property Name -Descending
         if($allSessions.Count -lt 2){
             Throw "Less than 2 sessions found for `"$($global:octo.tenantName)`" in $(Split-Path -Path $global:octo.userConfig.outputFolder -Parent), please run a second scan first or specify the report folders manually using -oldPermissionsReportFolder and -newPermissionsReportFolder"
         }
         $oldPermissionsReportFolder = $allSessions[1].FullName
-        $oldReportFiles = Get-ChildItem -Path $oldPermissionsReportFolder -Recurse -Filter "*.json" | Where-Object { $_.Name -notlike "*delta*" }
+        $oldReportFiles = Get-ChildItem -Path $oldPermissionsReportFolder -Filter "*.json" | Where-Object { $_.Name -notlike "*delta*" }
     }elseif($newPermissionsReportFolder -and $oldPermissionsReportFolder){
-        $newReportFiles = Get-ChildItem -Path $newPermissionsReportFolder -Recurse -Filter "*.json" | Where-Object { $_.Name -notlike "*delta*" }
-        $oldReportFiles = Get-ChildItem -Path $oldPermissionsReportFolder -Recurse -Filter "*.json" | Where-Object { $_.Name -notlike "*delta*" }
+        $newReportFiles = Get-ChildItem -Path $newPermissionsReportFolder -Filter "*.json" | Where-Object { $_.Name -notlike "*delta*" }
+        $oldReportFiles = Get-ChildItem -Path $oldPermissionsReportFolder -Filter "*.json" | Where-Object { $_.Name -notlike "*delta*" }
     }
 
     if($newReportFiles.Count -lt 1){

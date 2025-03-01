@@ -19,11 +19,11 @@
         }else{
             Throw "Please run connect-M365 before using this function, OR specify the permissions file path manually using -permissionsFilePath or report folder using -reportFolder"
         }
-        $reportFiles = Get-ChildItem -Path $global:octo.userConfig.outputFolder -Recurse -Filter "*.json" | Where-Object { $_.Name -notlike "*delta*" }
+        $reportFiles = Get-ChildItem -Path $global:octo.userConfig.outputFolder -Filter "*.json" | Where-Object { $_.Name -notlike "*delta*" }
     }
 
     if($reportFolder){
-        $reportFiles = Get-ChildItem -Path $reportFolder -Recurse -Filter "*.json" | Where-Object { $_.Name -notlike "*delta*" }
+        $reportFiles = Get-ChildItem -Path $reportFolder "*.json" | Where-Object { $_.Name -notlike "*delta*" }
     }elseif($permissionsFilePath){
         $reportFiles = (Get-Item -Path $permissionsFilePath)
     }

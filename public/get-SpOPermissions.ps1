@@ -91,57 +91,84 @@
         }
 
         New-StatisticsObject -Category $siteCategory -Subject $site.Url
-        
-        $wasOwner = $False
+       
         try{
+            $oldLockState = $False
+            $wasOwner = $False
+            if($site.LockState -in @("NoAccess","ReadOnly") -and $global:octo.userConfig.authMode -eq "Delegated"){
+                if($global:octo.userConfig.respectSiteLocks){
+                    Throw "Site is locked and you've configured respectSiteLocks to `$True, skipping this site."
+                }
+                $oldLockState = $site.LockState
+                Write-LogMessage -message "Site is locked, unlocking..." -level 4
+                New-RetryCommand -Command 'Set-PnPTenantSite' -Arguments @{Identity = $site.Url; LockState = "Unlock"; Connection = (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl); WarningAction = "SilentlyContinue"; ErrorAction ="Stop"}
+                Write-LogMessage -message "Site unlocked, waiting 5 minutes..." -level 4
+                Start-Sleep -Seconds 300
+            }
+
             if($site.Owners -notcontains $global:octo.currentUser.userPrincipalName -and $global:octo.userConfig.authMode -eq "Delegated"){
                 Write-LogMessage -message "Adding you as site collection owner to ensure all permissions can be read from $($site.Url)..." -level 4
-                New-RetryCommand -Command 'Set-PnPTenantSite' -Arguments @{Identity = $site.Url; Owners = $global:octo.currentUser.userPrincipalName; Connection = (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl); WarningAction = "Stop"; ErrorAction ="Stop"}
+                New-RetryCommand -Command 'Set-PnPTenantSite' -Arguments @{Identity = $site.Url; Owners = $global:octo.currentUser.userPrincipalName; Connection = (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl); WarningAction = "SilentlyContinue"; ErrorAction ="Stop"}
                 Write-LogMessage -message "Owner added and marked for removal upon scan completion" -level 4
             }else{
                 $wasOwner = $True
                 Write-LogMessage -message "Site collection ownership verified for $($site.Url) :)" -level 4
-            }            
-            $spoWeb = (New-RetryCommand -Command 'Get-PnPWeb' -Arguments @{Connection = (Get-SpOConnection -Type User -Url $site.Url); ErrorAction = "Stop"})
-        }catch{
-            if($sites.Count -le 1){
-                Throw $_
-            }else{
-                Write-Error "Failed to parse site $($site.Url) because $_" -ErrorAction Continue
-            }
-            continue
-        }
-        
-        Write-LogMessage -message "Scanning root $($spoWeb.Url)..." -level 4
-        $spoSiteAdmins = (New-RetryCommand -Command 'Get-PnPSiteCollectionAdmin' -Arguments @{Connection = (Get-SpOConnection -Type User -Url $site.Url)})
-        $global:SPOPermissions.$($spoWeb.Url) = @()
+            }   
 
-        foreach($spoSiteAdmin in $spoSiteAdmins){
-            if($spoSiteAdmin.PrincipalType -ne "User" -and $expandGroups){
-                $members = $Null; $members = Get-PnPGroupMembers -group $spoSiteAdmin -parentId $spoSiteAdmin.Id -siteConn (Get-SpOConnection -Type User -Url $site.Url) | Where-Object {$_}
-                foreach($member in $members){
-                    Update-StatisticsObject -Category $siteCategory -Subject $site.Url
-                    New-SpOPermissionEntry -Path $spoWeb.Url -Permission (get-spopermissionEntry -entity $member -object $spoWeb -permission "Owner" -Through "GroupMembership" -parent $spoSiteAdmin.Title)
-                }
-            }else{
-                Update-StatisticsObject -Category $siteCategory -Subject $site.Url
-                New-SpOPermissionEntry -Path $spoWeb.Url -Permission (get-spopermissionEntry -entity $spoSiteAdmin -object $spoWeb -permission "Owner" -Through "DirectAssignment")
-            }
-        }        
-
-        get-PnPObjectPermissions -Object $spoWeb -Category $siteCategory
-
-        Stop-StatisticsObject -Category $siteCategory -Subject $site.Url
-
-        if(!$wasOwner){
-            Write-LogMessage -message "Cleanup: Removing you as site collection owner of $($site.Url)..." -level 4
-            try{
-                (New-RetryCommand -Command 'Remove-PnPSiteCollectionAdmin' -Arguments @{Owners = $global:octo.currentUser.userPrincipalName; Connection = (Get-SpOConnection -Type User -Url $site.Url)})
-                Write-LogMessage -message "Cleanup: Owner removed" -level 4
+            try{       
+                $spoWeb = (New-RetryCommand -Command 'Get-PnPWeb' -Arguments @{Connection = (Get-SpOConnection -Type User -Url $site.Url); ErrorAction = "Stop"})
             }catch{
-                Write-Error "Cleanup: Failed to remove you as site collection owner of $($site.Url) because $_" -ErrorAction Continue
+                if($sites.Count -le 1){
+                    Throw $_
+                }else{
+                    Write-Error "Failed to parse site $($site.Url) because $_" -ErrorAction Continue
+                }
+                continue
             }
-        }       
+            
+            Write-LogMessage -message "Scanning root $($spoWeb.Url)..." -level 4
+            $spoSiteAdmins = (New-RetryCommand -Command 'Get-PnPSiteCollectionAdmin' -Arguments @{Connection = (Get-SpOConnection -Type User -Url $site.Url)})
+            $global:SPOPermissions.$($spoWeb.Url) = @()
+
+            foreach($spoSiteAdmin in $spoSiteAdmins){
+                if($spoSiteAdmin.PrincipalType -ne "User" -and $expandGroups){
+                    $members = $Null; $members = Get-PnPGroupMembers -group $spoSiteAdmin -parentId $spoSiteAdmin.Id -siteConn (Get-SpOConnection -Type User -Url $site.Url) | Where-Object {$_}
+                    foreach($member in $members){
+                        Update-StatisticsObject -Category $siteCategory -Subject $site.Url
+                        New-SpOPermissionEntry -Path $spoWeb.Url -Permission (get-spopermissionEntry -entity $member -object $spoWeb -permission "Owner" -Through "GroupMembership" -parent $spoSiteAdmin.Title)
+                    }
+                }else{
+                    Update-StatisticsObject -Category $siteCategory -Subject $site.Url
+                    New-SpOPermissionEntry -Path $spoWeb.Url -Permission (get-spopermissionEntry -entity $spoSiteAdmin -object $spoWeb -permission "Owner" -Through "DirectAssignment")
+                }
+            }        
+
+            get-PnPObjectPermissions -Object $spoWeb -Category $siteCategory
+
+            Stop-StatisticsObject -Category $siteCategory -Subject $site.Url
+        }catch{
+            Throw $_
+        }finally{
+            if(!$wasOwner){
+                Write-LogMessage -message "Cleanup: Removing you as site collection owner of $($site.Url)..." -level 4
+                try{
+                    (New-RetryCommand -Command 'Remove-PnPSiteCollectionAdmin' -Arguments @{Owners = $global:octo.currentUser.userPrincipalName; Connection = (Get-SpOConnection -Type User -Url $site.Url)})
+                    Write-LogMessage -message "Cleanup: Owner removed" -level 4
+                }catch{
+                    Write-Error "Cleanup: Failed to remove you as site collection owner of $($site.Url) because $_" -ErrorAction Continue
+                }
+            }    
+            
+            if($oldLockState){
+                Write-LogMessage -message "Cleanup: Locking site back to $oldLockState..." -level 4
+                try{
+                    (New-RetryCommand -Command 'Set-PnPTenantSite' -Arguments @{Identity = $site.Url; LockState = $oldLockState; Connection = (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl); WarningAction = "SilentlyContinue"; ErrorAction ="Stop"})
+                    Write-LogMessage -message "Cleanup: Site locked" -level 4
+                }catch{
+                    Write-Error "Cleanup: Failed to lock site back to $oldLockState because $_" -ErrorAction Continue
+                }
+            }
+        }
 
         Write-LogMessage -message "Finalizing data and adding to report queue..." -level 4
         
@@ -168,7 +195,7 @@
         Remove-Variable -Name permissionRows -Force -Confirm:$False
 
         if(!$isParallel){
-            Reset-ReportQueue          
+            Write-Report      
         }else{
             [System.GC]::GetTotalMemory($true) | out-null
         }    

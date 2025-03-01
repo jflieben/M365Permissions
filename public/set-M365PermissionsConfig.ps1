@@ -16,6 +16,8 @@
         -LCClientId: the client id of the service principal to use for Service Principal authentication
         -LCTenantId: the tenant id of the service principal to use for Service Principal authentication
         -authMode: the authentication method to use, either Delegated (Interactive), ServicePrincipal or ManagedIdentity (Azure VM/Runbook/Functions etc)
+        -logLevel: the level of logging to use, either Full, Normal, Minimal or None. Full will log everything, None will log nothing, even errors. Normal and minimal are in between. Use Full for troubleshooting.
+        -respectSiteLocks: if set to True (default is False), the script will respect site locks when scanning SharePoint sites. By default, this is set to false which means the script will remove a lock if it exists and reapply it when done scanning. This ONLY happens when scanning as a user, Service Principals do not need to unlock a site first
     #>        
     Param(
         [Int]$maxThreads,
@@ -31,7 +33,8 @@
         [ValidateSet('Delegated','ServicePrincipal','ManagedIdentity')]	
         [String]$authMode,
         [ValidateSet('Full','Normal','Minimal','None')]	
-        [String]$logLevel    
+        [String]$logLevel,
+        [Boolean]$respectSiteLocks
     )
 
     $defaultConfig = @{
@@ -46,6 +49,7 @@
         "LCTenantId" = [String]$Null
         "authMode" = [String]"Delegated"
         "logLevel" = [String]"Minimal"
+        "respectSiteLocks" = [Boolean]$false
     }
 
     $configLocation = Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy\M365Permissions.conf"
