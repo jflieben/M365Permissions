@@ -66,6 +66,25 @@ if(!$global:octo){
 
     #sets default config of user-configurable settings, can be overridden by user calls to set-M365PermissionsConfig
     $global:octo.userConfig = @{}
+
+    #create the base reports folder
+    $reportsFolder = Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy\Reports"
+    if(!(Test-Path $reportsFolder)){
+        New-Item -Path $reportsFolder -ItemType Directory -Force | Out-Null
+    }
+
+    #create the base temp folder
+    $tempFolder = Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy\Temp"
+    if(!(Test-Path $tempFolder)){
+        New-Item -Path $tempFolder -ItemType Directory -Force | Out-Null
+    }   
+
+    #configure a temp folder specific for this run
+    $global:octo.outputTempFolder = Join-Path -Path $tempFolder -ChildPath "$((Get-Date).ToString("yyyyMMddHHmm"))"  
+    if(!(Test-Path $global:octo.outputTempFolder)){
+        $Null = New-Item -Path $global:octo.outputTempFolder -ItemType Directory -Force
+    }      
+
     set-M365PermissionsConfig 
         
     $global:runspacePool = [runspacefactory]::CreateRunspacePool(1, $global:octo.userConfig.maxThreads, ([system.management.automation.runspaces.initialsessionstate]::CreateDefault()), $Host)

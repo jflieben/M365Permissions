@@ -55,16 +55,6 @@
         $preferredConfig = Get-Content -Path $configLocation | ConvertFrom-Json -AsHashtable
     }
 
-    $reportsFolder = Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy\Reports"
-    if(!(Test-Path $reportsFolder)){
-        New-Item -Path $reportsFolder -ItemType Directory -Force | Out-Null
-    }
-
-    $tempFolder = Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy\Temp"
-    if(!(Test-Path $tempFolder)){
-        New-Item -Path $tempFolder -ItemType Directory -Force | Out-Null
-    }    
-
     #ensure verbose preferences are set in main process
     if($logLevel  -eq "Full" -or $preferredConfig.logLevel -eq "Full"){
         $global:VerbosePreference = "Continue"
@@ -103,11 +93,8 @@
 
     #override output folder with actual path
     if($global:octo.userConfig.outputFolder -eq "CURRENTFOLDER"){
-        $global:octo.userConfig.outputFolder = $reportsFolder
+        $global:octo.userConfig.outputFolder = (Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy\Reports")
     }
-
-    #configure a temp folder specific for this run
-    $global:octo.outputTempFolder = Join-Path -Path $tempFolder -ChildPath "$((Get-Date).ToString("yyyyMMddHHmm"))"
 
     #run verbose log to file if verbose is on
     if($global:octo.userConfig.LogLevel -eq "Full"){

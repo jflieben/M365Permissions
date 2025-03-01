@@ -11,9 +11,6 @@ function Add-ToReportQueue{
     #add report to queue
     if($statistics -or $permissions){
         if($category -and ($permissions -or $statistics)){
-            if(!(Test-Path $global:octo.outputTempFolder)){
-                $Null = New-Item -Path $global:octo.outputTempFolder -ItemType Directory -Force
-            }
             $randomId = Get-Random -Minimum 100000 -Maximum 9999999999
             [PSCustomObject]@{
                 statistics = $statistics

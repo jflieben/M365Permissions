@@ -16,11 +16,11 @@ function get-AccessToken{
     if(!$global:octo.LCRefreshToken){
         if($global:octo.userConfig.authMode -eq "Delegated"){
             try{
-                get-AuthorizationCode
+                get-AuthorizationCode | Out-Null
             }catch{
                 Write-Error $_ -ErrorAction Continue
                 Write-Error "Failed to authorize, trying again by forcing reconsent...." -ErrorAction Continue
-                get-AuthorizationCode -reConsent
+                get-AuthorizationCode -reConsent | Out-Null
             }
         }        
     }
@@ -66,7 +66,7 @@ function get-AccessToken{
     }
 
     if($returnHeader){
-        return @{"Authorization" = "Bearer $($global:octo.LCCachedTokens.$($resource).accessToken)"}
+        return [Hashtable]@{"Authorization" = "Bearer $($global:octo.LCCachedTokens.$($resource).accessToken)"}
     }else{
         return $global:octo.LCCachedTokens.$($resource).accessToken
     }
