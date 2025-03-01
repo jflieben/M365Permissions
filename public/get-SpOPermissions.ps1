@@ -33,10 +33,10 @@
 
     $ignoredSiteTypes = @("REDIRECTSITE#0","SRCHCEN#0", "SPSMSITEHOST#0", "APPCATALOG#0", "POINTPUBLISHINGHUB#0", "EDISC#0", "STS#-1","EHS#1","POINTPUBLISHINGTOPIC#0")
     if($siteUrl){
-        $sites = @(Get-PnPTenantSite -Connection (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl) -Identity $siteUrl)
+        $sites = @(New-RetryCommand -Command 'Get-PnPTenantSite' -Arguments @{Connection= (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl); Identity =$siteUrl})
     }
     if(!$sites){
-        $sites = @(Get-PnPTenantSite -IncludeOneDriveSites -Connection (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl) | Where-Object {`
+        $sites = @(New-RetryCommand -Command 'Get-PnPTenantSite' -Arguments @{IncludeOneDriveSites = $True; Connection = (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl)} | Where-Object {`
             $_.Template -NotIn $ignoredSiteTypes -and
             ($Null -ne $teamName -and $_.Title -eq $teamName -and $_.Template -notlike "*CHANNEL*") -or ($Null -ne $siteUrl -and $_.Url -eq $siteUrl)
         })
@@ -64,7 +64,7 @@
             if($targetUrl -and $sites.Url -notcontains $targetUrl){
                 try{
                     Write-LogMessage -message "Adding Channel $($channel.displayName) with URL $targetUrl to scan list as it has its own site" -level 4
-                    $extraSite = $Null; $extraSite = Get-PnPTenantSite -Connection (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl) -Identity $targetUrl
+                    $extraSite = $Null; $extraSite = New-RetryCommand -Command 'Get-PnPTenantSite' -Arguments @{Connection = (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl); Identity = $targetUrl}
                     if($extraSite -and $extraSite.Template -NotIn $ignoredSiteTypes){
                         $sites += $extraSite
                     }
@@ -96,7 +96,7 @@
         try{
             if($site.Owners -notcontains $global:octo.currentUser.userPrincipalName -and $global:octo.userConfig.authMode -eq "Delegated"){
                 Write-LogMessage -message "Adding you as site collection owner to ensure all permissions can be read from $($site.Url)..." -level 4
-                Set-PnPTenantSite -Identity $site.Url -Owners $global:octo.currentUser.userPrincipalName -Connection (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl) -WarningAction Stop -ErrorAction Stop
+                New-RetryCommand -Command 'Set-PnPTenantSite' -Arguments @{Identity = $site.Url; Owners = $global:octo.currentUser.userPrincipalName; Connection = (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl); WarningAction = "Stop"; ErrorAction ="Stop"}
                 Write-LogMessage -message "Owner added and marked for removal upon scan completion" -level 4
             }else{
                 $wasOwner = $True

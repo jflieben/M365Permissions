@@ -8,7 +8,7 @@ function New-RetryCommand {
         [hashtable]$Arguments,
 
         [Parameter(Mandatory = $false)]
-        [int]$MaxNumberOfRetries = 5,
+        [int]$MaxNumberOfRetries = 10,
 
         [Parameter(Mandatory = $false)]
         [int]$RetryDelayInSeconds = 30,

@@ -44,7 +44,7 @@ Function get-PnPObjectPermissions{
                 $obj.Url = $Object.Url
                 $obj.Type = "Site"
                 Update-StatisticsObject -Category $Category -Subject $siteUrl
-                $Null = Get-PnPProperty -ClientObject $Object -Property HasUniqueRoleAssignments, RoleAssignments -Connection (Get-SpOConnection -Type User -Url $siteUrl)
+                $Null = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object;Property =@("HasUniqueRoleAssignments", "RoleAssignments");Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
                 if($Object.HasUniqueRoleAssignments -eq $False){
                     Write-LogMessage -level 5 -message "Skipping $($obj.Title) as it fully inherits permissions from parent"
                     continue
@@ -53,12 +53,12 @@ Function get-PnPObjectPermissions{
                 }
             }
             Default{ 
-                $rootFolder = Get-PnPProperty -ClientObject $Object -Property RootFolder -Connection (Get-SpOConnection -Type User -Url $siteUrl)
+                $rootFolder = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object;Property ="RootFolder"; Connection =(Get-SpOConnection -Type User -Url $siteUrl)})
                 $obj.Title = $Object.Title
                 $obj.Url = "$($siteUrl.Split(".com")[0]).com$($rootFolder.ServerRelativeUrl)"
                 $obj.Type = "List or Library"  
                 Update-StatisticsObject -Category $Category -Subject $siteUrl
-                $Null = Get-PnPProperty -ClientObject $Object -Property HasUniqueRoleAssignments, RoleAssignments -Connection (Get-SpOConnection -Type User -Url $siteUrl)
+                $Null = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object;Property = @("HasUniqueRoleAssignments", "RoleAssignments");Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
                 if($Object.HasUniqueRoleAssignments -eq $False){
                     Write-LogMessage -level 5 -message "Skipping $($obj.Title) as it fully inherits permissions from parent"
                     continue
@@ -133,7 +133,7 @@ Function get-PnPObjectPermissions{
         $childObjects = $Null; $childObjects = $Object.Webs
         foreach($childObject in $childObjects){
             #check if permissions are unique
-            $Null = Get-PnPProperty -ClientObject $childObject -Property HasUniqueRoleAssignments -Connection (Get-SpOConnection -Type User -Url $siteUrl)
+            $Null = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject= $childObject;Property = "HasUniqueRoleAssignments"; Connection= (Get-SpOConnection -Type User -Url $siteUrl)})
             if($childObject.HasUniqueRoleAssignments -eq $False){
                 Write-LogMessage -level 5 -message "Skipping $($childObject.Title) child web as it fully inherits permissions from parent"
                 continue
@@ -171,7 +171,7 @@ Function get-PnPObjectPermissions{
                 #grab top level info of the list first
                 get-PnPObjectPermissions -Object $List -siteUrl $siteUrl -Category $Category
 
-                Get-PnPProperty -ClientObject $List -Property Title, HasUniqueRoleAssignments, DefaultDisplayFormUrl -Connection (Get-SpOConnection -Type User -Url $siteUrl)
+                (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $List;Property = @("Title", "HasUniqueRoleAssignments", "DefaultDisplayFormUrl"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
                 if($List.HasUniqueRoleAssignments -eq $False){
                     Write-LogMessage -level 5 -message "Skipping $($List.Title) List as it fully inherits permissions from parent"
                     continue
