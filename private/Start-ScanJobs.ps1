@@ -76,7 +76,7 @@ function Start-ScanJobs{
                                         $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Warning | fl *
                                         $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Information | fl *
                                     }
-                                    if($VerbosePreference -eq "Continue"){
+                                    if($global:octo.userConfig.LogLevel -eq "Full"){
                                         $global:octo.ScanJobs.$($Title).Jobs.Thread.Streams.Debug | fl *
                                         $global:octo.ScanJobs.$($Title).Jobs.Thread.Streams.Verbose | fl *
                                     }
@@ -131,10 +131,8 @@ function Start-ScanJobs{
                         }
                         if($global:octo.userConfig.LogLevel -eq "Full"){
                             $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Information
-                        }
-                        if($VerbosePreference -eq "Continue"){
                             $global:octo.ScanJobs.$($Title).Jobs.Thread.Streams.Debug
-                            $global:octo.ScanJobs.$($Title).Jobs.Thread.Streams.Verbose
+                            $global:octo.ScanJobs.$($Title).Jobs.Thread.Streams.Verbose                            
                         }
                         if($global:octo.ScanJobs.$($Title).Jobs[$i].Status -eq "Failed"){
                             Write-LogMessage -message "---------OUTPUT END-----------" -Level 2
@@ -180,7 +178,7 @@ function Start-ScanJobs{
 
     if($failedJobs){
         Write-LogMessage -message "The following targets failed: $($failedJobs -join ', ') even after retries. Try running these individually, if issues persist log an Issue in Github with verbose logs" -Level 1
-        if($global:VerbosePreference -ne "Continue"){
+        if($global:octo.userConfig.LogLevel -ne "Full"){
             Write-LogMessage -message "To run in Verbose mode, use set-M365PermissionsConfig -logLevel Full before starting a scan."  -Level 1
         }else{
             Write-LogMessage -message "Verbose log path: $($global:octo.outputTempFolder)\M365PermissionsVerbose.log"  -Level 1

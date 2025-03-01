@@ -61,6 +61,7 @@
         }           
         
         if($mailbox){
+            Write-LogMessage -level 5 -message "Got mailbox $($mailbox.Guid) for $($recipient.Identity)"
             Write-Progress -Id 2 -PercentComplete 15 -Activity "Scanning $($recipient.Identity)" -Status "Checking recipient for Mailbox permissions..."
             $mailboxPermissions = $Null; $mailboxPermissions = (New-ExOQuery -cmdlet "Get-Mailboxpermission" -cmdParams @{Identity = $mailbox.Guid}) | Where-Object {$_.User -like "*@*"}
             foreach($mailboxPermission in $mailboxPermissions){
@@ -89,6 +90,7 @@
             Write-Progress -Id 3 -PercentComplete 1 -Activity "Scanning folders $($recipient.Identity)" -Status "Retrieving folder list for $($mailbox.UserPrincipalName)"
             try{
                 $folders = $Null; $folders = New-ExOQuery -cmdlet "Get-MailboxFolderStatistics" -cmdParams @{"ResultSize"="unlimited";"Identity"= $mailbox.UserPrincipalName}
+                Write-LogMessage -level 5 -message "Got $($folders.count) folders for for $($recipient.Identity)"
             }catch{
                 Write-LogMessage -level 2 -message "Failed to retrieve folder list for $($mailbox.UserPrincipalName)"
             }      

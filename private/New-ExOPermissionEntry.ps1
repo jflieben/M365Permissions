@@ -68,6 +68,7 @@ Function New-ExOPermissionEntry{
             }
         }
     }
+
     Write-LogMessage -level 5 -message "Adding permission $($role) scoped at $path for $($principalName)"
     if(!$global:ExOPermissions.$path){
         $global:ExOPermissions.$path = @()

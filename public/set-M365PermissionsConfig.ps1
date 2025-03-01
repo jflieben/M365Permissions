@@ -65,7 +65,7 @@
         New-Item -Path $tempFolder -ItemType Directory -Force | Out-Null
     }    
 
-    #ensure verbose preferences are set in all child processes
+    #ensure verbose preferences are set in main process
     if($logLevel  -eq "Full" -or $preferredConfig.logLevel -eq "Full"){
         $global:VerbosePreference = "Continue"
         $global:InformationPreference = "Continue"
@@ -110,7 +110,7 @@
     $global:octo.outputTempFolder = Join-Path -Path $tempFolder -ChildPath "$((Get-Date).ToString("yyyyMMddHHmm"))"
 
     #run verbose log to file if verbose is on
-    if($global:VerbosePreference -eq "Continue"){
+    if($global:octo.userConfig.LogLevel -eq "Full"){
         try{Start-Transcript -Path $(Join-Path -Path $global:octo.outputTempFolder -ChildPath "M365PermissionsVerbose.log") -Force -Confirm:$False}catch{
             Write-LogMessage -level 5 -message "Transcript already running"
         }

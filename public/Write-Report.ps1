@@ -2,6 +2,9 @@ function Write-Report {
     #flush all .xml's
     Reset-ReportQueue
 
+    #ensure the JSON files have been deduplicated to reduce noise
+    Get-dedeplicatedJson
+
     $basePath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions.@@@"
       
     try {
@@ -39,7 +42,6 @@ function Write-Report {
                 }
             }
         }
-        $sourceJSONFiles | % { Remove-Item -Path $_.FullName -Force }
     } catch {
         Write-Error $_ -ErrorAction Continue
         Write-Error "Failed to write to $targetPath" -ErrorAction Stop
