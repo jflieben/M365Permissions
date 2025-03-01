@@ -47,8 +47,7 @@
         }
         
         if($report.Count -gt $dedupedReport.Count){
-            Write-LogMessage -message "Deduplicated $($report.Count) rows to $($dedupedReport.Count) rows in $($reportFile.Name)"
-            Write-LogMessage -message "$($report.Count) reduced to $($dedupedReport.Count) rows in $($reportFile.Name), writing to file..." 
+            Write-LogMessage -message "Deduplicated $($report.Count) rows to $($dedupedReport.Count) rows in $($reportFile.Name), writing back to file"
             Write-Progress -Id 1 -Activity "Deduplicating reports" -Status "$count/$($reportFiles.count) Writing back to $($reportFile.Name)" -PercentComplete 0
             $dedupedReport | ConvertTo-Json -Depth 100 | Out-File -Path $reportFile.FullName -Force
         }else{

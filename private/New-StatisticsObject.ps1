@@ -26,6 +26,7 @@ function New-StatisticsObject{
         "Total objects scanned" = 0
         "Scan start time" = Get-Date
         "Scan end time" = ""
+        "Scan duration (seconds)" = 0
         "Scan performed by" = $global:octo.currentUser.userPrincipalName
     }
 }        

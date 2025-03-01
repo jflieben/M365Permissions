@@ -95,4 +95,8 @@
     if($global:octo.userConfig.outputFolder -eq "CURRENTFOLDER"){
         $global:octo.userConfig.outputFolder = (Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy\Reports")
     }
+
+    if($global:octo.sessionIdentifier -and !$global:octo.userConfig.outputFolder.EndsWith($global:octo.sessionIdentifier)){
+        $global:octo.userConfig.outputFolder = "$($global:octo.userConfig.outputFolder)\$($global:octo.sessionIdentifier)"
+    }
 }
