@@ -18,6 +18,25 @@ Function get-PnPObjectPermissions{
         "Url" = $Null
     }    
 
+    function aclTypeToString{
+        param(
+            [Parameter(Mandatory=$true)]$acl
+        )
+        switch($acl.Id){
+            1073741829{"Full Control"}
+            1073741828{"Design"}
+            1073741830{"Edit"}
+            1073741827{"Contribute"}
+            1073741826{"Read"}
+            1073741825{"Limited"}
+            1073741926{"LimitedView"}
+            1073741927{"LimitedEdit"}
+            1073741924{"Create subsites"}
+            1073741925{"View Only"}
+            default{$acl.Name}
+        }
+    }
+
     if($Object.ListGuid){
         $itemData = New-GraphQuery -resource "https://www.sharepoint.com" -Uri "$($siteUrl)/_api/web/lists/getbyid('$($Object.ListGuid)')/items($($Object.ID))?`$expand=File,Folder,RoleAssignments/Member,RoleAssignments/RoleDefinitionBindings&`$select=FileSystemObjectType,Folder,File,Id,Title,RoleAssignments&`$format=json" -Method GET
         If($itemData.FileSystemObjectType -eq 1){
@@ -85,41 +104,42 @@ Function get-PnPObjectPermissions{
     #processes all ACL's on the object
     Foreach($member in $ACLs){
         foreach($permission in $member.RoleDefinitionBindings){
-            Write-LogMessage -level 5 -message "Detected: $($member.Member.Title) $($permission.Name) ($($permission.RoleTypeKind))"
+            $permissionName = (aclTypeToString -acl $permission)
+            Write-LogMessage -level 5 -message "Detected: $($member.Member.Title) $($permissionName) ($($permission.RoleTypeKind))"
             if($ignoreablePermissions -contains $permission.RoleTypeKind -or $member.Member.IsHiddenInUI){
-                Write-LogMessage -level 5 -message "Ignoring $($permission.Name) permission type for $($member.Member.Title) because it is only relevant at a deeper level or hidden"
+                Write-LogMessage -level 5 -message "Ignoring $($permissionName) permission type for $($member.Member.Title) because it is only relevant at a deeper level or hidden"
                 continue
             }
             if($member.Member.PrincipalType -eq 1){ #users
-                New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity $member.Member -object $obj -permission $permission.Name -Through "DirectAssignment")
+                New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity $member.Member -object $obj -permission $permissionName -Through "DirectAssignment")
             }else{ #groups
                 if($member.Member.LoginName -like "SharingLinks*"){
                     $sharingLinkInfo = $Null; $sharingLinkInfo = get-SpOSharingLinkInfo -sharingLinkGuid $member.Member.LoginName.Split(".")[3]
                     if($sharingLinkInfo){
                         switch([Int]$sharingLinkInfo.LinkKind){
                             {$_ -in (2,3)}  { #Org wide
-                                New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -linkCreationDate $sharingLinkInfo.CreatedDate -linkExpirationDate $sharingLinkInfo.ExpirationDateTime -entity @{Email = "N/A";Title = "All Internal Users";PrincipalType="ORG-WIDE"} -object $obj -permission $permission.Name -Through "SharingLink" -parent "LinkId: $($sharingLinkInfo.ShareId)")
+                                New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -linkCreationDate $sharingLinkInfo.CreatedDate -linkExpirationDate $sharingLinkInfo.ExpirationDateTime -entity @{Email = "N/A";Title = "All Internal Users";PrincipalType="ORG-WIDE"} -object $obj -permission $permissionName -Through "SharingLink" -parent "LinkId: $($sharingLinkInfo.ShareId)")
                             }                            
                             {$_ -in (4,5)}  { #Anonymous
-                                New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -linkCreationDate $sharingLinkInfo.CreatedDate -linkExpirationDate $sharingLinkInfo.ExpirationDateTime -entity @{Email = "N/A";Title = "Anyone / Anonymous";PrincipalType="ANYONE"} -object $obj -permission $permission.Name -Through "SharingLink" -parent "LinkId: $($sharingLinkInfo.ShareId)")
+                                New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -linkCreationDate $sharingLinkInfo.CreatedDate -linkExpirationDate $sharingLinkInfo.ExpirationDateTime -entity @{Email = "N/A";Title = "Anyone / Anonymous";PrincipalType="ANYONE"} -object $obj -permission $permissionName -Through "SharingLink" -parent "LinkId: $($sharingLinkInfo.ShareId)")
                             }                            
                             {$_ -in (1,6)}  { #direct, flexible
                                 foreach($invitee in $sharingLinkInfo.invitees){
-                                    New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -linkCreationDate $sharingLinkInfo.CreatedDate -linkExpirationDate $sharingLinkInfo.ExpirationDateTime -entity (get-spoInvitee -invitee $invitee -siteUrl $siteUrl) -object $obj -permission $permission.Name -Through "SharingLink" -parent "LinkId: $($sharingLinkInfo.ShareId)")
+                                    New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -linkCreationDate $sharingLinkInfo.CreatedDate -linkExpirationDate $sharingLinkInfo.ExpirationDateTime -entity (get-spoInvitee -invitee $invitee -siteUrl $siteUrl) -object $obj -permission $permissionName -Through "SharingLink" -parent "LinkId: $($sharingLinkInfo.ShareId)")
                                 }
                             }
                         }
                     }else{
-                        New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity $member.Member -object $obj -permission $permission.Name -Through "SharingLink")
+                        New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity $member.Member -object $obj -permission $permissionName -Through "SharingLink")
                     }                    
                 }else{
                     if($expandGroups){
                         Get-PnPGroupMembers -Group $member.Member -parentId $member.Member.Id -siteConn (Get-SpOConnection -Type User -Url $siteUrl) | ForEach-Object {
                             if($_.PrincipalType -ne "User"){$through = "DirectAssignment"}else{$through = "GroupMembership"}
-                            New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity $_ -object $obj -permission $permission.Name -Through $through -parent $member.Member.Title)
+                            New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity $_ -object $obj -permission $permissionName -Through $through -parent $member.Member.Title)
                         }
                     }else{
-                        New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity $member.Member -object $obj -permission $permission.Name -Through "DirectAssignment")
+                        New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity $member.Member -object $obj -permission $permissionName -Through "DirectAssignment")
                     }
                 }
             }
