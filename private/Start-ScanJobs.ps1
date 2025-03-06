@@ -25,19 +25,32 @@ function Start-ScanJobs{
 
     Write-LogMessage -level 5 -message "Start multithreading $Title $($global:octo.ScanJobs.$($Title).Jobs.Count) jobs $($global:octo.userConfig.maxThreads) at a time using $($global:octo.ScanJobs.$($Title).FunctionToRun)"
 
+    $startTime = Get-Date
+
     Write-Progress -Id 1 -Activity $Title -Status "Starting initial threads" -PercentComplete 0
     
     [Int]$batchSize = 50
     [Int]$doneUntil = $batchSize
     [Array]$failedJobs = @()
     while($true){
+
         [Int]$queuedJobs = ($global:octo.ScanJobs.$($Title).Jobs | Where-Object {$_.Status -eq "Queued"}).Count
         [Int]$runningJobs = ($global:octo.ScanJobs.$($Title).Jobs | Where-Object {$_.Status -eq "Running"}).Count
         [Int]$failedJobsCount = ($global:octo.ScanJobs.$($Title).Jobs | Where-Object {$_.Status -eq "Failed"}).Count
         [Int]$totalJobs = $global:octo.ScanJobs.$($Title).Jobs.Count
         [Int]$completedJobs = $totalJobs - $queuedJobs - $runningJobs
         try{$percentComplete = (($completedJobs / $totalJobs) * 100)}catch{$percentComplete = 0}
-        Write-Progress -Id 1 -Activity $Title -Status "$completedJobs/$totalJobs done of which $failedJobsCount have failed, $runningJobs active and $queuedJobs queued" -PercentComplete $percentComplete
+
+        $elapsedTime = $(Get-Date) - $startTime
+        if ($completedJobs -gt 0) {
+            $estimatedTotalTime = $elapsedTime.TotalSeconds / $completedJobs * $totalJobs
+            $remainingTime = [TimeSpan]::FromSeconds($estimatedTotalTime - $elapsedTime.TotalSeconds)
+            $remainingTimeFormatted = $remainingTime.ToString("hh\:mm\:ss")
+        } else {
+            $remainingTimeFormatted = "??:??:??"
+        }
+        
+        Write-Progress -Id 1 -Activity $Title -Status "$completedJobs/$totalJobs done. $failedJobsCount failed, $runningJobs active, $queuedJobs queued. $remainingTimeFormatted est time left" -PercentComplete $percentComplete
         
         if($queuedJobs -eq 0 -and $runningJobs -eq 0){
             Write-LogMessage -level 5 -message "All jobs for $Title have finished"
@@ -70,7 +83,7 @@ function Start-ScanJobs{
                                 $global:octo.ScanJobs.$($Title).Jobs[$i].Attempts++
                                 if($global:octo.ScanJobs.$($Title).Jobs[$i].Attempts -lt $global:octo.userConfig.maxJobRetries){
                                     Write-LogMessage -message "Retrying $($global:octo.ScanJobs.$($Title).Jobs[$i].Target) after $($global:octo.ScanJobs.$($Title).Jobs[$i].Attempts) failure(s)" -level 2
-                                    Write-LogMessage -message "---------OUTPUT START---------" -Level 2
+                                    Write-LogMessage -message "---------OUTPUT $($global:octo.ScanJobs.$($Title).Jobs[$i].Target) START---------" -Level 2
                                     if($global:octo.userConfig.LogLevel -in ("Full","Normal","Minimal")){
                                         $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Error | fl *
                                         $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Warning | fl *
@@ -80,7 +93,7 @@ function Start-ScanJobs{
                                         $global:octo.ScanJobs.$($Title).Jobs.Thread.Streams.Debug | fl *
                                         $global:octo.ScanJobs.$($Title).Jobs.Thread.Streams.Verbose | fl *
                                     }
-                                    Write-LogMessage -message "---------OUTPUT END-----------" -Level 2       
+                                    Write-LogMessage -message "---------OUTPUT $($global:octo.ScanJobs.$($Title).Jobs[$i].Target) END-----------" -Level 2       
                                     $global:octo.ScanJobs.$($Title).Jobs[$i].Status = "Queued"
                                 }else{
                                     $global:octo.ScanJobs.$($Title).Jobs[$i].Status = "Failed"
@@ -118,9 +131,9 @@ function Start-ScanJobs{
                 #dispose of threads that have completed
                 if($global:octo.ScanJobs.$($Title).Jobs[$i].Status -in ("Succeeded", "Failed")){
                     if($global:octo.ScanJobs.$($Title).Jobs[$i].Status -eq "Failed"){
-                        Write-LogMessage -message "---------OUTPUT START---------" -Level 2
+                        Write-LogMessage -message "---------OUTPUT $($global:octo.ScanJobs.$($Title).Jobs[$i].Target) START---------" -Level 2
                     }else{
-                        Write-LogMessage -message "---------OUTPUT START---------" -Level 4
+                        Write-LogMessage -message "---------OUTPUT $($global:octo.ScanJobs.$($Title).Jobs[$i].Target) START---------" -Level 4
                     }
                     
                     try{
@@ -135,9 +148,9 @@ function Start-ScanJobs{
                             $global:octo.ScanJobs.$($Title).Jobs.Thread.Streams.Verbose                            
                         }
                         if($global:octo.ScanJobs.$($Title).Jobs[$i].Status -eq "Failed"){
-                            Write-LogMessage -message "---------OUTPUT END-----------" -Level 2
+                            Write-LogMessage -message "---------OUTPUT $($global:octo.ScanJobs.$($Title).Jobs[$i].Target) END-----------" -Level 2
                         }else{
-                            Write-LogMessage -message "---------OUTPUT END-----------" -Level 4
+                            Write-LogMessage -message "---------OUTPUT $($global:octo.ScanJobs.$($Title).Jobs[$i].Target) END-----------" -Level 4
                         }
 
                     }catch{}                         
