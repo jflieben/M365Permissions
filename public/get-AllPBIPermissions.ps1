@@ -41,7 +41,17 @@
 
     $global:PBIPermissions = @{}
 
-    $workspaces = New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/groups?`$top=5000" -resource "https://api.fabric.microsoft.com" -method "GET"
+    try{
+        $workspaces = New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/groups?`$top=5000" -resource "https://api.fabric.microsoft.com" -method "GET" -maxAttempts 2
+    }catch{
+        if($_.Exception.Message -like "*401*"){
+            Write-Error "You have not (yet) configured the correct permissions in PowerBI, aborting scan of PowerBI" -ErrorAction Continue
+            return $Null
+        }else{
+            Throw $_
+        }
+    }
+
     $workspaceParts = [math]::ceiling($workspaces.Count / 100)
 
     if($workspaceParts -gt 500){
