@@ -61,7 +61,8 @@ function get-AccessToken{
                 }catch{$Null}
             }
         }else{
-            Write-Error "Failed to retrieve access and/or refresh token! Please reload PowerShell / this module to refresh or google this error: $_" -ErrorAction Stop
+            Write-Error $_ -ErrorAction Continue
+            Write-Error "Failed to retrieve access and/or refresh token! Please retry and/or report the previous error." -ErrorAction Stop
         }
     }
 

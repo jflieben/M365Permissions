@@ -44,7 +44,7 @@
         Throw "Less than 1 JSON reports found in $($oldPermissionsReportFolder). Please run a scan first or specify the report folder using -oldPermissionsReportFolder"
     }
 
-    Write-LogMessage -Level 4 -message "Comparing $($newPermissionsReportFolder.Name) with $($oldPermissionsReportFolder.Name)"
+    Write-LogMessage -Level 4 -message "Comparing $($newPermissionsReportFolder) with $($oldPermissionsReportFolder)"
 
     $count = 0
     foreach($newReportFile in $newReportFiles){

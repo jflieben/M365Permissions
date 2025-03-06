@@ -6,7 +6,12 @@ function Add-ToReportQueue{
         [string]$category
     )
 
-    Write-LogMessage -level 5 -message "Adding $category report to write queue..."
+    if($statistics){
+        Write-LogMessage -level 5 -message "Adding $category statistics report to write queue..."
+    }else{
+        Write-LogMessage -level 5 -message "Adding $category permissions report to write queue..."
+    }
+
 
     #add report to queue
     if($statistics -or $permissions){

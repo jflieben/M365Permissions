@@ -25,6 +25,7 @@ function Reset-ReportQueue{
                 Write-ToJSONStorage -data $permissions -FilePath $filePath
             }
         }   
+        Write-LogMessage -level 5 -message "Wrote $($dataBatch.Count) reports to JSON storage in $($global:octo.userConfig.outputFolder) :)"
     }else{
         Write-LogMessage -level 5 -message "No reports to write to data storage..."
     }
