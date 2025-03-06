@@ -16,7 +16,7 @@ function get-SpOInvitee{
     #type 3 = external user
     if($invitee.Type -in @(1,2)){
         try{
-            $usr = $Null;$usr = (New-RetryCommand -ignoreableErrors @("User cannot be found") -Command 'Get-PnPUser' -Arguments @{Connection = (Get-SpOConnection -Type User -Url $siteUrl);Identity =$invitee.PId})
+            $usr = $Null;$usr = New-GraphQuery -maxAttempts 10 -Uri "$siteUrl/_api/Web/GetUserById($($invitee.PId))" -Method GET -resource "https://www.sharepoint.com" -ignoreableErrors @("404 (Not Found)")
         }catch{
             $usr = $Null
         }

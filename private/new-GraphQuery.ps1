@@ -39,12 +39,16 @@ function New-GraphQuery {
         [Int]$expectedTotalResults = 0,
 
         [Parameter(Mandatory = $false)]
-        [String]$ContentType = 'application/json; charset=utf-8'   
+        [String]$ContentType = 'application/json; charset=utf-8',
 
+        [Parameter(Mandatory = $false)]
+        [String[]]$ignoreableErrors
     )
 
     $headers = get-AccessToken -resource $resource -returnHeader
 
+    $headers['Accept-Language'] = "en-US"
+    
     if($expectedTotalResults -gt 0){
         Write-Progress -Id 10 -Activity "Querying $resource API" -Status "Retrieving initial batch of $expectedTotalResults expected records" -PercentComplete 0
     }
@@ -78,6 +82,15 @@ function New-GraphQuery {
                     $attempts = $MaxAttempts
                 }
                 catch {
+                    if($ignoreableErrors){
+                        foreach($ignoreableError in $ignoreableErrors){
+                            if($_.Exception.Message -like "*$ignoreableError*"){
+                                Write-LogMessage -level 6 -message "Ignoring error: $($_)"
+                                $nextUrl = $Null
+                                throw $_
+                            }
+                        }
+                    }                        
                     if ($attempts -ge $MaxAttempts) { 
                         Throw $_
                     }
@@ -103,6 +116,15 @@ function New-GraphQuery {
                         $attempts = $MaxAttempts
                     }
                     catch {
+                        if($ignoreableErrors){
+                            foreach($ignoreableError in $ignoreableErrors){
+                                if($_.Exception.Message -like "*$ignoreableError*"){
+                                    Write-LogMessage -level 6 -message "Ignoring error: $($_)"
+                                    $nextUrl = $Null
+                                    throw $_
+                                }
+                            }
+                        }                        
                         if ($attempts -ge $MaxAttempts) { 
                             $nextURL = $null
                             Throw $_
