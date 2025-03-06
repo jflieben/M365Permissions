@@ -8,7 +8,8 @@ function get-AuthorizationCode{
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
         [String]$clientId,
-        [Switch]$reConsent
+        [Switch]$reConsent,
+        [Switch]$skipVersionCheck
     )
 
     $tcpListener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, 1985)
@@ -16,16 +17,18 @@ function get-AuthorizationCode{
 
     $adminPrompt = "&prompt=admin_consent"
 
-    $cachedModuleVersion = Join-Path -Path $env:APPDATA -ChildPath "LiebenConsultancy\M365Permissions.version"
-    if(!(Test-Path $cachedModuleVersion)){
-        New-Item -Path (Split-Path $cachedModuleVersion) -ItemType Directory -Force | Out-Null
-        Set-Content -Path $cachedModuleVersion -Value $global:octo.moduleVersion -Force | Out-Null
-    }else{
-        if(([System.Version]::Parse((Get-Content -Path $cachedModuleVersion -Raw)) -lt [System.Version]::Parse($global:octo.moduleVersion))){
+    if(!$skipVersionCheck){
+        $cachedModuleVersion = Join-Path -Path $env:APPDATA -ChildPath "LiebenConsultancy\M365Permissions.version"
+        if(!(Test-Path $cachedModuleVersion)){
+            New-Item -Path (Split-Path $cachedModuleVersion) -ItemType Directory -Force | Out-Null
             Set-Content -Path $cachedModuleVersion -Value $global:octo.moduleVersion -Force | Out-Null
         }else{
-            if(!$reConsent){
-                $adminPrompt = $Null
+            if(([System.Version]::Parse((Get-Content -Path $cachedModuleVersion -Raw)) -lt [System.Version]::Parse($global:octo.moduleVersion))){
+                Set-Content -Path $cachedModuleVersion -Value $global:octo.moduleVersion -Force | Out-Null
+            }else{
+                if(!$reConsent){
+                    $adminPrompt = $Null
+                }
             }
         }
     }
@@ -52,7 +55,7 @@ function get-AuthorizationCode{
         
     #thank the user for authenticating
     Start-Sleep -s 1
-    $writer.Write("HTTP/1.1 200 OK`r`nContent-Type: text/html; charset=UTF-8`r`n`r`n<html><head><title>M365 Permissions by Lieben Consultancy</title></head><body><p>Logged in, thank you! You may now close this window, the scan will continue in your PowerShell terminal :)<br><br><a href=`"https://www.lieben.nu/liebensraum/m365permissions/`">https://www.lieben.nu/liebensraum/m365permissions/</a></p></body></html>");$writer.Flush()
+    $writer.Write("HTTP/1.1 200 OK`r`nContent-Type: text/html; charset=UTF-8`r`n`r`n<html><head><title>M365 Permissions by Lieben Consultancy</title></head><body><p>Logged in, thank you! You may now close this window :)<br><br><a href=`"https://www.lieben.nu/liebensraum/m365permissions/`">https://www.lieben.nu/liebensraum/m365permissions/</a></p></body></html>");$writer.Flush()
     Start-Sleep -s 1
     $writer.Close();$reader.Close();$client.Close();$tcpListener.Stop()
 
