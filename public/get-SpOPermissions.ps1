@@ -64,7 +64,7 @@
             if($targetUrl -and $sites.Url -notcontains $targetUrl){
                 try{
                     Write-LogMessage -message "Adding Channel $($channel.displayName) with URL $targetUrl to scan list as it has its own site" -level 4
-                    $extraSite = $Null; $extraSite = New-RetryCommand -Command 'Get-PnPTenantSite' -Arguments @{Connection = (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl); Identity = $targetUrl}
+                    $extraSite = $Null; $extraSite = New-RetryCommand -Command 'Get-PnPTenantSite' -Arguments @{Connection = (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl); Identity = $targetUrl} -ignoreableErrors @("Cannot get site")
                     if($extraSite -and $extraSite.Template -NotIn $ignoredSiteTypes){
                         $sites += $extraSite
                     }
@@ -106,7 +106,7 @@
                 Start-Sleep -Seconds 300
             }
 
-            if($site.Owners -notcontains $global:octo.currentUser.userPrincipalName -and $global:octo.userConfig.authMode -eq "Delegated"){
+            if($site.Owner -ne $global:octo.currentUser.userPrincipalName -and $site.Owners -notcontains $global:octo.currentUser.userPrincipalName -and $global:octo.userConfig.authMode -eq "Delegated"){
                 Write-LogMessage -message "Adding you as site collection owner to ensure all permissions can be read from $($site.Url)..." -level 4
                 New-RetryCommand -Command 'Set-PnPTenantSite' -Arguments @{Identity = $site.Url; Owners = $global:octo.currentUser.userPrincipalName; Connection = (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl); WarningAction = "SilentlyContinue"; ErrorAction ="Stop"}
                 Write-LogMessage -message "Owner added and marked for removal upon scan completion" -level 4
