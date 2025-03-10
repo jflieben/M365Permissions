@@ -55,6 +55,7 @@
                     role = "SendOnBehalf"
                     through = "Direct"
                     kind = "Allow"
+                    ObjectId = $mailbox.Guid
                 }
                 New-ExOPermissionEntry @splat
             }
@@ -77,6 +78,7 @@
                         role = $AccessRight
                         through = $(if($mailboxPermission.IsInherited){ "Inherited" }else{ "Direct" })
                         kind = $(if($mailboxPermission.Deny -eq "False"){ "Allow" }else{ "Deny" })
+                        ObjectId = $mailbox.Guid
                     }
                     New-ExOPermissionEntry @splat
                 }
@@ -142,6 +144,7 @@
                                     role = $AccessRight
                                     through = "Direct"
                                     kind = "Allow"
+                                    ObjectId = $folder.FolderId
                                 }
                                 New-ExOPermissionEntry @splat
                             }
@@ -172,6 +175,7 @@
                 role = $AccessRight
                 through = $(if($recipientPermission.IsInherited){ "Inherited" }else{ "Direct" })
                 kind = $recipientPermission.AccessControlType
+                ObjectId = $recipient.Guid
             }
             New-ExOPermissionEntry @splat
         }
@@ -192,6 +196,7 @@
                 "Role" = $permission.Role
                 "Through" = $permission.Through
                 "Kind" = $permission.Kind
+                "ObjectId" = $permission.ObjectId
             }
         }
     }  

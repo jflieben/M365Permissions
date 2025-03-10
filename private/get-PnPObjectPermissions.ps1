@@ -42,16 +42,19 @@ Function get-PnPObjectPermissions{
         If($itemData.FileSystemObjectType -eq 1){
             $obj.Title = $itemData.Folder.Name
             $obj.Url = "$($siteUrl.Split(".com")[0]).com$($itemData.Folder.ServerRelativeUrl)"
-            $obj.Type = "Folder"  
+            $obj.Type = "Folder"
+            $obj.id = $Object.ID
         }Else{
             If($Null -ne $itemData.File.Name){
                 $obj.Title = $itemData.File.Name
                 $obj.Url = "$($siteUrl.Split(".com")[0]).com$($itemData.File.ServerRelativeUrl)"
                 $obj.Type = "File"
+                $obj.id = $Object.ID
             }else{
                 $obj.Title = $itemData.Title
                 $obj.Url = "$($siteUrl)/$($Object.displayFormUrl)?ID=$($Object.ID)"
-                $obj.Type = "List Item"         
+                $obj.Type = "List Item" 
+                $obj.id = $Object.ID        
             }
         }
         $ACLs = $itemData.RoleAssignments
@@ -62,6 +65,7 @@ Function get-PnPObjectPermissions{
                 $obj.Title = $Object.Title
                 $obj.Url = $Object.Url
                 $obj.Type = "Site"
+                $obj.id = $Object.Id
                 Update-StatisticsObject -Category $Category -Subject $siteUrl
                 $Null = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object;Property =@("HasUniqueRoleAssignments", "RoleAssignments");Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
                 if($Object.HasUniqueRoleAssignments -eq $False){
@@ -75,7 +79,8 @@ Function get-PnPObjectPermissions{
                 $rootFolder = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object;Property ="RootFolder"; Connection =(Get-SpOConnection -Type User -Url $siteUrl)})
                 $obj.Title = $Object.Title
                 $obj.Url = "$($siteUrl.Split(".com")[0]).com$($rootFolder.ServerRelativeUrl)"
-                $obj.Type = "List or Library"  
+                $obj.Type = "List or Library"
+                $obj.id = $Object.Id
                 Update-StatisticsObject -Category $Category -Subject $siteUrl
                 $Null = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object;Property = @("HasUniqueRoleAssignments", "RoleAssignments");Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
                 if($Object.HasUniqueRoleAssignments -eq $False){
@@ -170,13 +175,16 @@ Function get-PnPObjectPermissions{
 
         $sharedLinksList = $Null; $sharedLinksList = $childObjects | Where-Object{$_.TemplateFeatureId -eq "d11bc7d4-96c6-40e3-837d-3eb861805bfa" -and $_}
         if($sharedLinksList){
-            try{
-                $global:sharedLinks = $Null;$global:sharedLinks = (New-RetryCommand -Command 'Get-PnPListItem' -Arguments @{List = $sharedLinksList.Id; PageSize = 500;Fields = ("ID","AvailableLinks"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)}) | ForEach-Object {
-                    $_.FieldValues["AvailableLinks"] | ConvertFrom-Json
+            $global:sharedLinks = @()
+            foreach($listId in $sharedLinksList.Id){ 
+                try{
+                    $global:sharedLinks += (New-RetryCommand -Command 'Get-PnPListItem' -Arguments @{List = $sharedLinksList.Id; PageSize = 500;Fields = ("ID","AvailableLinks"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)}) | ForEach-Object {
+                        $_.FieldValues["AvailableLinks"] | ConvertFrom-Json
+                    }
+                    Write-LogMessage -message "Cached $($sharedLinks.Count) shared links in $($Object.Title)..." -level 4
+                }catch{
+                    Write-Error "Failed to retrieve shared links in $($Object.Title) because $_" -ErrorAction Continue
                 }
-                Write-LogMessage -message "Cached $($sharedLinks.Count) shared links in $($Object.Title)..." -level 4
-            }catch{
-                Write-Error "Failed to retrieve shared links in $($Object.Title) because $_" -ErrorAction Continue
             }
         }else{
             Write-LogMessage -message "No shared links in $($Object.Title) discovered" -level 4

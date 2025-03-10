@@ -42,12 +42,18 @@ function New-GraphQuery {
         [String]$ContentType = 'application/json; charset=utf-8',
 
         [Parameter(Mandatory = $false)]
-        [String[]]$ignoreableErrors
+        [String[]]$ignoreableErrors,
+
+        [Parameter(Mandatory = $false)]
+        [Array]$extraHeaders = @()
     )
 
     $headers = get-AccessToken -resource $resource -returnHeader
 
     $headers['Accept-Language'] = "en-US"
+    foreach($extraHeader in $extraHeaders){
+        $headers[$($extraHeader.Name)] = $extraHeader.Value
+    }
     
     if($expectedTotalResults -gt 0){
         Write-Progress -Id 10 -Activity "Querying $resource API" -Status "Retrieving initial batch of $expectedTotalResults expected records" -PercentComplete 0

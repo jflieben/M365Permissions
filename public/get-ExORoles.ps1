@@ -54,6 +54,7 @@
                     role = "$($assignedManagementRole.Role)"
                     through = "$($assignedManagementRole.RoleAssignee)"
                     kind = "$($assignedManagementRole.RoleAssignmentDelegationType)"
+                    ObjectId = "N/A"
                 }
                 New-ExOPermissionEntry @splat
             }
@@ -68,6 +69,7 @@
                 role = "$($assignedManagementRole.Role)"
                 through = "$($assignedManagementRole.RoleAssignee)"
                 kind = "$($assignedManagementRole.RoleAssignmentDelegationType)"
+                ObjectId = $mailbox.Guid
             }
             New-ExOPermissionEntry @splat
         }
@@ -92,6 +94,7 @@
                 "Role" = $permission.Role
                 "Through" = $permission.Through
                 "Kind" = $permission.Kind
+                "ObjectId" = $permission.ObjectId
             }
         }
     }  

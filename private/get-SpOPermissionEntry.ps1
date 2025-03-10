@@ -44,5 +44,6 @@ function get-SpOPermissionEntry{
         "Parent" = $parent
         "LinkCreationDate" = $linkCreationDate
         "LinkExpirationDate" = $linkExpirationDate
+        "ObjectId" = $object.Id
     }
 }

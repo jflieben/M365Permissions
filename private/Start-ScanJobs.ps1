@@ -33,7 +33,6 @@ function Start-ScanJobs{
     [Int]$doneUntil = $batchSize
     [Array]$failedJobs = @()
     while($true){
-
         [Int]$queuedJobs = ($global:octo.ScanJobs.$($Title).Jobs | Where-Object {$_.Status -eq "Queued"}).Count
         [Int]$runningJobs = ($global:octo.ScanJobs.$($Title).Jobs | Where-Object {$_.Status -eq "Running"}).Count
         [Int]$failedJobsCount = ($global:octo.ScanJobs.$($Title).Jobs | Where-Object {$_.Status -eq "Failed"}).Count
@@ -90,8 +89,8 @@ function Start-ScanJobs{
                                         $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Information | fl *
                                     }
                                     if($global:octo.userConfig.LogLevel -eq "Full"){
-                                        $global:octo.ScanJobs.$($Title).Jobs.Thread.Streams.Debug | fl *
-                                        $global:octo.ScanJobs.$($Title).Jobs.Thread.Streams.Verbose | fl *
+                                        $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Debug | fl *
+                                        $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Verbose | fl *
                                     }
                                     Write-LogMessage -message "---------OUTPUT $($global:octo.ScanJobs.$($Title).Jobs[$i].Target) END-----------" -Level 2       
                                     $global:octo.ScanJobs.$($Title).Jobs[$i].Status = "Queued"
@@ -144,8 +143,8 @@ function Start-ScanJobs{
                         }
                         if($global:octo.userConfig.LogLevel -eq "Full"){
                             $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Information
-                            $global:octo.ScanJobs.$($Title).Jobs.Thread.Streams.Debug
-                            $global:octo.ScanJobs.$($Title).Jobs.Thread.Streams.Verbose                            
+                            $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Debug
+                            $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Verbose                            
                         }
                         if($global:octo.ScanJobs.$($Title).Jobs[$i].Status -eq "Failed"){
                             Write-LogMessage -message "---------OUTPUT $($global:octo.ScanJobs.$($Title).Jobs[$i].Target) END-----------" -Level 2
@@ -190,7 +189,7 @@ function Start-ScanJobs{
     }
 
     if($failedJobs){
-        Write-LogMessage -message "The following targets failed: $($failedJobs -join ', ') even after retries. Try running these individually, if issues persist log an Issue in Github with verbose logs" -Level 1
+        Write-LogMessage -message "The following targets failed: $($failedJobs -join ', '). Try running these individually, if issues persist log an Issue in Github with verbose logs" -Level 1
         if($global:octo.userConfig.LogLevel -ne "Full"){
             Write-LogMessage -message "To run in Verbose mode, use set-M365PermissionsConfig -logLevel Full before starting a scan."  -Level 1
         }else{

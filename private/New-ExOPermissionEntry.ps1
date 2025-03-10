@@ -14,7 +14,8 @@ Function New-ExOPermissionEntry{
         [Parameter(Mandatory=$false)]$principalType="",
         [Parameter(Mandatory=$true)]$role,
         [Parameter(Mandatory=$true)]$through,
-        [Parameter(Mandatory=$true)]$kind
+        [Parameter(Mandatory=$true)]$kind,
+        [Parameter(Mandatory=$true)]$objectId
     )
 
     if($global:octo.currentUser.userPrincipalName -eq $principalUpn -and !$global:octo.userConfig.includeCurrentUser){
@@ -31,7 +32,8 @@ Function New-ExOPermissionEntry{
         "PrincipalType" = $principalType
         "Role" = $role
         "Through" = $through
-        "Kind" = $kind      
+        "Kind" = $kind
+        "ObjectId" = $objectId    
     }
 
     if($global:ExOPermissions){
