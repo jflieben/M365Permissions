@@ -95,7 +95,7 @@
         try{
             $oldLockState = $False
             $wasOwner = $False
-            if($site.LockState -in @("NoAccess","ReadOnly") -and $global:octo.userConfig.authMode -eq "Delegated"){
+            if($site.LockState -in @("NoAccess","ReadOnly")){
                 if($global:octo.userConfig.respectSiteLocks){
                     Throw "Site is locked and you've configured respectSiteLocks to `$True, skipping this site."
                 }
