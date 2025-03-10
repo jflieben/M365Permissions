@@ -51,17 +51,12 @@
     }
 
     $currentRunVersion = $null
-    Get-Content -Path ($newReportFiles | where{$_.Name -like '*statistics.json'} | select -first 1).FullName | ForEach-Object {
-        if ($_ -match '"Module version"\s*:\s*"([^"]+)"') {
-            $currentRunVersion = $matches[1]; break
-        }
-    }
+    Select-String -Path ($newReportFiles | where{$_.Name -like '*statistics.json'} | select -first 1).FullName -Pattern '"Module version"\s*:\s*"([^"]+)"' | Select-Object -First 1 | 
+    ForEach-Object { $currentRunVersion = $_.Matches.Groups[1].Value }
+
     $previousRunVersion = $Null
-    Get-Content -Path ($oldReportFiles | where{$_.Name -like '*statistics.json'} | select -first 1).FullName | ForEach-Object {
-        if ($_ -match '"Module version"\s*:\s*"([^"]+)"') {
-            $previousRunVersion = $matches[1]; break
-        }
-    }
+    Select-String -Path ($oldReportFiles | where{$_.Name -like '*statistics.json'} | select -first 1).FullName -Pattern '"Module version"\s*:\s*"([^"]+)"' | Select-Object -First 1 | 
+    ForEach-Object { $previousRunVersion = $_.Matches.Groups[1].Value }
 
     if($currentRunVersion -and $previousRunVersion){
         if($currentRunVersion -ne $previousRunVersion){
@@ -87,17 +82,20 @@
             continue
         }
         Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($resources.Count) $resource Loading previous permissions..." -PercentComplete $percentComplete        
-        $oldTab = $Null; $oldTab = Get-Content -Path $oldReportFile.FullName | ConvertFrom-Json
+        $oldTab = $Null; 
+        if($oldReportFile){
+            $oldTab = Get-Content -Path $oldReportFile.FullName -ErrorAction SilentlyContinue | ConvertFrom-Json -ErrorAction SilentlyContinue
+        }
         Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($resources.Count) $resource Loading current permissions..." -PercentComplete $percentComplete        
         $newTab = $Null; $newTab = Get-Content -Path $newReportFile.FullName | ConvertFrom-Json
         Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($resources.Count) $resource Hashing data..." -PercentComplete $percentComplete
         if(!$oldTab -or $oldTab.Count -eq 0){
             $oldTab = @()
-            Write-LogMessage -Level 4 -message "No previous permissions found in $($oldReportFile.Name)"
+            Write-LogMessage -Level 4 -message "No previous permissions found for $resource"
         }
         if(!$newTab -or $newTab.Count -eq 0){
             $newTab = @()
-            Write-LogMessage -Level 4 -message "No previous permissions found in $($newReportFile.Name)"
+            Write-LogMessage -Level 4 -message "No current permissions found in $($newReportFile.Name)"
         }     
 
         $newJsonSet = @{}

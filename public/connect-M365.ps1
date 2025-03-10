@@ -65,7 +65,7 @@
                 if(!(Test-Path -Path $global:octo.userConfig.outputFolder)){
                     New-Item -Path $global:octo.userConfig.outputFolder -ItemType Directory -Force | Out-Null
                 }
-                Get-M365PermissionsConfig | ConvertTo-Json | Out-File -FilePath "$($global:octo.userConfig.outputFolder)\M365PermissionsConfig.json" -Force -Encoding UTF8
+                Get-M365PermissionsConfig | ConvertTo-Json | Out-File -FilePath "$($global:octo.userConfig.outputFolder)\M365Permissions.config" -Force -Encoding UTF8
             }
             if(!(Test-Path -Path $global:octo.userConfig.outputFolder)){
                 New-Item -Path $global:octo.userConfig.outputFolder -ItemType Directory -Force | Out-Null
