@@ -17,6 +17,12 @@
 
     $excludeProps = @("modified","endDateTime")
 
+    #register version specific exclusions here to avoid generating large numbers of falsely detected changed permissions.
+    #if comparing different versions, the NEW version's one time exclusions will be applied when comparing differences
+    $versionChangeTransitionalExclusions = @{
+        "1.1.5" = @("ObjectId")
+    }
+
     if(!$oldPermissionsReportFolder -and !$newPermissionsReportFolder){
         if($global:octo.connection -eq "Connected"){
             Write-LogMessage -Level 4 -message "No report folders specified, auto-detecting based on session identifier $($global:octo.userConfig.sessionIdentifier)"
@@ -42,6 +48,29 @@
 
     if($oldReportFiles.Count -lt 1){
         Throw "Less than 1 JSON reports found in $($oldPermissionsReportFolder). Please run a scan first or specify the report folder using -oldPermissionsReportFolder"
+    }
+
+    $currentRunVersion = $null
+    Get-Content -Path ($newReportFiles | where{$_.Name -like '*statistics.json'} | select -first 1).FullName | ForEach-Object {
+        if ($_ -match '"Module version"\s*:\s*"([^"]+)"') {
+            $currentRunVersion = $matches[1]; break
+        }
+    }
+    $previousRunVersion = $Null
+    Get-Content -Path ($oldReportFiles | where{$_.Name -like '*statistics.json'} | select -first 1).FullName | ForEach-Object {
+        if ($_ -match '"Module version"\s*:\s*"([^"]+)"') {
+            $previousRunVersion = $matches[1]; break
+        }
+    }
+
+    if($currentRunVersion -and $previousRunVersion){
+        if($currentRunVersion -ne $previousRunVersion){
+            Write-LogMessage -Level 4 -message "Detected version change from $($previousRunVersion) to $($currentRunVersion), applying transitional exclusions"
+            $versionChangeExclusions = $versionChangeTransitionalExclusions.$currentRunVersion
+            if($versionChangeExclusions){
+                $excludeProps += $versionChangeExclusions
+            }
+        }
     }
 
     Write-LogMessage -Level 4 -message "Comparing $($newPermissionsReportFolder) with $($oldPermissionsReportFolder)"
