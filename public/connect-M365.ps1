@@ -61,6 +61,11 @@
             $global:octo.sessionIdentifier = "$($global:octo.tenantName)_$((Get-Date).ToString("yyyyMMdd"))"
             if(!$global:octo.userConfig.outputFolder.EndsWith($global:octo.sessionIdentifier)){
                 $global:octo.userConfig.outputFolder = "$($global:octo.userConfig.outputFolder)\$($global:octo.sessionIdentifier)"
+                #write config to output folder for reference so each run's settings can be compared if needed
+                if(!(Test-Path -Path $global:octo.userConfig.outputFolder)){
+                    New-Item -Path $global:octo.userConfig.outputFolder -ItemType Directory -Force | Out-Null
+                }
+                Get-M365PermissionsConfig | ConvertTo-Json | Out-File -FilePath "$($global:octo.userConfig.outputFolder)\M365PermissionsConfig.json" -Force -Encoding UTF8
             }
             if(!(Test-Path -Path $global:octo.userConfig.outputFolder)){
                 New-Item -Path $global:octo.userConfig.outputFolder -ItemType Directory -Force | Out-Null

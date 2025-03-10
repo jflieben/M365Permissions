@@ -25,7 +25,7 @@
 
     if(!$oldPermissionsReportFolder -and !$newPermissionsReportFolder){
         if($global:octo.connection -eq "Connected"){
-            Write-LogMessage -Level 4 -message "No report folders specified, auto-detecting based on session identifier $($global:octo.userConfig.sessionIdentifier)"
+            Write-LogMessage -Level 4 -message "No report folders specified, auto-detecting changes since last run based on session identifier $($global:octo.userConfig.sessionIdentifier)"
         }else{
             Throw "Please run connect-M365 before using this function, OR specify the report folders manually using -oldPermissionsReportFolder and -newPermissionsReportFolder"
         }

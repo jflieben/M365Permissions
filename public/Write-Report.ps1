@@ -8,7 +8,9 @@ function Write-Report {
     #add a change detection run, silently (e.g. in case this is a first time run)
     try{
         Get-changedPermissions
-    }catch{$null}
+    }catch{
+        Write-LogMessage -Level 4 -Message "Failed to detect changes, continuing..."
+    }
 
     $basePath = Join-Path -Path $global:octo.userConfig.outputFolder -ChildPath "M365Permissions.@@@"
       
