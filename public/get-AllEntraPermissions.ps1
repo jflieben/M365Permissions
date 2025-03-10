@@ -145,7 +145,7 @@
 
     Write-Progress -Id 1 -PercentComplete 75 -Activity "Scanning Entra ID" -Status "Getting Graph Subscriptions"
     if($global:octo.userConfig.authMode -ne "Delegated"){
-        Write-LogMessage -level 2 -message "Graph subscriptions can only be retrieved in delegated mode, and will not be added to your report."
+        Write-LogMessage -level 2 -message "Graph subscriptions can only be retrieved in delegated mode and will not be added to your report."
     }else{
         $graphSubscriptions = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/subscriptions' -Method GET
         foreach($graphSubscription in $graphSubscriptions){

@@ -39,6 +39,7 @@
         }
     }
     [System.GC]::GetTotalMemory($true) | out-null
+    Write-LogMessage -message "Starting scan..."
     Start-ScanJobs -Title $activity
     $global:octo.recipients = $Null
     if(!$skipReportGeneration){

@@ -16,6 +16,7 @@ Function get-PnPObjectPermissions{
         "Title" = $null
         "Type" = $null
         "Url" = $Null
+        "id" = $Null
     }    
 
     function aclTypeToString{
@@ -176,9 +177,9 @@ Function get-PnPObjectPermissions{
         $sharedLinksList = $Null; $sharedLinksList = $childObjects | Where-Object{$_.TemplateFeatureId -eq "d11bc7d4-96c6-40e3-837d-3eb861805bfa" -and $_}
         if($sharedLinksList){
             $global:sharedLinks = @()
-            foreach($listId in $sharedLinksList.Id){ 
+            foreach($listId in $sharedLinksList.Id.Guid){ 
                 try{
-                    $global:sharedLinks += (New-RetryCommand -Command 'Get-PnPListItem' -Arguments @{List = $sharedLinksList.Id; PageSize = 500;Fields = ("ID","AvailableLinks"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)}) | ForEach-Object {
+                    $global:sharedLinks += (New-RetryCommand -Command 'Get-PnPListItem' -Arguments @{List = $listId; PageSize = 500;Fields = ("ID","AvailableLinks"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)}) | ForEach-Object {
                         $_.FieldValues["AvailableLinks"] | ConvertFrom-Json
                     }
                     Write-LogMessage -message "Cached $($sharedLinks.Count) shared links in $($Object.Title)..." -level 4
