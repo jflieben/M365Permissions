@@ -68,6 +68,9 @@
         }
     }
 
+    #create the actual regex with the final list of excluded properties
+    $pattern = '"(' + ($excludeProps -join '|') + ')"'
+
     Write-LogMessage -Level 4 -message "Comparing $($newPermissionsReportFolder) with $($oldPermissionsReportFolder)"
 
     $count = 0
@@ -81,14 +84,19 @@
         if($resources -notcontains $resource){
             continue
         }
-        Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($resources.Count) $resource Loading previous permissions..." -PercentComplete $percentComplete        
+
+        Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($newReportFiles.Count) $resource Loading previous permissions..." -PercentComplete $percentComplete        
         $oldTab = $Null; 
         if($oldReportFile){
-            $oldTab = Get-Content -Path $oldReportFile.FullName -ErrorAction SilentlyContinue | ConvertFrom-Json -ErrorAction SilentlyContinue
+            $oldTab = ConvertFrom-JsonToHash -path $oldReportFile.FullName -exclusionPattern $pattern
         }
-        Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($resources.Count) $resource Loading current permissions..." -PercentComplete $percentComplete        
-        $newTab = $Null; $newTab = Get-Content -Path $newReportFile.FullName | ConvertFrom-Json
-        Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($resources.Count) $resource Hashing data..." -PercentComplete $percentComplete
+
+        Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($newReportFiles.Count) $resource Loading current permissions..." -PercentComplete $percentComplete      
+        $newTab = $Null; 
+        if($newReportFile){
+            $newTab = ConvertFrom-JsonToHash -path $newReportFile.FullName -exclusionPattern $pattern
+        }  
+        
         if(!$oldTab -or $oldTab.Count -eq 0){
             $oldTab = @()
             Write-LogMessage -Level 4 -message "No previous permissions found for $resource"
@@ -98,57 +106,46 @@
             Write-LogMessage -Level 4 -message "No current permissions found in $($newReportFile.Name)"
         }     
 
-        $newJsonSet = @{}
-        foreach ($item in $newTab) {
-            $json = $item | Select-Object -Property ($item.PSObject.Properties.Name | Where-Object { $_ -notin $excludeProps }) | ConvertTo-Json -Depth 10
-            $newJsonSet[$json] = $true  # Store JSON as keys in a hash table
-        }    
-        
-        $oldJsonSet = @{}
-        foreach ($item in $oldTab) {
-            $json = $item | Select-Object -Property ($item.PSObject.Properties.Name | Where-Object { $_ -notin $excludeProps }) | ConvertTo-Json -Depth 10
-            $oldJsonSet[$json] = $true  # Store JSON as keys in a hash table
-        }      
-
-        Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($resources.Count) $resource Processing removals..." -PercentComplete $percentComplete
+        Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($newReportFiles.Count) $resource Processing removals..." -PercentComplete $percentComplete
 
         #current workload found, check for removals
-        for($i=0;$i -lt $oldTab.Count;$i++){
-            try{$percentComplete = ((($i+1)  / ($oldTab.Count+1)) * 100)}catch{$percentComplete = 0}
-            Write-Progress -Id 2 -Activity "Processing removals for $resource" -Status "$($i+1) / $($oldTab.Count))" -PercentComplete $percentComplete
-        
-            $oldRow = $oldTab[$i] | Select-Object -Property ($oldTab[$i].PSObject.Properties.Name | Where-Object { $_ -notin $excludeProps })  | ConvertTo-Json -Depth 10
-            
-            $existed = $newJsonSet.ContainsKey($oldRow)  
+        $i = 0
+        foreach($oldObject in $oldTab.Keys){
+            try{$percentComplete = ((($i+1)  / ($oldTab.Keys.Count+1)) * 100)}catch{$percentComplete = 0}
+            Write-Progress -Id 2 -Activity "Processing removals for $resource" -Status "$($i+1) / $($oldTab.Keys.Count))" -PercentComplete $percentComplete
+            $existed = $newTab.ContainsKey($oldObject)
             if (!$existed) {
-                [PSCustomObject]$diffItem = $oldTab[$i]
+                [PSCustomObject]$diffItem = $oldObject | ConvertFrom-Json -Depth 10
                 $diffItem | Add-Member -MemberType NoteProperty -Name Action -Value "Removed"
                 $diffResults += $diffItem
             }
+            $i++
         }
+
         $removedCount = $diffResults.count
         Write-LogMessage -message "Found $($removedCount) removed permissions for $resource"
         Write-Progress -Id 2 -Activity "Processing removals for $resource" -Completed  
         
-        Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($resources.Count) $resource Processing additions / updates..." -PercentComplete $percentComplete
+        Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($newReportFiles.Count) $resource Processing additions / updates..." -PercentComplete $percentComplete
 
         #current workload found, check for additions
-        for($i=0;$i -lt $newTab.Count;$i++){
-            try{$percentComplete = ((($i+1)  / ($newTab.Count+1)) * 100)}catch{$percentComplete = 0}
-            Write-Progress -Id 2 -Activity "Processing additions for $resource" -Status "$($i+1) / $($newTab.Count))" -PercentComplete $percentComplete            
-            $newRow = $newTab[$i] | Select-Object -Property ($newTab[$i].PSObject.Properties.Name | Where-Object { $_ -notin $excludeProps })  | ConvertTo-Json -Depth 10
-            
-            $existed = $oldJsonSet.ContainsKey($newRow)                      
+        $i = 0
+        foreach($newObject in $newTab.Keys){
+            try{$percentComplete = ((($i+1)  / ($newTab.Keys.Count+1)) * 100)}catch{$percentComplete = 0}
+            Write-Progress -Id 2 -Activity "Processing additions for $resource" -Status "$($i+1) / $($newTab.Keys.Count))" -PercentComplete $percentComplete
+            $existed = $oldTab.ContainsKey($newObject)
             if (!$existed) {
-                [PSCustomObject]$diffItem = $newTab[$i]
-                $diffItem | Add-Member -MemberType NoteProperty -Name Action -Value "New or Updated"
+                [PSCustomObject]$diffItem = $newObject | ConvertFrom-Json -Depth 10
+                $diffItem | Add-Member -MemberType NoteProperty -Name Action -Value "Removed"
                 $diffResults += $diffItem
             }
+            $i++
         }
+        
         Write-LogMessage -message "Found $($diffResults.count - $removedCount) added or updated permissions for $resource"
         Write-Progress -Id 2 -Activity "Processing additions for $resource" -Completed          
 
-        Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($resources.Count) $resource storing delta file..." -PercentComplete $percentComplete
+        Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($newReportFiles.Count) $resource storing delta file..." -PercentComplete $percentComplete
         Write-LogMessage -message ""
         if($diffResults.count -eq 0){
             continue
