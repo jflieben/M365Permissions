@@ -39,7 +39,7 @@
     
     #mailboxes have mailbox permissions
     if($recipient.RecipientTypeDetails -like "*Mailbox*" -and $recipient.RecipientTypeDetails -ne "GroupMailbox"){
-        Write-Progress -Id 2 -PercentComplete 5 -Activity "Scanning $($recipient.Identity)" -Status "Checking recipient for SendOnBehalf permissions..."
+        Write-Progress -Id 2 -PercentComplete 5 -Activity "Scanning $($recipient.Identity)" -Status "Checking SendOnBehalf permissions..."
         #get mailbox meta for SOB permissions
         $mailbox = $Null; $mailbox = New-ExOQuery -cmdlet "Get-Mailbox" -cmdParams @{Identity = $recipient.Guid} -retryCount 2
         if($mailbox.GrantSendOnBehalfTo){
@@ -63,7 +63,7 @@
         
         if($mailbox){
             Write-LogMessage -level 5 -message "Got mailbox $($mailbox.Guid) for $($recipient.Identity)"
-            Write-Progress -Id 2 -PercentComplete 15 -Activity "Scanning $($recipient.Identity)" -Status "Checking recipient for Mailbox permissions..."
+            Write-Progress -Id 2 -PercentComplete 15 -Activity "Scanning $($recipient.Identity)" -Status "Checking Mailbox permissions..."
             $mailboxPermissions = $Null; $mailboxPermissions = (New-ExOQuery -cmdlet "Get-Mailboxpermission" -cmdParams @{Identity = $mailbox.Guid}) | Where-Object {$_.User -like "*@*"}
             foreach($mailboxPermission in $mailboxPermissions){
                 foreach($AccessRight in $mailboxPermission.AccessRights){
@@ -87,7 +87,7 @@
         
         #retrieve individual folder permissions if -includeFolderLevelPermissions is set
         if($mailbox.UserPrincipalName -and $includeFolderLevelPermissions){
-            Write-Progress -Id 2 -PercentComplete 25 -Activity "Scanning $($recipient.Identity)" -Status "Checking recipient for folder permissions..."
+            Write-Progress -Id 2 -PercentComplete 25 -Activity "Scanning $($recipient.Identity)" -Status "Checking folder permissions..."
 
             Write-Progress -Id 3 -PercentComplete 1 -Activity "Scanning folders $($recipient.Identity)" -Status "Retrieving folder list for $($mailbox.UserPrincipalName)"
             try{
@@ -159,7 +159,7 @@
     }
     
     #all recipients can have recipient permissions
-    Write-Progress -Id 2 -PercentComplete 85 -Activity "Scanning $($recipient.Identity)" -Status "Checking recipient for SendAs permissions..."
+    Write-Progress -Id 2 -PercentComplete 85 -Activity "Scanning $($recipient.Identity)" -Status "Checking SendAs permissions..."
 
     $recipientPermissions = (New-ExOQuery -cmdlet "Get-RecipientPermission" -cmdParams @{"ResultSize" = "Unlimited"; "Identity" = $recipient.Guid}) | Where-Object {$_.Trustee -ne "NT Authority\SELF" }
     foreach($recipientPermission in $recipientPermissions){

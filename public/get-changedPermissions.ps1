@@ -71,7 +71,7 @@
     #create the actual regex with the final list of excluded properties
     $pattern = '"(' + ($excludeProps -join '|') + ')"'
 
-    Write-LogMessage -Level 4 -message "Comparing $($newPermissionsReportFolder) with $($oldPermissionsReportFolder)"
+    Write-LogMessage -Level 3 -message "Comparing $($newPermissionsReportFolder) with $($oldPermissionsReportFolder)"
 
     $count = 0
     foreach($newReportFile in $newReportFiles){
@@ -136,13 +136,13 @@
             $existed = $oldTab.ContainsKey($newObject)
             if (!$existed) {
                 [PSCustomObject]$diffItem = $newObject | ConvertFrom-Json -Depth 10
-                $diffItem | Add-Member -MemberType NoteProperty -Name Action -Value "Removed"
+                $diffItem | Add-Member -MemberType NoteProperty -Name Action -Value "New or Updated"
                 $diffResults += $diffItem
             }
             $i++
         }
         
-        Write-LogMessage -message "Found $($diffResults.count - $removedCount) added or updated permissions for $resource"
+        Write-LogMessage -message "Found $($diffResults.count - $removedCount) new or updated permissions for $resource"
         Write-Progress -Id 2 -Activity "Processing additions for $resource" -Completed          
 
         Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($newReportFiles.Count) $resource storing delta file..." -PercentComplete $percentComplete
