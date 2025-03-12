@@ -136,7 +136,6 @@ function Start-ScanJobs{
                     }
                     
                     try{
-                        $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.EndInvoke($global:octo.ScanJobs.$($Title).Jobs[$i].Handle)
                         if($global:octo.userConfig.LogLevel -in ("Full","Normal","Minimal")){
                             $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Error
                             $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Warning
@@ -146,6 +145,7 @@ function Start-ScanJobs{
                             $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Debug
                             $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.Streams.Verbose                            
                         }
+                        $global:octo.ScanJobs.$($Title).Jobs[$i].Thread.EndInvoke($global:octo.ScanJobs.$($Title).Jobs[$i].Handle)
                         if($global:octo.ScanJobs.$($Title).Jobs[$i].Status -eq "Failed"){
                             Write-LogMessage -message "---------OUTPUT $($global:octo.ScanJobs.$($Title).Jobs[$i].Target) END-----------" -Level 2
                         }else{

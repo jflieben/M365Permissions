@@ -54,7 +54,7 @@
             $channels = New-GraphQuery -Uri "https://graph.microsoft.com/beta/teams/$($sites[0].GroupId.Guid)/channels" -Method GET -NoRetry
             Write-LogMessage -message "Found $($channels.Count) channels" -level 4
         }catch{
-            Write-LogMessage -level 2 -message "Failed to retrieve channels for this site/team, assuming no additional sub sites to scan"
+            Write-LogMessage -level 3 -message "Failed to retrieve channels for $($sites[0].Url), assuming no additional sub sites to scan"
             $channels = @()
         }
         foreach($channel in $channels){
@@ -100,10 +100,15 @@
                     Throw "Site is locked and you've configured respectSiteLocks to `$True, skipping this site."
                 }
                 $oldLockState = $site.LockState
-                Write-LogMessage -message "Site is locked, unlocking..." -level 4
-                New-RetryCommand -Command 'Set-PnPTenantSite' -Arguments @{Identity = $site.Url; LockState = "Unlock"; Connection = (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl); WarningAction = "SilentlyContinue"; ErrorAction ="Stop"}
-                Write-LogMessage -message "Site unlocked, waiting 5 minutes..." -level 4
-                Start-Sleep -Seconds 300
+                if($site.LockState -eq "ReadOnly"){
+                    Write-LogMessage -message "Site is locked in read-only mode, unlocking..." -level 4
+                    New-RetryCommand -Command 'Set-PnPTenantSite' -Arguments @{Identity = $site.Url; LockState = "Unlock"; Connection = (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl); WarningAction = "SilentlyContinue"; ErrorAction ="Stop"}
+                    Write-LogMessage -message "Site unlocked, waiting 5 minutes..." -level 4
+                    Start-Sleep -Seconds 300
+                }else{
+                    Write-LogMessage -message "Site is locked in no-access mode and will be skipped as no one currently has access to it" -level 3
+                    continue
+                }
             }
 
             if($site.Owner -ne $global:octo.currentUser.userPrincipalName -and $site.Owners -notcontains $global:octo.currentUser.userPrincipalName -and $global:octo.userConfig.authMode -eq "Delegated"){
