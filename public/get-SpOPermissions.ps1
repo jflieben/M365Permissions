@@ -54,7 +54,7 @@
             $channels = New-GraphQuery -Uri "https://graph.microsoft.com/beta/teams/$($sites[0].GroupId.Guid)/channels" -Method GET -NoRetry
             Write-LogMessage -message "Found $($channels.Count) channels" -level 4
         }catch{
-            Write-LogMessage -level 3 -message "Failed to retrieve channels for $($sites[0].Url), assuming no additional sub sites to scan"
+            Write-LogMessage -level 4 -message "Failed to retrieve channels for $($sites[0].Url), the connected group was probably deleted. No additional sub sites to scan"
             $channels = @()
         }
         foreach($channel in $channels){
@@ -94,15 +94,15 @@
        
         try{
             $oldLockState = $False
-            $wasOwner = $False
+            $wasOwner = $True
             if($site.LockState -in @("NoAccess","ReadOnly")){
                 if($global:octo.userConfig.respectSiteLocks){
                     Throw "Site is locked and you've configured respectSiteLocks to `$True, skipping this site."
                 }
-                $oldLockState = $site.LockState
                 if($site.LockState -eq "ReadOnly"){
                     Write-LogMessage -message "Site is locked in read-only mode, unlocking..." -level 4
                     New-RetryCommand -Command 'Set-PnPTenantSite' -Arguments @{Identity = $site.Url; LockState = "Unlock"; Connection = (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl); WarningAction = "SilentlyContinue"; ErrorAction ="Stop"}
+                    $oldLockState = $site.LockState
                     Write-LogMessage -message "Site unlocked, waiting 5 minutes..." -level 4
                     Start-Sleep -Seconds 300
                 }else{
@@ -114,9 +114,9 @@
             if($site.Owner -ne $global:octo.currentUser.userPrincipalName -and $site.Owners -notcontains $global:octo.currentUser.userPrincipalName -and $global:octo.userConfig.authMode -eq "Delegated"){
                 Write-LogMessage -message "Adding you as site collection owner to ensure all permissions can be read from $($site.Url)..." -level 4
                 New-RetryCommand -Command 'Set-PnPTenantSite' -Arguments @{Identity = $site.Url; Owners = $global:octo.currentUser.userPrincipalName; Connection = (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl); WarningAction = "SilentlyContinue"; ErrorAction ="Stop"}
+                $wasOwner = $False
                 Write-LogMessage -message "Owner added and marked for removal upon scan completion" -level 4
             }else{
-                $wasOwner = $True
                 Write-LogMessage -message "Site collection ownership verified for $($site.Url) :)" -level 4
             }   
 
