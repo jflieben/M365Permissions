@@ -12,15 +12,26 @@
     Param(
         [Parameter(Mandatory = $false)][String]$oldPermissionsReportFolder,
         [Parameter(Mandatory = $false)][String]$newPermissionsReportFolder,
-        [String[]]$resources = @("Onedrive","Teams","O365Group","PowerBI","GroupsAndMembers","Entra","ExoRecipients","ExoRoles")
+        [String[]]$resources = @("SharePoint","Onedrive","Teams","O365Group","PowerBI","GroupsAndMembers","Entra","ExoRecipients","ExoRoles")
     )
 
-    $excludeProps = @("modified","endDateTime")
+    $excludeProps = @{
+        All = @()
+        "Entra" = @("principalName","startDateTime","endDateTime")
+        "ExoRecipients" = @("PrincipalName")
+        "ExoRoles" = @("PrincipalName")
+        "GroupsAndMembers" = @("MemberName","GroupName")
+        "O365Group" = @("Name")
+        "OneDrive" = @("Name")
+        "Teams" = @("Name")
+        "SharePoint" = @("Name")
+        "PowerBI" = @("created","modified")
+    }
 
     #register version specific exclusions here to avoid generating large numbers of falsely detected changed permissions.
     #if comparing different versions, the NEW version's one time exclusions will be applied when comparing differences
     $versionChangeTransitionalExclusions = @{
-        "1.1.5" = @("ObjectId")
+        "1.1.5" = @{"All" = @("ObjectId")}
     }
 
     if(!$oldPermissionsReportFolder -and !$newPermissionsReportFolder){
@@ -63,13 +74,12 @@
             Write-LogMessage -Level 4 -message "Detected version change from $($previousRunVersion) to $($currentRunVersion), applying transitional exclusions"
             $versionChangeExclusions = $versionChangeTransitionalExclusions.$currentRunVersion
             if($versionChangeExclusions){
-                $excludeProps += $versionChangeExclusions
+                foreach($key in $versionChangeExclusions.Keys){
+                    $excludeProps.$key += $versionChangeExclusions.$key
+                }
             }
         }
     }
-
-    #create the actual regex with the final list of excluded properties
-    $pattern = '"(' + ($excludeProps -join '|') + ')"'
 
     Write-LogMessage -Level 3 -message "Comparing $($newPermissionsReportFolder) with $($oldPermissionsReportFolder)"
 
@@ -84,6 +94,10 @@
         if($resources -notcontains $resource){
             continue
         }
+
+        $applicableExclusions = $excludeProps.All + $excludeProps.$resource
+        #create the actual regex with the final list of excluded properties
+        $pattern = '"(' + ($applicableExclusions -join '|') + ')"'
 
         Write-Progress -Id 1 -Activity "Comparing reports" -Status "$count / $($newReportFiles.Count) $resource Loading previous permissions..." -PercentComplete $percentComplete        
         $oldTab = $Null; 
@@ -115,7 +129,11 @@
             Write-Progress -Id 2 -Activity "Processing removals for $resource" -Status "$($i+1) / $($oldTab.Keys.Count))" -PercentComplete $percentComplete
             $existed = $newTab.ContainsKey($oldObject)
             if (!$existed) {
-                [PSCustomObject]$diffItem = $oldObject | ConvertFrom-Json -Depth 10
+                if($oldTab[$oldObject] -eq $True){
+                    [PSCustomObject]$diffItem = $oldObject | ConvertFrom-Json -Depth 10
+                }else{
+                    [PSCustomObject]$diffItem = $oldTab[$oldObject] | ConvertFrom-Json -Depth 10
+                }                
                 $diffItem | Add-Member -MemberType NoteProperty -Name Action -Value "Removed"
                 $diffResults += $diffItem
             }
@@ -135,7 +153,11 @@
             Write-Progress -Id 2 -Activity "Processing additions for $resource" -Status "$($i+1) / $($newTab.Keys.Count))" -PercentComplete $percentComplete
             $existed = $oldTab.ContainsKey($newObject)
             if (!$existed) {
-                [PSCustomObject]$diffItem = $newObject | ConvertFrom-Json -Depth 10
+                if($newTab[$newObject] -eq $True){
+                    [PSCustomObject]$diffItem = $newObject | ConvertFrom-Json -Depth 10
+                }else{
+                    [PSCustomObject]$diffItem = $newTab[$newObject] | ConvertFrom-Json -Depth 10
+                }
                 $diffItem | Add-Member -MemberType NoteProperty -Name Action -Value "New or Updated"
                 $diffResults += $diffItem
             }

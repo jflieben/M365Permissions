@@ -6,23 +6,32 @@ function ConvertFrom-JsonToHash{
     $hashtable = @{}
     $reader = [System.IO.StreamReader]::new($path)
     
-    $buffer = ""  # Stores the current JSON object as a string
-    
+    $bufferCleansed = ""
+    $bufferOriginal = ""
+
     try {
         while ($line = $reader.ReadLine()) {
             if($line -in @(""," ","`n","`r","`t","[","]")){
                 continue #skip empty lines or array starts/stops
             }
             if($line -match $exclusionPattern){
+                $bufferOriginal += $line
                 continue #skip excluded properties
             }
             if($line -match '^[\W_]*\{[\W_]*$'){
-                $buffer = $line #start of a new object
+                $bufferOriginal = $line
+                $bufferCleansed = $line #start of a new object
             }elseif($line -match '^[\W_]*\}[\W_]*$'){
-                $buffer += "}" #end of an object
-                $hashtable[$buffer] = $true
+                $bufferCleansed += "}" #end of an object
+                $bufferOriginal += "}"
+                if($bufferCleansed -eq $bufferOriginal){
+                    $hashtable[$bufferCleansed.Replace(",}","}")] = $true
+                }else{
+                    $hashtable[$bufferCleansed.Replace(",}","}")] = $bufferOriginal
+                }
             }else{
-                $buffer += $line
+                $bufferOriginal += $line
+                $bufferCleansed += $line
             }
         }
     } finally {

@@ -100,7 +100,7 @@ function New-GraphQuery {
                     if ($attempts -ge $MaxAttempts) { 
                         Throw $_
                     }
-                    Start-Sleep -Seconds (1 + (2 * $attempts))
+                    Start-Sleep -Seconds (1 + (3 * $attempts))
                 }     
             }
         }catch {
@@ -135,7 +135,7 @@ function New-GraphQuery {
                             $nextURL = $null
                             Throw $_
                         }
-                        Start-Sleep -Seconds (1 + (2 * $attempts))
+                        Start-Sleep -Seconds (1 + (3 * $attempts))
                     }
                 }
                 if($resource -like "*sharepoint.com*" -and $Data.PSObject.TypeNames -notcontains "System.Management.Automation.PSCustomObject"){

@@ -28,7 +28,7 @@ Function Get-SpOConnection{
             PnPConnObj = Connect-PnPOnline -Url $Url -ReturnConnection -AccessToken (get-AccessToken -resource $resource) -ErrorAction Stop
             LastUpdated = Get-Date
         }
-    }elseif($global:pnpUrlAuthCaches.$Url.$resource.LastUpdated -lt (Get-Date).AddMinutes(-15)){
+    }elseif($global:pnpUrlAuthCaches.$Url.$resource.LastUpdated -lt (Get-Date).AddMinutes(-10)){
         $global:pnpUrlAuthCaches.$Url.$resource.PnPConnObj = Connect-PnPOnline -Url $Url -ReturnConnection -AccessToken (get-AccessToken -resource $resource) -ErrorAction Stop
         $global:pnpUrlAuthCaches.$Url.$resource.LastUpdated = Get-Date
     }

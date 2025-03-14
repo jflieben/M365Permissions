@@ -32,7 +32,7 @@ function get-AccessToken{
         }
     }
 
-    if(!$global:octo.LCCachedTokens.$($resource).accessToken -or $global:octo.LCCachedTokens.$($resource).validFrom -lt (Get-Date).AddMinutes(-25)){
+    if(!$global:octo.LCCachedTokens.$($resource).accessToken -or $global:octo.LCCachedTokens.$($resource).validFrom -lt (Get-Date).AddMinutes(-15)){
         Write-LogMessage -level 5 -message "Token cache miss, refreshing $($global:octo.userConfig.authMode) V1 token for $resource..."
         if($global:octo.userConfig.authMode -eq "ServicePrincipal"){
             $assertion = Get-Assertion

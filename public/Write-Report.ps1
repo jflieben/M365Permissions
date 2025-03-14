@@ -18,8 +18,10 @@ function Write-Report {
         $sourceJSONFiles = Get-ChildItem -Path $global:octo.userConfig.outputFolder -Filter "*.json"
         Write-LogMessage -Level 5 -Message "Found $($sourceJSONFiles.Count) JSON files to process"
         foreach($JSONFile in $sourceJSONFiles){
-            $data = Get-Content -Path $JSONFile.FullName | ConvertFrom-Json -Depth 5
+            Write-LogMessage -Level 5 -Message "Sorting $($JSONFile.Name)"
+            $data = Get-Content -Path $JSONFile.FullName | ConvertFrom-Json -Depth 2 | Sort-Object -Property "Path"
             $category = $JSONFile.Name.Split("_")[1].replace(".json","")
+            Write-LogMessage -Level 5 -Message "Saving $($JSONFile.Name)"
             if($global:octo.userConfig.outputFormat -eq "XLSX"){
                 if($JSONFile.Name.Split("_")[-1] -eq "delta.json"){
                     $targetPath = $basePath.Replace("M365Permissions", "M365Permissions_delta").Replace("@@@", "xlsx")
@@ -39,8 +41,8 @@ function Write-Report {
                 $attempts++
                 try {
                     switch ($global:octo.userConfig.outputFormat) {
-                        "XLSX" { $data | Export-Excel -NoNumberConversion "Module version" -Path $targetPath -WorksheetName $($category) -TableName $($category) -TableStyle Medium10 -Append -AutoSize }
-                        "CSV" { $data | Export-Csv -Path $targetPath -NoTypeInformation -Append }
+                        "XLSX" { $data | Export-Excel -NoNumberConversion "Module version" -Path $targetPath -WorksheetName $($category) -TableName $($category) -TableStyle Medium10 -AutoSize }
+                        "CSV" { $data | Export-Csv -Path $targetPath -NoTypeInformation }
                     }
                     $attempts = $maxRetries
                     Write-LogMessage "Wrote $($data.count) rows for $category to $targetPath"
