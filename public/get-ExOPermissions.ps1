@@ -86,12 +86,12 @@
         }
         
         #retrieve individual folder permissions if -includeFolderLevelPermissions is set
-        if($mailbox.UserPrincipalName -and $includeFolderLevelPermissions){
+        if($mailbox.Guid -and $includeFolderLevelPermissions){
             Write-Progress -Id 2 -PercentComplete 25 -Activity "Scanning $($recipient.Identity)" -Status "Checking folder permissions..."
 
             Write-Progress -Id 3 -PercentComplete 1 -Activity "Scanning folders $($recipient.Identity)" -Status "Retrieving folder list for $($mailbox.UserPrincipalName)"
             try{
-                $folders = $Null; $folders = New-ExOQuery -cmdlet "Get-MailboxFolderStatistics" -cmdParams @{"ResultSize"="unlimited";"Identity"= $mailbox.UserPrincipalName}
+                $folders = $Null; $folders = New-ExOQuery -cmdlet "Get-MailboxFolderStatistics" -cmdParams @{"ResultSize"="unlimited";"Identity"= $mailbox.Guid}
                 Write-LogMessage -level 5 -message "Got $($folders.count) folders for for $($recipient.Identity)"
             }catch{
                 Write-LogMessage -level 2 -message "Failed to retrieve folder list for $($mailbox.UserPrincipalName)"
@@ -114,7 +114,7 @@
                 }           
                 
                 try{
-                    $folderPermissions = $Null; $folderPermissions = New-ExoQuery -cmdlet "Get-MailboxFolderPermission" -cmdParams @{Identity = "$($mailbox.UserPrincipalName):$($folder.FolderId)"}
+                    $folderPermissions = $Null; $folderPermissions = New-ExoQuery -cmdlet "Get-MailboxFolderPermission" -cmdParams @{Identity = "$($mailbox.Guid):$($folder.FolderId)"}
                     foreach($folderPermission in $folderPermissions){
                         $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.Identity -eq $folderPermission.User})[0]
                         if(!$entity){

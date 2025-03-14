@@ -20,7 +20,8 @@
     1.1.x Assess SQL or PBI as data destinations
     1.1.x Handle PowerBI setup/exception for SPN/MI auth   
     1.1.x How to handle spo group membership pivoting if we don't expand spo group membership           
-    1.1.x exo folder permission change results in update of LastModifiedTime attribute in 27/02/2025 15:07:10 format                                                                                                                                                    
+    1.1.x exo folder permission change results in update of LastModifiedTime attribute in 27/02/2025 15:07:10 format   
+    1.1.x auto cleanup app registrations etc after a run?                                                                                                                                                 
 #>                                                                                                                                              
 
 $helperFunctions = @{
