@@ -27,8 +27,8 @@ function New-ExOQuery {
     } 
 
     $Headers = @{ 
-        Authorization     = "Bearer $token"
-        "Accept-Charset"   = "UTF-8"
+        "Authorization" = "Bearer $token"
+        "Accept-Charset" = "UTF-8"
         "X-ResponseFormat" = "json"
         "Accept" = "application/json"
         "X-ClientApplication" ="ExoManagementModule"
@@ -55,7 +55,7 @@ function New-ExOQuery {
                         Throw $_
                     }
                     $sleepTime = $attempts * 2
-                    Write-Verbose "EXO request failed, sleeping for $sleepTime seconds..."
+                    Write-LogMessage -level 5 -message "EXO request failed, sleeping for $sleepTime seconds..."
                     Start-Sleep -Seconds $sleepTime
                 }
             }
@@ -82,6 +82,5 @@ function New-ExOQuery {
     }until($null -eq $nextURL)
 
     [System.GC]::GetTotalMemory($true) | out-null
-    [System.GC]::Collect()
     return $ReturnedData
 }

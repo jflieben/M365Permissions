@@ -5,13 +5,25 @@ function Get-CurrentUser {
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
     #>     
 
-    if($global:octo.authMode -eq "Delegated"){
+    if($global:octo.userConfig.authMode -eq "Delegated"){
         return New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/me' -NoPagination -Method GET
-    }else{
-        $spnMetaData = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals(appId='$($global:octo.LCClientId)')" -NoPagination -Method GET 
+    }elseif($global:octo.userConfig.authMode -eq "ServicePrincipal"){
+        $spnMetaData = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals(appId='$($global:octo.userConfig.LCClientId)')" -NoPagination -Method GET 
         return @{
             userPrincipalName = $spnMetaData.displayName
         }
+    }else{
+        if($global:octo.autDetectedClientId){
+            $spnMetaData = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals(appId='$($global:octo.autDetectedClientId)')" -NoPagination -Method GET 
+            return @{
+                userPrincipalName = $spnMetaData.displayName
+            }
+        }else{
+            return @{
+                userPrincipalName = "ManagedIdentity-$($Env:COMPUTERNAME)"
+            }
+        }
+
     }
 
 }

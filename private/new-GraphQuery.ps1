@@ -39,12 +39,22 @@ function New-GraphQuery {
         [Int]$expectedTotalResults = 0,
 
         [Parameter(Mandatory = $false)]
-        [String]$ContentType = 'application/json; charset=utf-8'   
+        [String]$ContentType = 'application/json; charset=utf-8',
 
+        [Parameter(Mandatory = $false)]
+        [String[]]$ignoreableErrors,
+
+        [Parameter(Mandatory = $false)]
+        [Array]$extraHeaders = @()
     )
 
     $headers = get-AccessToken -resource $resource -returnHeader
 
+    $headers['Accept-Language'] = "en-US"
+    foreach($extraHeader in $extraHeaders){
+        $headers[$($extraHeader.Name)] = $extraHeader.Value
+    }
+    
     if($expectedTotalResults -gt 0){
         Write-Progress -Id 10 -Activity "Querying $resource API" -Status "Retrieving initial batch of $expectedTotalResults expected records" -PercentComplete 0
     }
@@ -73,15 +83,24 @@ function New-GraphQuery {
             while ($attempts -lt $MaxAttempts) {
                 $attempts ++
                 try {
-                    [System.GC]::Collect()        
+                    [System.GC]::GetTotalMemory($true) | out-null   
                     $Data = (Invoke-RestMethod -Uri $nextURL -Method $Method -Headers $headers -Body $Body -ContentType $ContentType -ErrorAction Stop -Verbose:$False)
                     $attempts = $MaxAttempts
                 }
                 catch {
+                    if($ignoreableErrors){
+                        foreach($ignoreableError in $ignoreableErrors){
+                            if($_.Exception.Message -like "*$ignoreableError*"){
+                                Write-LogMessage -level 6 -message "Ignoring error: $($_)"
+                                $nextUrl = $Null
+                                throw $_
+                            }
+                        }
+                    }                        
                     if ($attempts -ge $MaxAttempts) { 
                         Throw $_
                     }
-                    Start-Sleep -Seconds (1 + (2 * $attempts))
+                    Start-Sleep -Seconds (1 + (3 * $attempts))
                 }     
             }
         }catch {
@@ -98,16 +117,25 @@ function New-GraphQuery {
                 while ($attempts -lt $MaxAttempts) {
                     $attempts ++
                     try {
-                        [System.GC]::Collect()
+                        [System.GC]::GetTotalMemory($true) | out-null
                         $Data = (Invoke-RestMethod -Uri $nextURL -Method $Method -Headers $headers -ContentType $ContentType -ErrorAction Stop -Verbose:$false)
                         $attempts = $MaxAttempts
                     }
                     catch {
+                        if($ignoreableErrors){
+                            foreach($ignoreableError in $ignoreableErrors){
+                                if($_.Exception.Message -like "*$ignoreableError*"){
+                                    Write-LogMessage -level 6 -message "Ignoring error: $($_)"
+                                    $nextUrl = $Null
+                                    throw $_
+                                }
+                            }
+                        }                        
                         if ($attempts -ge $MaxAttempts) { 
                             $nextURL = $null
                             Throw $_
                         }
-                        Start-Sleep -Seconds (1 + (2 * $attempts))
+                        Start-Sleep -Seconds (1 + (3 * $attempts))
                     }
                 }
                 if($resource -like "*sharepoint.com*" -and $Data.PSObject.TypeNames -notcontains "System.Management.Automation.PSCustomObject"){
@@ -160,7 +188,7 @@ function New-GraphQuery {
         } until ($null -eq $nextURL)
         Write-Progress -Id 10 -Completed -Activity "Querying $resource API"
         if ($ReturnedData -and !$ReturnedData.value -and $ReturnedData.PSObject.Properties["value"]) { return $null }
-        [System.GC]::Collect()
+        [System.GC]::GetTotalMemory($true) | out-null
 
         return $ReturnedData
     }

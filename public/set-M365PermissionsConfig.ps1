@@ -6,34 +6,41 @@
         
         Parameters:
         -maxThreads: the maximum amount of threads to use for parallel processing, by default 5. Ensure you've read my blog before increasing this.
-        -outputFolder: the path to the folder where you want to save permissions. By default it'll create the file in AppData\Roaming\LiebenConsultancy\M365Permissions
+        -outputFolder: the path to the folder where you want to save permissions. By default it'll create the file under AppData\Roaming\LiebenConsultancy\M365Permissions\Reports
         -outputFormat: XLSX or CSV
         -Verbose: if set, verbose output will be shown everywhere (=very chatty)
         -includeCurrentUser: add entries for the user performing the audit (as this user will have all access, it'll clutter the report)
         -defaultTimeoutMinutes: the default timeout in minutes for all parallelized jobs, by default 120 minutes
         -maxJobRetries: the amount of times a job will be retried if it fails, by default 3
+        -autoConnect: if set, the script will automatically connect to M365 using the configured authentication method, or default to Delegated if none has been set
+        -LCClientId: the client id of the service principal to use for Service Principal authentication
+        -LCTenantId: the tenant id of the service principal to use for Service Principal authentication
+        -authMode: the authentication method to use, either Delegated (Interactive), ServicePrincipal or ManagedIdentity (Azure VM/Runbook/Functions etc)
+        -logLevel: the level of logging to use, either Full, Normal, Minimal or None. Full will log everything, None will log nothing, even errors. Normal and minimal are in between. Use Full for troubleshooting.
+        -respectSiteLocks: if set to True (default is False), the script will respect site locks when scanning SharePoint sites. By default, this is set to false which means the script will remove a lock if it exists and reapply it when done scanning. This ONLY happens when scanning as a user, Service Principals do not need to unlock a site first
     #>        
     Param(
         [Int]$maxThreads,
         [String]$outputFolder,
         [ValidateSet('XLSX','CSV')]
         [String]$outputFormat,
-        [Boolean]$Verbose,
         [Boolean]$includeCurrentUser,
         [Int]$defaultTimeoutMinutes,
         [Int]$maxJobRetries,
         [Boolean]$autoConnect,
         [String]$LCClientId,
         [String]$LCTenantId,
-        [ValidateSet('Delegated','ServicePrincipal')]
-        [String]$authMode
+        [ValidateSet('Delegated','ServicePrincipal','ManagedIdentity')]	
+        [String]$authMode,
+        [ValidateSet('Full','Normal','Minimal','None')]	
+        [String]$logLevel,
+        [Boolean]$respectSiteLocks
     )
 
     $defaultConfig = @{
         "maxThreads" = [Int]5
         "outputFolder" = [String]"CURRENTFOLDER"
         "outputFormat" = [String]"XLSX"
-        "Verbose" = [Boolean]$false
         "includeCurrentUser" = [Boolean]$false
         "defaultTimeoutMinutes" = [Int]120
         "maxJobRetries" = [Int]3
@@ -41,6 +48,8 @@
         "LCClientId" = [String]$Null
         "LCTenantId" = [String]$Null
         "authMode" = [String]"Delegated"
+        "logLevel" = [String]"Minimal"
+        "respectSiteLocks" = [Boolean]$false
     }
 
     $configLocation = Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy\M365Permissions.conf"
@@ -50,11 +59,15 @@
         $preferredConfig = Get-Content -Path $configLocation | ConvertFrom-Json -AsHashtable
     }
 
-    #ensure verbose preferences are set in all child processes
-    if($True -eq $Verbose -or $True -eq $preferredConfig.Verbose){
+    #ensure verbose preferences are set in main process
+    if($logLevel  -eq "Full" -or $preferredConfig.logLevel -eq "Full"){
         $global:VerbosePreference = "Continue"
+        $global:InformationPreference = "Continue"
+        $global:DebugPreference = "Continue"
     }else{
         $global:VerbosePreference = "SilentlyContinue"
+        $global:InformationPreference = "SilentlyContinue"
+        $global:DebugPreference = "SilentlyContinue"
     }
 
     #override cached config with any passed in parameters (and only those we explicitly defined in the default config options)
@@ -62,7 +75,7 @@
     foreach($passedParam in $PSBoundParameters.GetEnumerator()){
         if($defaultConfig.ContainsKey($passedParam.Key)){
             $preferredConfig.$($passedParam.Key) = $passedParam.Value
-            Write-Verbose "Persisted $($passedParam.Key) to $($passedParam.Value) for your account"
+            Write-LogMessage -level 5 -message "Persisted $($passedParam.Key) to $($passedParam.Value) for your account"
             $updateConfigFile = $true
         }
     }
@@ -70,10 +83,10 @@
     #set global vars based on customization and/or defaults
     foreach($configurable in $defaultConfig.GetEnumerator()){
         if($Null -ne $preferredConfig.$($configurable.Name)){
-            Write-Verbose "Loaded $($configurable.Key) ($($preferredConfig.$($configurable.Name))) from persisted settings in $configLocation"
-            $global:octo.$($configurable.Name) = $preferredConfig.$($configurable.Name)
+            Write-LogMessage -level 5 -message "Loaded $($configurable.Key) ($($preferredConfig.$($configurable.Name))) from persisted settings in $configLocation"
+            $global:octo.userConfig.$($configurable.Name) = $preferredConfig.$($configurable.Name)
         }else{
-            $global:octo.$($configurable.Name) = $configurable.Value
+            $global:octo.userConfig.$($configurable.Name) = $configurable.Value
         }
     }
 
@@ -83,17 +96,11 @@
     }
 
     #override output folder with actual path
-    if($global:octo.outputFolder -eq "CURRENTFOLDER"){
-        $global:octo.outputFolder = Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy"
+    if($global:octo.userConfig.outputFolder -eq "CURRENTFOLDER"){
+        $global:octo.userConfig.outputFolder = (Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy\Reports")
     }
 
-    #configure a temp folder specific for this run
-    $global:octo.outputTempFolder = Join-Path -Path $global:octo.outputFolder -ChildPath "Temp$((Get-Date).ToString("yyyyMMddHHmm"))"
-
-    #run verbose log to file if verbose is on
-    if($global:VerbosePreference -eq "Continue"){
-        try{Start-Transcript -Path $(Join-Path -Path $global:octo.outputTempFolder -ChildPath "M365PermissionsVerbose.log") -Force -Confirm:$False}catch{
-            Write-Verbose "Transcript already running"
-        }
+    if($global:octo.sessionIdentifier -and !$global:octo.userConfig.outputFolder.EndsWith($global:octo.sessionIdentifier)){
+        $global:octo.userConfig.outputFolder = "$($global:octo.userConfig.outputFolder)\$($global:octo.sessionIdentifier)"
     }
 }

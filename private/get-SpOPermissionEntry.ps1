@@ -14,16 +14,10 @@ function get-SpOPermissionEntry{
         $linkExpirationDate
     )
     
-    $name = $entity.Title
-    $type = $entity.PrincipalType
+    $localEntity = (Get-SpOHarmonizedEntity -entity $entity -alwaysReturn)
 
-    if($type -eq 1 -or $type -eq "User"){
-        if($name -eq "External User" -or $entity.LoginName -like "*#EXT#*"){
-            $type = "Guest User"
-        }else{
-            $type = "Internal User"
-        }
-    }
+    $name = $localEntity.Title
+    $type = $localEntity.PrincipalType
 
     $objectType = $object.Type ? $object.Type : "root"
     
@@ -42,13 +36,14 @@ function get-SpOPermissionEntry{
     return [PSCustomObject]@{
         "Object" = $objectType
         "Name" = $name
-        "Identity" = $entity.LoginName
-        "Email" = $entity.Email
+        "Identity" = $localEntity.LoginName
+        "Email" = $localEntity.Email
         "Type" = $type
         "Permission" = $permission
         "Through" = $through
         "Parent" = $parent
         "LinkCreationDate" = $linkCreationDate
         "LinkExpirationDate" = $linkExpirationDate
+        "ObjectId" = $object.Id
     }
 }

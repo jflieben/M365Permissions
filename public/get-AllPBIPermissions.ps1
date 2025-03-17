@@ -9,13 +9,14 @@
         -excludeGroupsAndUsers: exclude group and user memberships from the report, only show role assignments
     #>        
     Param(
-        [Switch]$expandGroups
+        [Switch]$expandGroups,
+        [Switch]$skipReportGeneration
     )
 
     $activity = "Scanning PowerBI"
 
     #check if user has a powerbi license or this function will fail
-    if($global:octo.authMode -eq "Delegated"){
+    if($global:octo.userConfig.authMode -eq "Delegated"){
         $powerBIServicePlans = @("PBI_PREMIUM_EM1_ADDON","PBI_PREMIUM_EM2_ADDON","BI_AZURE_P_2_GOV","PBI_PREMIUM_P1_ADDON_GCC","PBI_PREMIUM_P1_ADDON","BI_AZURE_P3","BI_AZURE_P2","BI_AZURE_P1")
         $hasPowerBI = $False
         $licenses = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/users/$($global:octo.currentUser.userPrincipalName)/licenseDetails" -Method GET
@@ -29,18 +30,28 @@
         }
 
         if(!$hasPowerBI){
-            Write-Error "You do not have a PowerBI license, this function requires a PowerBI license assigned to the user you're logged in with" -ErrorAction Continue
+            Write-Error "You do not have a PowerBI license, this function requires a PowerBI license assigned to the user you're logged in with unless using a Service Principal" -ErrorAction Continue
             return $Null
         }
     }
 
-    Write-Host "Starting PowerBI scan..."
+    Write-LogMessage -message "Starting PowerBI scan..." -level 4
     New-StatisticsObject -category "PowerBI" -subject "Securables"
     Write-Progress -Id 1 -PercentComplete 0 -Activity $activity -Status "Retrieving workspaces..."
 
     $global:PBIPermissions = @{}
 
-    $workspaces = New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/groups?`$top=5000" -resource "https://api.fabric.microsoft.com" -method "GET"
+    try{
+        $workspaces = New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/groups?`$top=5000" -resource "https://api.fabric.microsoft.com" -method "GET" -maxAttempts 2
+    }catch{
+        if($_.Exception.Message -like "*401*"){
+            Write-Error "You have not (yet) configured the correct permissions in PowerBI, aborting scan of PowerBI. See https://www.lieben.nu/liebensraum/2025/03/allowing-a-service-principal-to-scan-powerbi/ for instructions!" -ErrorAction Continue
+            return $Null
+        }else{
+            Throw $_
+        }
+    }
+
     $workspaceParts = [math]::ceiling($workspaces.Count / 100)
 
     if($workspaceParts -gt 500){
@@ -53,13 +64,13 @@
     for($i=0;$i -lt $workspaceParts;$i++){
         $body = @{"workspaces" = $workspaces.id[($i*100)..($i*100+99)]} | ConvertTo-Json
         if($i/16 -eq 1){
-            Write-Host "Sleeping for 60 seconds to prevent throttling..."
+            Write-LogMessage -message "Sleeping for 60 seconds to prevent throttling..." -level 4
             Start-Sleep -Seconds 60
         }
         $scanJobs += New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/workspaces/getInfo?datasourceDetails=True&getArtifactUsers=True" -Method POST -Body $body -resource "https://api.fabric.microsoft.com"
     }
 
-    if($global:octo.authMode -eq "Delegated"){
+    if($global:octo.userConfig.authMode -eq "Delegated"){
         Write-Progress -Id 1 -PercentComplete 10 -Activity $activity -Status "Retrieving gateways..."
         $gateways = New-GraphQuery -Uri "https://api.powerbi.com/v2.0/myorg/gatewayclusters?`$expand=permissions&`$skip=0&`$top=5000" -resource "https://api.fabric.microsoft.com" -method "GET"
         for($g = 0; $g -lt $gateways.count; $g++){
@@ -75,7 +86,7 @@
                                 New-PBIPermissionEntry -path "/gateways/$($gateways[$g].type)/$($gateways[$g].id)" -type "Gateway" -principalId $groupMember.id -principalName $groupMember.displayName -principalUpn $groupMember.userPrincipalName -principalType $groupmember.principalType -roleDefinitionName $user.role -through "Group" -parent $user.id
                             }                        
                         }catch{
-                            Write-Warning "Failed to retrieve group members for $($user.id), adding as group principal type instead"
+                            Write-LogMessage -level 2 -message "Failed to retrieve group members for $($user.id), adding as group principal type instead"
                         }
                     }
                     if(!$groupMembers){
@@ -102,7 +113,7 @@
 
         Write-Progress -Id 2 -Completed -Activity "Analyzing gateways..."
     }else{
-        Write-Warning "Skipping gateway analysis, this function requires delegated authentication mode"
+        Write-LogMessage -level 2 -message "Skipping gateway analysis, this function requires delegated authentication mode"
     }
 
     Write-Progress -Id 1 -PercentComplete 15 -Activity $activity -Status "Waiting for scan jobs to complete..."
@@ -110,11 +121,11 @@
         do{
             $res = New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/workspaces/scanStatus/$($scanJob.id)" -Method GET -resource "https://api.fabric.microsoft.com"
             if($res.status -ne "Succeeded"){
-                Write-Host "Scan job $($scanJob.id) status $($res.status), sleeping for 30 seconds..."
+                Write-LogMessage -message "Scan job $($scanJob.id) status $($res.status), sleeping for 30 seconds..." -level 4
                 Start-Sleep -Seconds 30
             }
         }until($res.status -eq "Succeeded")
-        Write-Host "Scan job $($scanJob.id) completed"
+        Write-LogMessage -message "Scan job $($scanJob.id) completed" -level 4
     }
 
     Write-Progress -Id 1 -PercentComplete 25 -Activity $activity -Status "Receiving scan job results..."
@@ -168,7 +179,7 @@
                                     New-PBIPermissionEntry -path "/workspaces/$($scanResults[$s].name)/$secureableType/$($secureable.name)" -type $secureableTypes.$secureableType.Type -principalId $groupMember.id -principalName $groupMember.displayName -principalUpn $groupMember.userPrincipalName -principalType $groupmember.principalType -roleDefinitionName $user.$($secureableTypes.$secureableType.UserAccessRightProperty) -through "Group" -parent $user.graphId -created $created -modified $modified
                                 }                                
                             }catch{
-                                Write-Warning "Failed to retrieve group members for $($user.displayName), adding as group principal type instead"
+                                Write-LogMessage -level 2 -message "Failed to retrieve group members for $($user.displayName), adding as group principal type instead"
                             }                          
                         }
                         if(!$groupMembers){
@@ -205,8 +216,14 @@
             }
         }
     }
-
-    Add-ToReportQueue -permissions $permissionRows -category "PowerBI" -statistics @($global:unifiedStatistics."PowerBI"."Securables")
-    Reset-ReportQueue
+   
+    Add-ToReportQueue -permissions $permissionRows -category "PowerBI"
+    Remove-Variable -Name PBIPermissions -Scope Global -Force -Confirm:$False
+    if(!$skipReportGeneration){
+        Write-LogMessage -message "Generating report..." -level 4
+        Write-Report
+    }else{
+        Reset-ReportQueue
+    }
     Write-Progress -Id 1 -Completed -Activity $activity
 }

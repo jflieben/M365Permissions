@@ -7,11 +7,14 @@
     Param(
         [Switch]$includeOnedriveSites,
         [Switch]$excludeOtherSites,
-        [Switch]$expandGroups
+        [Switch]$expandGroups,
+        [Switch]$skipReportGeneration
     )
 
+    $env:PNPPOWERSHELL_UPDATECHECK="off"
+
     if(!$includeOnedriveSites -and $excludeOtherSites){
-        Write-Warning "You cannot use -excludeOtherSites without -includeOnedriveSites, assuming -includeOnedriveSites"
+        Write-LogMessage -level 2 -message "You cannot use -excludeOtherSites without -includeOnedriveSites, assuming -includeOnedriveSites"
         [Switch]$includeOnedriveSites = $True
     }
 
@@ -23,7 +26,7 @@
     })
 
     if($excludeOtherSites.IsPresent){
-        Write-Host "Only scanning Onedrive for Business sites"
+        Write-LogMessage -message "Only scanning Onedrive for Business sites"
         $sites = $sites | Where-Object {$_ -and $_.Url -notlike "https://$($global:octo.tenantName).sharepoint.com/*"}
     }
 
@@ -40,4 +43,9 @@
     }
 
     Start-ScanJobs -Title "Scanning Sharepoint Online"
+
+    if(!$skipReportGeneration){
+        Write-LogMessage -message "Generating report..." -level 4
+        Write-Report
+    }    
 }

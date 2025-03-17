@@ -10,7 +10,7 @@ Function Get-PnPGroupMembers{
         [Parameter(Mandatory=$true)]$siteConn
     )
 
-    Write-Verbose "Getting members for group $($group.Title)"
+    Write-LogMessage -level 5 -message "Getting members for group $($group.Title)"
 
     if($Null -eq $global:octo.PnPGroupCache){
         $global:octo.PnPGroupCache = @{}
@@ -23,30 +23,10 @@ Function Get-PnPGroupMembers{
     }
 
     try{$groupGuid = $Null; $groupGuid = $group.LoginName.Split("|")[2].Split("_")[0]}catch{$groupGuid = $Null}
-    if($group.LoginName.Split("|")[0] -eq "c:0(.s"){
-        Write-Verbose "Found $($group.Title) special group"
-        $global:octo.PnPGroupCache.$($group.Title) += [PSCustomObject]@{
-            "Title" = $group.Title
-            "LoginName" = $group.LoginName
-            "PrincipalType" = "ANYONE"
-            "Email" = "N/A"
-        }
-    }elseif($group.LoginName.Split("|")[0] -eq "c:0-.f"){
-        Write-Verbose "Found $($group.Title) special group"
-        $global:octo.PnPGroupCache.$($group.Title) += [PSCustomObject]@{
-            "Title" = $group.Title
-            "LoginName" = $group.LoginName
-            "PrincipalType" = "ORG-WIDE"
-            "Email" = "N/A"
-        }
-    }elseif($group.LoginName.Split("|")[0] -eq "c:0t.c"){
-        Write-Verbose "Found $($group.Title) special group (global administrators)"
-        $global:octo.PnPGroupCache.$($group.Title) += [PSCustomObject]@{
-            "Title" = $group.Title
-            "LoginName" = $group.LoginName
-            "PrincipalType" = "Role"
-            "Email" = "N/A"
-        }
+
+    $harmonizedMember = $Null; $harmonizedMember = Get-SpOHarmonizedEntity -entity $group
+    if($harmonizedMember){
+        $global:octo.PnPGroupCache.$($group.Title) += $harmonizedMember
     }elseif($groupGuid -and [guid]::TryParse($groupGuid, $([ref][guid]::Empty))){
         try{
             $graphMembers = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/groups/$groupGuid/transitiveMembers" -Method GET -ErrorAction Stop | Where-Object { $_."@odata.type" -eq "#microsoft.graph.user" }
@@ -61,7 +41,7 @@ Function Get-PnPGroupMembers{
         }
         foreach($graphMember in $graphMembers){
             if(!($global:octo.PnPGroupCache.$($group.Title).LoginName | Where-Object {$_ -and $_.EndsWith($graphMember.userPrincipalName)})){
-                Write-Verbose "Found $($graphMember.displayName) in graph group"
+                Write-LogMessage -level 5 -message "Found $($graphMember.displayName) in graph group"
                 $global:octo.PnPGroupCache.$($group.Title) += [PSCustomObject]@{
                     "Title" = $graphMember.displayName
                     "LoginName" = "i:0#.f|membership|$($graphMember.userPrincipalName)"
@@ -78,26 +58,12 @@ Function Get-PnPGroupMembers{
         }
         foreach($member in $members){   
             $groupGuid = $Null; try{$groupGuid = $member.LoginName.Split("|")[2].Split("_")[0]}catch{$groupGuid = $Null}
-            if($member.LoginName -like "*spo-grid-all-users*"){
-                Write-Verbose "Found $($member.Title) special group"
-                $global:octo.PnPGroupCache.$($group.Title) += [PSCustomObject]@{
-                    "Title" = $member.Title
-                    "LoginName" = $member.LoginName
-                    "PrincipalType" = "ORG-WIDE"
-                    "Email" = "N/A"
-                }                
+            $harmonizedMember = $Null; $harmonizedMember = Get-SpOHarmonizedEntity -entity $member
+            if($harmonizedMember){
+                $global:octo.PnPGroupCache.$($group.Title) += $harmonizedMember
                 continue
             }
-            if($member.LoginName -eq "c:0(.s|true"){
-                Write-Verbose "Found $($member.Title) special group"
-                $global:octo.PnPGroupCache.$($group.Title) += [PSCustomObject]@{
-                    "Title" = $member.Title
-                    "LoginName" = $member.LoginName
-                    "PrincipalType" = "ANYONE"
-                    "Email" = "N/A"
-                }      
-                continue
-            }
+
             if($groupGuid -and [guid]::TryParse($groupGuid, $([ref][guid]::Empty))){
                 try{
                     $graphMembers = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/groups/$groupGuid/transitiveMembers" -Method GET -ErrorAction Stop | Where-Object { $_."@odata.type" -eq "#microsoft.graph.user" }
@@ -112,7 +78,7 @@ Function Get-PnPGroupMembers{
                 }
                 foreach($graphMember in $graphMembers){
                     if(!($global:octo.PnPGroupCache.$($group.Title).LoginName | Where-Object {$_ -and $_.EndsWith($graphMember.userPrincipalName)})){
-                        Write-Verbose "Found $($graphMember.displayName) in graph group"
+                        Write-LogMessage -level 5 -message "Found $($graphMember.displayName) in graph group"
                         $global:octo.PnPGroupCache.$($group.Title) += [PSCustomObject]@{
                             "Title" = $graphMember.displayName
                             "LoginName" = "i:0#.f|membership|$($graphMember.userPrincipalName)"
@@ -125,7 +91,7 @@ Function Get-PnPGroupMembers{
             }
             if($member.Id -ne $parentId){
                 if($member.PrincipalType -eq "User" -and $global:octo.PnPGroupCache.$($group.Title) -notcontains $member){
-                    Write-Verbose "Found $($member.Title) in sec group"
+                    Write-LogMessage -level 5 -message "Found $($member.Title) in sec group"
                     $global:octo.PnPGroupCache.$($group.Title) += $member
                     continue
                 }
@@ -133,7 +99,7 @@ Function Get-PnPGroupMembers{
                     $subMembers = Get-PnPGroupMembers -name $member.Title -parentId $member.Id -siteConn $siteConn
                     foreach($subMember in $subMembers){
                         if($global:octo.PnPGroupCache.$($group.Title) -notcontains $subMember){
-                            Write-Verbose "Found $($subMember.Title) in sub sec group"
+                            Write-LogMessage -level 5 -message "Found $($subMember.Title) in sub sec group"
                             $global:octo.PnPGroupCache.$($group.Title) += $subMember
                         }
                     }

@@ -31,16 +31,15 @@
     
     New-StatisticsObject -category "ExoRecipients" -subject $recipient.displayName
 
-    $ignoredFolderTypes = @("RecoverableItemsSubstrateHolds","RecoverableItemsPurges","RecoverableItemsVersions","RecoverableItemsDeletions","RecoverableItemsDiscoveryHolds","Audits","CalendarLogging","RecoverableItemsRoot","SyncIssues","Conflicts","LocalFailures","ServerFailures")
     Update-StatisticsObject -category "ExoRecipients" -subject $recipient.displayName
     if(!$recipient.PrimarySmtpAddress){
-        Write-Warning "skipping $($recipient.identity) as it has no primary smtp address"
+        Write-LogMessage -level 2 -message "skipping $($recipient.identity) as it has no primary smtp address"
         return $Null
     }
     
     #mailboxes have mailbox permissions
     if($recipient.RecipientTypeDetails -like "*Mailbox*" -and $recipient.RecipientTypeDetails -ne "GroupMailbox"){
-        Write-Progress -Id 2 -PercentComplete 5 -Activity "Scanning $($recipient.Identity)" -Status "Checking recipient for SendOnBehalf permissions..."
+        Write-Progress -Id 2 -PercentComplete 5 -Activity "Scanning $($recipient.Identity)" -Status "Checking SendOnBehalf permissions..."
         #get mailbox meta for SOB permissions
         $mailbox = $Null; $mailbox = New-ExOQuery -cmdlet "Get-Mailbox" -cmdParams @{Identity = $recipient.Guid} -retryCount 2
         if($mailbox.GrantSendOnBehalfTo){
@@ -56,16 +55,18 @@
                     role = "SendOnBehalf"
                     through = "Direct"
                     kind = "Allow"
+                    ObjectId = $mailbox.Guid
                 }
                 New-ExOPermissionEntry @splat
             }
         }           
         
         if($mailbox){
-            Write-Progress -Id 2 -PercentComplete 15 -Activity "Scanning $($recipient.Identity)" -Status "Checking recipient for Mailbox permissions..."
+            Write-LogMessage -level 5 -message "Got mailbox $($mailbox.Guid) for $($recipient.Identity)"
+            Write-Progress -Id 2 -PercentComplete 15 -Activity "Scanning $($recipient.Identity)" -Status "Checking Mailbox permissions..."
             $mailboxPermissions = $Null; $mailboxPermissions = (New-ExOQuery -cmdlet "Get-Mailboxpermission" -cmdParams @{Identity = $mailbox.Guid}) | Where-Object {$_.User -like "*@*"}
             foreach($mailboxPermission in $mailboxPermissions){
-                foreach($AccessRight in $mailboxPermission.AccessRights){
+                foreach($AccessRight in $mailboxPermission.AccessRights.Split(",").Trim()){
                     $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.PrimarySmtpAddress -eq $mailboxPermission.User -or $_.windowsLiveId -eq $mailboxPermission.User})[0]
                     $splat = @{
                         path = "/$($recipient.PrimarySmtpAddress)"
@@ -77,6 +78,7 @@
                         role = $AccessRight
                         through = $(if($mailboxPermission.IsInherited){ "Inherited" }else{ "Direct" })
                         kind = $(if($mailboxPermission.Deny -eq "False"){ "Allow" }else{ "Deny" })
+                        ObjectId = $mailbox.Guid
                     }
                     New-ExOPermissionEntry @splat
                 }
@@ -84,38 +86,42 @@
         }
         
         #retrieve individual folder permissions if -includeFolderLevelPermissions is set
-        if($mailbox.UserPrincipalName -and $includeFolderLevelPermissions){
-            Write-Progress -Id 2 -PercentComplete 25 -Activity "Scanning $($recipient.Identity)" -Status "Checking recipient for folder permissions..."
+        if($mailbox.Guid -and $includeFolderLevelPermissions){
+            Write-Progress -Id 2 -PercentComplete 25 -Activity "Scanning $($recipient.Identity)" -Status "Checking folder permissions..."
 
             Write-Progress -Id 3 -PercentComplete 1 -Activity "Scanning folders $($recipient.Identity)" -Status "Retrieving folder list for $($mailbox.UserPrincipalName)"
             try{
-                $folders = $Null; $folders = New-ExOQuery -cmdlet "Get-MailboxFolderStatistics" -cmdParams @{"ResultSize"="unlimited";"Identity"= $mailbox.UserPrincipalName}
+                $folders = $Null; $folders = New-ExOQuery -cmdlet "Get-MailboxFolderStatistics" -cmdParams @{"ResultSize"="unlimited";"Identity"= $mailbox.Guid}
+                Write-LogMessage -level 5 -message "Got $($folders.count) folders for for $($recipient.Identity)"
             }catch{
-                Write-Warning "Failed to retrieve folder list for $($mailbox.UserPrincipalName)"
+                Write-LogMessage -level 2 -message "Failed to retrieve folder list for $($mailbox.UserPrincipalName)"
             }      
 
+            $ignoredFolderTypes = @("PersonMetadata","ConversationActions","RecipientCache","RecoverableItemsSubstrateHolds","RecoverableItemsPurges","RecoverableItemsVersions","RecoverableItemsDeletions","RecoverableItemsDiscoveryHolds","Audits","CalendarLogging","RecoverableItemsRoot","SyncIssues","Conflicts","LocalFailures","ServerFailures")
+            $ignoredFolderNames = @("SearchDiscoveryHoldsFolder")
             $folderCounter = 0
             foreach($folder in $folders){
                 Update-StatisticsObject -category "ExoRecipients" -subject $recipient.displayName
                 $folderCounter++
                 Write-Progress -Id 3 -PercentComplete (($folderCounter/$folders.Count)*100) -Activity "Scanning folders $($recipient.Identity)" -Status "Examining $($folder.Name) ($($folderCounter) of $($folders.Count))"
-                if($ignoredFolderTypes -contains $folder.FolderType -or $folder.Name -in @("SearchDiscoveryHoldsFolder")){
-                    Write-Verbose "Ignoring folder $($folder.Name) as it is in the ignored list"
+                if($ignoredFolderTypes -contains $folder.FolderType -or $ignoredFolderNames -contains $folder.Name){
+                    Write-LogMessage -level 5 -message "Ignoring folder $($folder.Name) as it is in the ignored list"
                     continue
                 }
                 if($folder.ItemsInFolder -lt 1){
-                    Write-Verbose "Ignoring folder $($folder.Name) as it is empty"
+                    Write-LogMessage -level 5 -message "Ignoring folder $($folder.Name) as it is empty"
                     continue
-                }                
+                }           
+                
                 try{
-                    $folderPermissions = $Null; $folderPermissions = New-ExoQuery -cmdlet "Get-MailboxFolderPermission" -cmdParams @{Identity = "$($mailbox.UserPrincipalName):$($folder.FolderId)"}
+                    $folderPermissions = $Null; $folderPermissions = New-ExoQuery -cmdlet "Get-MailboxFolderPermission" -cmdParams @{Identity = "$($mailbox.Guid):$($folder.FolderId)"}
                     foreach($folderPermission in $folderPermissions){
                         $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.Identity -eq $folderPermission.User})[0]
                         if(!$entity){
                             $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.DisplayName -eq $folderPermission.User})[0] 
                         }
                         if($entity -and $entity.Identity -eq $recipient.Identity){
-                            Write-Verbose "Skipping permission $($folderPermission.AccessRights) scoped at $($mailbox.UserPrincipalName)$($folder.FolderPath) for $($recipient.Identity) as it is the owner"
+                            Write-LogMessage -level 5 -message "Skipping permission $($folderPermission.AccessRights) scoped at $($mailbox.UserPrincipalName)$($folder.FolderPath) for $($recipient.Identity) as it is the owner"
                             continue
                         }
                         #handle external permissions for e.g. calendars
@@ -127,7 +133,7 @@
                             }
                         }
                         if($folderPermission.AccessRights -notcontains "None"){
-                            foreach($AccessRight in $folderPermission.AccessRights){
+                            foreach($AccessRight in $folderPermission.AccessRights.Split(",").Trim()){
                                 $splat = @{
                                     path = "/$($mailbox.UserPrincipalName)$($folder.FolderPath)"
                                     type = "MailboxFolder"
@@ -138,13 +144,14 @@
                                     role = $AccessRight
                                     through = "Direct"
                                     kind = "Allow"
+                                    ObjectId = $folder.FolderId
                                 }
                                 New-ExOPermissionEntry @splat
                             }
                         }
                     }
                 }catch{
-                    Write-Warning "Failed to retrieve folder permissions for $($mailbox.UserPrincipalName)$($folder.FolderPath)"
+                    Write-LogMessage -level 2 -message "Failed to retrieve folder permissions for $($mailbox.UserPrincipalName)$($folder.FolderPath)"
                 }
             }
             Write-Progress -Id 3 -Completed -Activity "Scanning folders $($recipient.Identity)"
@@ -152,12 +159,12 @@
     }
     
     #all recipients can have recipient permissions
-    Write-Progress -Id 2 -PercentComplete 85 -Activity "Scanning $($recipient.Identity)" -Status "Checking recipient for SendAs permissions..."
+    Write-Progress -Id 2 -PercentComplete 85 -Activity "Scanning $($recipient.Identity)" -Status "Checking SendAs permissions..."
 
     $recipientPermissions = (New-ExOQuery -cmdlet "Get-RecipientPermission" -cmdParams @{"ResultSize" = "Unlimited"; "Identity" = $recipient.Guid}) | Where-Object {$_.Trustee -ne "NT Authority\SELF" }
     foreach($recipientPermission in $recipientPermissions){
         $entity = $Null; $entity= $global:octo.recipients | Where-Object {$_.PrimarySmtpAddress -eq $recipientPermission.Trustee}
-        foreach($AccessRight in $recipientPermission.AccessRights){
+        foreach($AccessRight in $recipientPermission.AccessRights.Split(",").Trim()){
             $splat = @{
                 path = "/$($recipient.PrimarySmtpAddress)"
                 type = $recipient.RecipientTypeDetails
@@ -168,6 +175,7 @@
                 role = $AccessRight
                 through = $(if($recipientPermission.IsInherited){ "Inherited" }else{ "Direct" })
                 kind = $recipientPermission.AccessControlType
+                ObjectId = $recipient.Guid
             }
             New-ExOPermissionEntry @splat
         }
@@ -188,16 +196,18 @@
                 "Role" = $permission.Role
                 "Through" = $permission.Through
                 "Kind" = $permission.Kind
+                "ObjectId" = $permission.ObjectId
             }
         }
     }  
     
-    Add-ToReportQueue -permissions $permissionRows -category "ExoRecipients" -statistics @($global:unifiedStatistics."ExoRecipients".$($recipient.displayName)) 
+    Add-ToReportQueue -permissions $permissionRows -category "ExoRecipients"
     Remove-Variable -Name permissionRows -Force -Confirm:$False
-    if(!$isParallel){
-        Reset-ReportQueue          
-    }else{
-        [System.GC]::Collect()           
-    }     
+    Remove-Variable -Name ExOPermissions -Scope Global -Force -Confirm:$False
     Write-Progress -Id 2 -Completed -Activity "Scanning $($recipient.Identity)"
+    if(!$isParallel){
+        Write-Report         
+    }else{
+        [System.GC]::GetTotalMemory($true) | out-null         
+    }     
 }

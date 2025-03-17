@@ -12,7 +12,7 @@
         [Switch]$expandGroups
     )
 
-    Write-Host "Starting Exo role scan..."
+    Write-LogMessage -message "Starting Exo role scan..." -level 4
     
     Write-Progress -Id 2 -PercentComplete 0 -Activity "Scanning Exchange Roles" -Status "Retrieving all role assignments"
     $global:ExOPermissions = @{}
@@ -54,6 +54,7 @@
                     role = "$($assignedManagementRole.Role)"
                     through = "$($assignedManagementRole.RoleAssignee)"
                     kind = "$($assignedManagementRole.RoleAssignmentDelegationType)"
+                    ObjectId = "N/A"
                 }
                 New-ExOPermissionEntry @splat
             }
@@ -68,6 +69,7 @@
                 role = "$($assignedManagementRole.Role)"
                 through = "$($assignedManagementRole.RoleAssignee)"
                 kind = "$($assignedManagementRole.RoleAssignmentDelegationType)"
+                ObjectId = $mailbox.Guid
             }
             New-ExOPermissionEntry @splat
         }
@@ -92,12 +94,14 @@
                 "Role" = $permission.Role
                 "Through" = $permission.Through
                 "Kind" = $permission.Kind
+                "ObjectId" = $permission.ObjectId
             }
         }
     }  
 
-    Add-ToReportQueue -permissions $permissionRows -category "ExoRoles" -statistics @($global:unifiedStatistics."ExoRoles"."AdminRoles") 
+    Add-ToReportQueue -permissions $permissionRows -category "ExoRoles"
     Remove-Variable -Name permissionRows -Force -Confirm:$False
+    Remove-Variable -Name ExOPermissions -Scope Global -Force -Confirm:$False
     Reset-ReportQueue
     Write-Progress -Id 2 -Completed -Activity "Scanning Exchange Roles"
 }
