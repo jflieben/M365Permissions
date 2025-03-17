@@ -21,7 +21,7 @@
         $global:octo.userConfig.authMode = "Delegated"
     }elseif($Env:LCAUTHMODE){
         $global:octo.userConfig.authMode = $Env:LCAUTHMODE
-    }else{
+    }elseif(!$global:octo.userConfig.authMode){
         $global:octo.userConfig.authMode = "Delegated"
     }
 

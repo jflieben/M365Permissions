@@ -30,7 +30,7 @@
         }
 
         if(!$hasPowerBI){
-            Write-Error "You do not have a PowerBI license, this function requires a PowerBI license assigned to the user you're logged in with" -ErrorAction Continue
+            Write-Error "You do not have a PowerBI license, this function requires a PowerBI license assigned to the user you're logged in with unless using a Service Principal" -ErrorAction Continue
             return $Null
         }
     }
@@ -45,7 +45,7 @@
         $workspaces = New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/groups?`$top=5000" -resource "https://api.fabric.microsoft.com" -method "GET" -maxAttempts 2
     }catch{
         if($_.Exception.Message -like "*401*"){
-            Write-Error "You have not (yet) configured the correct permissions in PowerBI, aborting scan of PowerBI" -ErrorAction Continue
+            Write-Error "You have not (yet) configured the correct permissions in PowerBI, aborting scan of PowerBI. See https://www.lieben.nu/liebensraum/2025/03/allowing-a-service-principal-to-scan-powerbi/ for instructions!" -ErrorAction Continue
             return $Null
         }else{
             Throw $_

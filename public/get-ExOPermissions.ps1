@@ -66,7 +66,7 @@
             Write-Progress -Id 2 -PercentComplete 15 -Activity "Scanning $($recipient.Identity)" -Status "Checking Mailbox permissions..."
             $mailboxPermissions = $Null; $mailboxPermissions = (New-ExOQuery -cmdlet "Get-Mailboxpermission" -cmdParams @{Identity = $mailbox.Guid}) | Where-Object {$_.User -like "*@*"}
             foreach($mailboxPermission in $mailboxPermissions){
-                foreach($AccessRight in $mailboxPermission.AccessRights){
+                foreach($AccessRight in $mailboxPermission.AccessRights.Split(",").Trim()){
                     $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.PrimarySmtpAddress -eq $mailboxPermission.User -or $_.windowsLiveId -eq $mailboxPermission.User})[0]
                     $splat = @{
                         path = "/$($recipient.PrimarySmtpAddress)"
@@ -133,7 +133,7 @@
                             }
                         }
                         if($folderPermission.AccessRights -notcontains "None"){
-                            foreach($AccessRight in $folderPermission.AccessRights){
+                            foreach($AccessRight in $folderPermission.AccessRights.Split(",").Trim()){
                                 $splat = @{
                                     path = "/$($mailbox.UserPrincipalName)$($folder.FolderPath)"
                                     type = "MailboxFolder"
@@ -164,7 +164,7 @@
     $recipientPermissions = (New-ExOQuery -cmdlet "Get-RecipientPermission" -cmdParams @{"ResultSize" = "Unlimited"; "Identity" = $recipient.Guid}) | Where-Object {$_.Trustee -ne "NT Authority\SELF" }
     foreach($recipientPermission in $recipientPermissions){
         $entity = $Null; $entity= $global:octo.recipients | Where-Object {$_.PrimarySmtpAddress -eq $recipientPermission.Trustee}
-        foreach($AccessRight in $recipientPermission.AccessRights){
+        foreach($AccessRight in $recipientPermission.AccessRights.Split(",").Trim()){
             $splat = @{
                 path = "/$($recipient.PrimarySmtpAddress)"
                 type = $recipient.RecipientTypeDetails
