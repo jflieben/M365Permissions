@@ -32,10 +32,12 @@
     }
 
     if(!$appId){
-        $app = (New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$Filter=displayName eq '$appName'" -NoPagination -Method GET -ComplexFilter).appId
+        $spn = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$Filter=displayName eq '$appName'" -Method GET -ComplexFilter
+    }else{
+        $spn = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$filter=appId eq '$appId'" -Method GET -ComplexFilter
     }
 
-    if(!$app){
+    if(!$spn -and $appName){
         Write-LogMessage -message "$appName not detected, creating..."
         $desiredState = @{
             "displayName" = $appName
@@ -44,28 +46,26 @@
             $app = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/applications" -Body ($desiredState | ConvertTo-Json) -Method POST
             Write-LogMessage -message "$appName created, waiting 10 seconds..."
             Start-Sleep -s 10
+            $spn = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$Filter=appId eq '$($app.appId)'" -Method GET
+            if(!$spn){
+                $desiredState = @{
+                    "appId" = $app.appId
+                }
+                try {
+                    $spn = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals" -Body ($desiredState | ConvertTo-Json) -Method POST
+                    Write-LogMessage -message "SPN added to $($app.displayName), waiting 10 seconds..."
+                    Start-Sleep -s 10
+                } catch {
+                    Throw $_
+                } 
+            }            
         } catch {
             Throw $_
         }       
     }
-        
-    Write-LogMessage -message "$($app.displayName) detected, getting SPN..."
-    $spn = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$Filter=appId eq '$($app.appId)'" -Method GET
-    if(!$spn){
-        $desiredState = @{
-            "appId" = $app.appId
-        }
-        try {
-            $spn = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals" -Body ($desiredState | ConvertTo-Json) -Method POST
-            Write-LogMessage -message "SPN added to $($app.displayName), waiting 10 seconds..."
-            Start-Sleep -s 10
-        } catch {
-            Throw $_
-        } 
-    }
 
     Write-LogMessage -message "SPN $($spn.displayName) detected, checking permissions..."
-    $appRoles = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals(appId='$($app.appId)')/appRoleAssignments" -Method GET
+    $appRoles = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals/$($spn.id)/appRoleAssignments" -Method GET
 
     $requiredRoles = @(
         @{

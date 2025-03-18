@@ -33,17 +33,21 @@
 
     Install-PSResource -Name M365Permissions -Repository PSGallery
 
-    EXAMPLES:
+    EXAMPLE:
 
-    Get-AllM365Permissions -expandGroups
+    Connect-M365
+
+    Get-AllM365Permissions
     
-    Get-SpOPermissions -siteUrl `"https://tenant.sharepoint.com/sites/site`" -ExpandGroups
+    OTHER EXAMPLES: 
+    
+    Get-SpOPermissions -siteUrl `"https://tenant.sharepoint.com/sites/site`"
     
     Get-SpOPermissions -teamName `"INT-Finance Department`"
     
     get-AllSPOPermissions -ExpandGroups -IncludeOneDriveSites -ExcludeOtherSites
     
-    get-AllEntraPermissions -expandGroups
+    get-AllEntraPermissions
 
     Get-AllExOPermissions -includeFolderLevelPermissions
 
@@ -53,7 +57,9 @@
 
     Get-ChangedPermissions
 
-    Please note that this module is provided AS-IS, no guarantees or warranties provided. Use at your own risk."
+    Please note that this module is provided AS-IS, no guarantees or warranties provided. Use at your own risk
+    
+    Free for non-commercial use, see https://www.lieben.nu/liebensraum/commercial-use/ for commercial use"
 
     # Minimum version of the Windows PowerShell engine required by this module
     PowerShellVersion    = '7.2'
