@@ -5,34 +5,43 @@ Function New-PBIPermissionEntry{
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
     #>    
     Param(
-        [Parameter(Mandatory=$true)]$path,
-        [Parameter(Mandatory=$true)]$type,
-        [Parameter(Mandatory=$true)]$principalId,
-        [Parameter(Mandatory=$false)]$principalUpn="Unknown",
-        [Parameter(Mandatory=$false)]$principalName="Unknown",
-        [Parameter(Mandatory=$false)]$principalType="Unknown",
+        [Parameter(Mandatory=$true)]$targetPath,
+        [Parameter(Mandatory=$true)]$targetType,
+        [Parameter(Mandatory=$true)]$targetId,
+        [Parameter(Mandatory=$true)]$principalEntraId,
+        [Parameter(Mandatory=$false)]$principalEntraUpn,
+        [Parameter(Mandatory=$false)]$principalSysId,
+        [Parameter(Mandatory=$false)]$principalSysName,
+        [Parameter(Mandatory=$true)]$principalType,
+        [Parameter(Mandatory=$true)]$principalRole,
         [Parameter(Mandatory=$false)]$through="Direct",
-        [Parameter(Mandatory=$false)]$parent = "N/A",
-        [Parameter(Mandatory=$false)]$roleDefinitionName="Unknown",
-        [Parameter(Mandatory=$false)]$created="Unknown",
-        [Parameter(Mandatory=$false)]$modified="Unknown"
+        [Parameter(Mandatory=$false)]$parentId = "",
+        [Parameter(Mandatory=$false)][ValidateSet("Allow", "Deny")]$accessType = "Allow",
+        [Parameter(Mandatory=$false)][ValidateSet("Permanent", "Eligible")]$tenure="Permanent",
+        [Parameter(Mandatory=$false)]$startDateTime,
+        [Parameter(Mandatory=$false)]$endDateTime,
+        [Parameter(Mandatory=$false)]$createdDateTime,
+        [Parameter(Mandatory=$false)]$modifiedDateTime
     )
 
-    if($global:octo.currentUser.userPrincipalName -eq $principalUpn -and !$global:octo.userConfig.includeCurrentUser){
-        Write-LogMessage -level 5 -message "Skipping permission $($roleDefinitionName) scoped at $path for $($principalUpn) as it is the auditor account"
+    if($global:octo.currentUser.userPrincipalName -eq $principalEntraUpn -and !$global:octo.userConfig.includeCurrentUser){
+        Write-LogMessage -level 5 -message "Skipping permission $($principalRole) scoped at $targetPath for $($principalEntraUpn) as it is the auditor account"
         return $Null
     }
 
     $principalType = $principalType.Replace("User (Member)","Internal User").Replace("User (Guest)","External User")
 
-    Write-LogMessage -level 5 -message "Adding permission $($roleDefinitionName) scoped at $path for $($principalUpn)"
-    if(!$global:PBIPermissions.$path){
-        $global:PBIPermissions.$path = @()
+    Write-LogMessage -level 5 -message "Adding permission $($principalRole) scoped at $targetPath for $($principalEntraUpn)"
+    if(!$global:PBIPermissions.$targetPath){
+        $global:PBIPermissions.$targetPath = @()
     }
     
-    $global:PBIPermissions.$path += [PSCustomObject]@{
-        scope = $path
-        type = $type
+    $global:PBIPermissions.$targetPath += [PSCustomObject]@{
+        targetPath = $targetPath
+        targetType = $targetType
+        targetId = $targetId
+        principalEntraId = $principalEntraId
+        principalSysId = $principalSysId
         principalUpn = $principalUpn
         roleDefinitionName = $roleDefinitionName
         principalName = $principalName
