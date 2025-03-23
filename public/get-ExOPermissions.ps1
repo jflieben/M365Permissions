@@ -44,18 +44,20 @@
         $mailbox = $Null; $mailbox = New-ExOQuery -cmdlet "Get-Mailbox" -cmdParams @{Identity = $recipient.Guid} -retryCount 2
         if($mailbox.GrantSendOnBehalfTo){
             foreach($sendOnBehalf in $mailbox.GrantSendOnBehalfTo){
-                $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.DisplayName -eq $sendOnBehalf})[0]
+                $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.Alias -eq $sendOnBehalf}) | Select-Object -First 1
                 $splat = @{
-                    path = "/$($recipient.PrimarySmtpAddress)"
-                    type = $recipient.RecipientTypeDetails
-                    principalUpn = if($entity.PrimarySmtpAddress){$entity.PrimarySmtpAddress}else{$entity.windowsLiveId}
-                    principalName = $sendOnBehalf
+                    targetPath = "/$($recipient.PrimarySmtpAddress)"
+                    targetType = $recipient.RecipientTypeDetails
+                    targetId = $mailbox.Guid
                     principalEntraId = $entity.ExternalDirectoryObjectId
+                    principalEntraUpn = if($entity.PrimarySmtpAddress){$entity.PrimarySmtpAddress}else{$entity.windowsLiveId}
+                    principalSysId = $entity.Guid
+                    principalSysName = $entity.DisplayName
                     principalType = $entity.RecipientTypeDetails
-                    role = "SendOnBehalf"
+                    principalRole = "SendOnBehalf"
                     through = "Direct"
-                    kind = "Allow"
-                    ObjectId = $mailbox.Guid
+                    accessType = "Allow"
+                    tenure = "Permanent"
                 }
                 New-ExOPermissionEntry @splat
             }
@@ -67,18 +69,20 @@
             $mailboxPermissions = $Null; $mailboxPermissions = (New-ExOQuery -cmdlet "Get-Mailboxpermission" -cmdParams @{Identity = $mailbox.Guid}) | Where-Object {$_.User -like "*@*"}
             foreach($mailboxPermission in $mailboxPermissions){
                 foreach($AccessRight in $mailboxPermission.AccessRights.Split(",").Trim()){
-                    $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.PrimarySmtpAddress -eq $mailboxPermission.User -or $_.windowsLiveId -eq $mailboxPermission.User})[0]
+                    $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.PrimarySmtpAddress -eq $mailboxPermission.User -or $_.windowsLiveId -eq $mailboxPermission.User}) | Select-Object -First 1
                     $splat = @{
-                        path = "/$($recipient.PrimarySmtpAddress)"
-                        type = $recipient.RecipientTypeDetails
-                        principalUpn = if($entity.PrimarySmtpAddress){$entity.PrimarySmtpAddress}else{$entity.windowsLiveId}
-                        principalName = $entity.Identity
+                        targetPath = "/$($recipient.PrimarySmtpAddress)"
+                        targetType = $recipient.RecipientTypeDetails
+                        targetId = $mailbox.Guid
                         principalEntraId = $entity.ExternalDirectoryObjectId
+                        principalEntraUpn = if($entity.PrimarySmtpAddress){$entity.PrimarySmtpAddress}else{$entity.windowsLiveId}
+                        principalSysId = $entity.Guid
+                        principalSysName = $entity.DisplayName
                         principalType = $entity.RecipientTypeDetails
-                        role = $AccessRight
+                        principalRole = $AccessRight
                         through = $(if($mailboxPermission.IsInherited){ "Inherited" }else{ "Direct" })
-                        kind = $(if($mailboxPermission.Deny -eq "False"){ "Allow" }else{ "Deny" })
-                        ObjectId = $mailbox.Guid
+                        accessType = $(if($mailboxPermission.Deny -eq "False"){ "Allow" }else{ "Deny" })
+                        tenure = "Permanent"
                     }
                     New-ExOPermissionEntry @splat
                 }
@@ -116,9 +120,9 @@
                 try{
                     $folderPermissions = $Null; $folderPermissions = New-ExoQuery -cmdlet "Get-MailboxFolderPermission" -cmdParams @{Identity = "$($mailbox.Guid):$($folder.FolderId)"}
                     foreach($folderPermission in $folderPermissions){
-                        $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.Identity -eq $folderPermission.User})[0]
+                        $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.DisplayName -eq $folderPermission.User}) | Select-Object -First 1
                         if(!$entity){
-                            $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.DisplayName -eq $folderPermission.User})[0] 
+                            $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.Identity -eq $folderPermission.User}) | Select-Object -First 1
                         }
                         if($entity -and $entity.Identity -eq $recipient.Identity){
                             Write-LogMessage -level 5 -message "Skipping permission $($folderPermission.AccessRights) scoped at $($mailbox.UserPrincipalName)$($folder.FolderPath) for $($recipient.Identity) as it is the owner"
@@ -128,23 +132,27 @@
                         if($folderPermission.User.StartsWith("ExchangePublishedUser")){
                             $entity = [PSCustomObject]@{
                                 PrimarySmtpAddress = $folderPermission.User.Replace("ExchangePublishedUser.","")
-                                ExternalDirectoryObjectId = "N/A"
+                                ExternalDirectoryObjectId = ""
                                 RecipientTypeDetails = "ExternalUser"
+                                Guid = ""
+                                
                             }
                         }
                         if($folderPermission.AccessRights -notcontains "None"){
                             foreach($AccessRight in $folderPermission.AccessRights.Split(",").Trim()){
                                 $splat = @{
-                                    path = "/$($mailbox.UserPrincipalName)$($folder.FolderPath)"
-                                    type = "MailboxFolder"
-                                    principalUpn = if($entity.PrimarySmtpAddress){$entity.PrimarySmtpAddress}else{$entity.windowsLiveId}
-                                    principalName = $folderPermission.User
+                                    targetPath = "/$($recipient.PrimarySmtpAddress)$($folder.FolderPath)"
+                                    targetType = "MailboxFolder"
+                                    targetId = $folder.FolderId
                                     principalEntraId = $entity.ExternalDirectoryObjectId
+                                    principalEntraUpn = if($entity.PrimarySmtpAddress){$entity.PrimarySmtpAddress}else{$entity.windowsLiveId}
+                                    principalSysId = $entity.Guid
+                                    principalSysName = $folderPermission.User
                                     principalType = $entity.RecipientTypeDetails
-                                    role = $AccessRight
+                                    principalRole = $AccessRight
                                     through = "Direct"
                                     kind = "Allow"
-                                    ObjectId = $folder.FolderId
+                                    tenure = "Permanent"
                                 }
                                 New-ExOPermissionEntry @splat
                             }
@@ -163,23 +171,25 @@
 
     $recipientPermissions = (New-ExOQuery -cmdlet "Get-RecipientPermission" -cmdParams @{"ResultSize" = "Unlimited"; "Identity" = $recipient.Guid}) | Where-Object {$_.Trustee -ne "NT Authority\SELF" }
     foreach($recipientPermission in $recipientPermissions){
-        $entity = $Null; $entity= $global:octo.recipients | Where-Object {$_.PrimarySmtpAddress -eq $recipientPermission.Trustee}
+        $entity = $Null; $entity= $global:octo.recipients | Where-Object {$_.PrimarySmtpAddress -eq $recipientPermission.Trustee -or $_.windowsLiveId -eq $recipientPermission.Trustee} | Select-Object -First 1
         foreach($AccessRight in $recipientPermission.AccessRights.Split(",").Trim()){
             $splat = @{
-                path = "/$($recipient.PrimarySmtpAddress)"
-                type = $recipient.RecipientTypeDetails
-                principalUpn = $recipientPermission.Trustee
-                principalName = $entity.displayName
+                targetPath = "/$($recipient.PrimarySmtpAddress)"
+                targetType = $recipient.RecipientTypeDetails
+                targetId = $recipient.Guid
                 principalEntraId = $entity.ExternalDirectoryObjectId
+                principalEntraUpn = $recipientPermission.Trustee
+                principalSysId = $entity.Guid
+                principalSysName = $entity.displayName
                 principalType = $entity.RecipientTypeDetails
-                role = $AccessRight
+                principalRole = $AccessRight
                 through = $(if($recipientPermission.IsInherited){ "Inherited" }else{ "Direct" })
                 kind = $recipientPermission.AccessControlType
-                ObjectId = $recipient.Guid
+                tenure = "Permanent"
             }
             New-ExOPermissionEntry @splat
         }
-    }     
+    } 
 
     Write-Progress -Id 2 -PercentComplete 95 -Activity "Scanning $($recipient.Identity)" -Status "Writing report..."
     Stop-StatisticsObject -category "ExoRecipients" -subject $recipient.displayName
@@ -187,19 +197,25 @@
     $permissionRows = foreach($row in $global:ExOPermissions.Keys){
         foreach($permission in $global:ExOPermissions.$row){
             [PSCustomObject]@{
-                "Path" = $permission.Path
-                "Type" = $permission.Type
-                "PrincipalEntraId" = $permission.PrincipalEntraId
-                "PrincipalUpn" = $permission.PrincipalUpn
-                "PrincipalName" = $permission.PrincipalName
-                "PrincipalType" = $permission.PrincipalType
-                "Role" = $permission.Role
-                "Through" = $permission.Through
-                "Kind" = $permission.Kind
-                "ObjectId" = $permission.ObjectId
+                "targetPath" = $row
+                "targetType" = $permission.targetType
+                "targetId" = $permission.targetId
+                "principalEntraId" = $permission.principalEntraId
+                "principalSysId" = $permission.principalSysId
+                "principalSysName" = $permission.principalSysName
+                "principalType" = $permission.principalType
+                "principalRole" = $permission.principalRole
+                "through" = $permission.through
+                "parentId" = $permission.parentId
+                "accessType" = $permission.accessType
+                "tenure" = $permission.tenure
+                "startDateTime" = $permission.startDateTime
+                "endDateTime" = $permission.endDateTime
+                "createdDateTime" = $permission.createdDateTime
+                "modifiedDateTime" = $permission.modifiedDateTime
             }
         }
-    }  
+    }
     
     Add-ToReportQueue -permissions $permissionRows -category "ExoRecipients"
     Remove-Variable -Name permissionRows -Force -Confirm:$False
