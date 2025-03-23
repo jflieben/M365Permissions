@@ -6,62 +6,76 @@ Function New-ExOPermissionEntry{
     #>    
 
     Param(
-        [Parameter(Mandatory=$true)]$path,
-        [Parameter(Mandatory=$true)]$type,
-        [Parameter(Mandatory=$false)]$principalEntraId="",
-        [Parameter(Mandatory=$false)]$principalUpn="",
-        [Parameter(Mandatory=$false)]$principalName="",
-        [Parameter(Mandatory=$false)]$principalType="",
-        [Parameter(Mandatory=$true)]$role,
-        [Parameter(Mandatory=$true)]$through,
-        [Parameter(Mandatory=$true)]$kind,
-        [Parameter(Mandatory=$true)]$objectId
+        [Parameter(Mandatory=$true)]$targetPath,
+        [Parameter(Mandatory=$true)]$targetType,
+        [Parameter(Mandatory=$true)]$targetId,
+        [Parameter(Mandatory=$false)]$principalEntraId,
+        [Parameter(Mandatory=$false)]$principalEntraUpn,
+        [Parameter(Mandatory=$false)]$principalSysId,
+        [Parameter(Mandatory=$false)]$principalSysName,
+        [Parameter(Mandatory=$true)]$principalType,
+        [Parameter(Mandatory=$true)]$principalRole,
+        [Parameter(Mandatory=$false)]$through,
+        [Parameter(Mandatory=$false)]$parentId,
+        [Parameter(Mandatory=$false)][ValidateSet("Allow", "Deny")]$accessType="Allow",
+        [Parameter(Mandatory=$false)][ValidateSet("Permanent", "Eligible")]$tenure="Permanent",
+        [Parameter(Mandatory=$false)]$startDateTime,
+        [Parameter(Mandatory=$false)]$endDateTime,
+        [Parameter(Mandatory=$false)]$createdDateTime,
+        [Parameter(Mandatory=$false)]$modifiedDateTime
     )
 
-    if($global:octo.currentUser.userPrincipalName -eq $principalUpn -and !$global:octo.userConfig.includeCurrentUser){
-        Write-LogMessage -level 5 -message "Skipping permission $($role) scoped at $path for $($principalUpn) as it is the auditor account"
+    if($global:octo.currentUser.userPrincipalName -eq $principalEntraUpn -and !$global:octo.userConfig.includeCurrentUser){
+        Write-LogMessage -level 5 -message "Skipping permission $($principalRole) scoped at $targetPath for $($principalEntraUpn) as it is the auditor account"
         return $Null
     }
 
     $Permission = [PSCustomObject]@{
-        "Path" = $path
-        "Type" = $type
-        "PrincipalEntraId" = $principalEntraId
-        "PrincipalUpn" = $principalUpn
-        "PrincipalName" = $principalName
-        "PrincipalType" = $principalType
-        "Role" = $role
-        "Through" = $through
-        "Kind" = $kind
-        "ObjectId" = $objectId    
+        "targetPath" = $targetPath
+        "targetType" = $targetType
+        "targetId" = $targetId
+        "principalEntraId" = $principalEntraId
+        "principalEntraUpn" = $principalEntraUpn
+        "principalSysId" = $principalSysId
+        "principalSysName" = $principalSysName
+        "principalType" = $principalType
+        "principalRole" = $principalRole
+        "through" = $through
+        "parentId" = $parentId
+        "accessType" = $accessType
+        "tenure" = $tenure
+        "startDateTime" = $startDateTime
+        "endDateTime" = $endDateTime
+        "createdDateTime" = $createdDateTime
+        "modifiedDateTime" = $modifiedDateTime
     }
 
     if($global:ExOPermissions){
         #loop over entries
         foreach($exoPath in $global:ExOPermissions.GetEnumerator()){
             #entry starts with intended entry
-            if($path -contains $exoPath){
+            if($targetPath -contains $exoPath){
                 if($global:ExOPermissions.$exoPath -contains $Permission){
-                    Write-LogMessage -level 5 -message "Skipping permission $($role) scoped at $path for $($principalName) as it is already present"
+                    Write-LogMessage -level 5 -message "Skipping permission $($principalRole) scoped at $targetPath for $($principalSysName) as it is already present"
                     return $Null
                 }
                 foreach($ExistingPermission in $global:ExOPermissions.$exoPath){
-                    if($ExistingPermission.Kind -eq $kind -and $ExistingPermission.Through -eq $through -and $ExistingPermission.Type -eq $type){
-                        if($ExistingPermission.Role -eq "FullAccess"){
-                            Write-LogMessage -level 5 -message "Skipping permission $($role) scoped at $path for $($principalName) as FullAccess already present"
+                    if($ExistingPermission.accessType -eq $accessType -and $ExistingPermission.through -eq $through -and $ExistingPermission.targetType -eq $targetType){
+                        if($ExistingPermission.principalRole -eq "FullAccess"){
+                            Write-LogMessage -level 5 -message "Skipping permission $($principalRole) scoped at $targetPath for $($principalSysName) as FullAccess already present"
                             return $Null
                         }
-                        if($ExistingPermission.Role -eq $role){
-                            if($principalUpn -and $ExistingPermission.PrincipalUpn -eq $principalUpn){
-                                Write-LogMessage -level 5 -message "Skipping permission $($role) scoped at $path for $($principalUpn) as it is already present"
+                        if($ExistingPermission.principalRole -eq $principalRole){
+                            if($principalEntraUpn -and $ExistingPermission.principalEntraUpn -eq $principalEntraUpn){
+                                Write-LogMessage -level 5 -message "Skipping permission $($principalRole) scoped at $targetPath for $($principalEntraUpn) as it is already present"
                                 return $Null
                             }
-                            if($principalEntraId -and $ExistingPermission.PrincipalEntraId -eq $principalEntraId){
-                                Write-LogMessage -level 5 -message "Skipping permission $($role) scoped at $path for $($principalEntraId) as it is already present"
+                            if($principalEntraId -and $ExistingPermission.principalEntraId -eq $principalEntraId){
+                                Write-LogMessage -level 5 -message "Skipping permission $($principalRole) scoped at $targetPath for $($principalEntraId) as it is already present"
                                 return $Null
                             }
-                            if($principalName -and $ExistingPermission.PrincipalName -eq $principalName){
-                                Write-LogMessage -level 5 -message "Skipping permission $($role) scoped at $path for $($principalName) as it is already present"
+                            if($principalSysName -and $ExistingPermission.principalSysName -eq $principalSysName){
+                                Write-LogMessage -level 5 -message "Skipping permission $($principalRole) scoped at $targetPath for $($principalSysName) as it is already present"
                                 return $Null
                             }
                         }
@@ -71,9 +85,9 @@ Function New-ExOPermissionEntry{
         }
     }
 
-    Write-LogMessage -level 5 -message "Adding permission $($role) scoped at $path for $($principalName)"
-    if(!$global:ExOPermissions.$path){
-        $global:ExOPermissions.$path = @()
+    Write-LogMessage -level 5 -message "Adding permission $($principalRole) scoped at $targetPath for $($principalSysName)"
+    if(!$global:ExOPermissions.$targetPath){
+        $global:ExOPermissions.$targetPath = @()
     }
-    $global:ExOPermissions.$path += $Permission
+    $global:ExOPermissions.$targetPath += $Permission
 }

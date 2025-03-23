@@ -18,7 +18,7 @@
     $global:ExOPermissions = @{}
     New-StatisticsObject -category "ExoRoles" -subject "AdminRoles"
 
-    $assignedManagementRoles = $Null;$assignedManagementRoles = (New-ExOQuery -cmdlet "Get-ManagementRoleAssignment" -cmdParams @{GetEffectiveUsers = $True})
+    $assignedManagementRoles = $Null;$assignedManagementRoles = (New-ExOQuery -cmdlet "Get-ManagementRoleAssignment" -cmdParams @{GetEffectiveUsers = $True;Enabled = $True})
 
     Write-Progress -Id 2 -PercentComplete 5 -Activity "Scanning Exchange Roles" -Status "Parsing role assignments"
 
@@ -42,34 +42,20 @@
             $identityCache.$($assignedManagementRole.EffectiveUserName) = $False
         }
         if($false -eq $identityCache.$($assignedManagementRole.EffectiveUserName)){
-            #mailbox not found, but its a guid (instead of e.g. a group), so probably a deleted mailbox
-            if([guid]::TryParse($assignedManagementRole.EffectiveUserName, $([ref][guid]::Empty))){
-                $splat = @{
-                    path = "/"
-                    type = "AdminRole"
-                    principalEntraId = "Unknown"
-                    principalUpn = $assignedManagementRole.EffectiveUserName
-                    principalName = "Unknown"
-                    principalType = "DELETED?"               
-                    role = "$($assignedManagementRole.Role)"
-                    through = "$($assignedManagementRole.RoleAssignee)"
-                    kind = "$($assignedManagementRole.RoleAssignmentDelegationType)"
-                    ObjectId = "N/A"
-                }
-                New-ExOPermissionEntry @splat
-            }
+            #mailbox not found, but its a guid (instead of e.g. a group) which are deleted mailboxes and can be ignored
+            Write-LogMessage -level 5 -message "Skipping role assignment for $($assignedManagementRole.EffectiveUserName) as it is an orphaned guid (deleted)"
         }else{
             $splat = @{
-                path = "/"
-                type = "AdminRole"
+                targetPath = "/"
+                targetType = "ExchangeRole"
+                targetId = $assignedManagementRole.Id
                 principalEntraId = $mailbox.ExternalDirectoryObjectId
-                principalUpn = $mailbox.UserPrincipalName
-                principalName = $mailbox.DisplayName
+                principalEntraUpn = $mailbox.UserPrincipalName
+                principalSysId = $mailbox.Guid
+                principalSysName = $mailbox.DisplayName
                 principalType = $mailbox.RecipientTypeDetails                
-                role = "$($assignedManagementRole.Role)"
+                principalRole = "$($assignedManagementRole.Role) ($($assignedManagementRole.RoleAssignmentDelegationType))"
                 through = "$($assignedManagementRole.RoleAssignee)"
-                kind = "$($assignedManagementRole.RoleAssignmentDelegationType)"
-                ObjectId = $mailbox.Guid
             }
             New-ExOPermissionEntry @splat
         }
@@ -85,19 +71,25 @@
     $permissionRows = foreach($row in $global:ExOPermissions.Keys){
         foreach($permission in $global:ExOPermissions.$row){
             [PSCustomObject]@{
-                "Path" = $permission.Path
-                "Type" = $permission.Type
-                "PrincipalEntraId" = $permission.PrincipalEntraId
-                "PrincipalUpn" = $permission.PrincipalUpn
-                "PrincipalName" = $permission.PrincipalName
-                "PrincipalType" = $permission.PrincipalType
-                "Role" = $permission.Role
-                "Through" = $permission.Through
-                "Kind" = $permission.Kind
-                "ObjectId" = $permission.ObjectId
+                "targetPath" = $row
+                "targetType" = $permission.targetType
+                "targetId" = $permission.targetId
+                "principalEntraId" = $permission.principalEntraId
+                "principalSysId" = $permission.principalSysId
+                "principalSysName" = $permission.principalSysName
+                "principalType" = $permission.principalType
+                "principalRole" = $permission.principalRole
+                "through" = $permission.through
+                "parentId" = $permission.parentId
+                "accessType" = $permission.accessType
+                "tenure" = $permission.tenure
+                "startDateTime" = $permission.startDateTime
+                "endDateTime" = $permission.endDateTime
+                "createdDateTime" = $permission.createdDateTime
+                "modifiedDateTime" = $permission.modifiedDateTime
             }
         }
-    }  
+    }
 
     Add-ToReportQueue -permissions $permissionRows -category "ExoRoles"
     Remove-Variable -Name permissionRows -Force -Confirm:$False
