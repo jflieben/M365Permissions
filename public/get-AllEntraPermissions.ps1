@@ -56,9 +56,8 @@
 
     foreach($roleAssignment in $roleAssignments){
         $roleDefinition = $roleDefinitions | Where-Object { $_.id -eq $roleAssignment.roleDefinitionId }
-        $principalType = $roleAssignment.principal."@odata.type".Split(".")[2]
         $groupMembers = $Null
-        if($principalType -eq "group" -and $expandGroups){
+        if($roleAssignment.principal."@odata.type" -eq "#microsoft.graph.group" -and $expandGroups){
             try{
                 $groupMembers = get-entraGroupMembers -groupId $roleAssignment.principal.id    
             }catch{
@@ -66,13 +65,33 @@
             }
             foreach($groupMember in $groupMembers){
                 Update-StatisticsObject -category "Entra" -subject "Roles"
-                New-EntraPermissionEntry -path $roleAssignment.directoryScopeId -type "PermanentRole" -principalId $groupMember.id -roleDefinitionId $roleAssignment.roleDefinitionId -principalName $groupMember.displayName -principalUpn $groupMember.userPrincipalName -principalType $groupMember.principalType -roleDefinitionName $roleDefinition.displayName -through "SecurityGroup" -parent $roleAssignment.principal.id
+                $permissionSplat = @{
+                    targetPath = $roleAssignment.directoryScopeId
+                    principalEntraId = $groupMember.id
+                    principalEntraUpn = $groupMember.userPrincipalName
+                    principalSysName = $groupMember.displayName
+                    principalType = $roleAssignment.principal."@odata.type"
+                    principalRole = $roleDefinition.displayName
+                    through = "EntraSecurityGroup"
+                    parentId = $roleAssignment.principal.id
+                    tenure = "Permanent"                    
+                }
+                New-EntraPermissionEntry @permissionSplat
             }
         }
         
         if(!$groupMembers){
             Update-StatisticsObject -category "Entra" -subject "Roles"
-            New-EntraPermissionEntry -path $roleAssignment.directoryScopeId -type "PermanentRole" -principalId $roleAssignment.principal.id -roleDefinitionId $roleAssignment.roleDefinitionId -principalName $roleAssignment.principal.displayName -principalUpn $roleAssignment.principal.userPrincipalName -principalType $principalType -roleDefinitionName $roleDefinition.displayName
+            $permissionSplat = @{
+                targetPath = $roleAssignment.directoryScopeId
+                principalEntraId = $roleAssignment.principal.id
+                principalEntraUpn = $roleAssignment.principal.userPrincipalName
+                principalSysName = $roleAssignment.principal.displayName
+                principalType = $roleAssignment.principal."@odata.type"
+                principalRole = $roleDefinition.displayName
+                tenure = "Permanent"                    
+            }            
+            New-EntraPermissionEntry @permissionSplat
         }
     }
 
@@ -93,16 +112,15 @@
         $count++
         Write-Progress -Id 2 -PercentComplete $(try{$count / $roleEligibilities.Count *100}catch{1}) -Activity "Processing flexible (PIM) assignments" -Status "[$count / $($roleEligibilities.Count)]"
         $roleDefinition = $roleDefinitions | Where-Object { $_.id -eq $roleEligibility.roleDefinitionId }
-        $principalType = "Unknown"
         $groupMembers = $Null
         try{
             $principal = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/directoryObjects/$($roleEligibility.principalId)" -Method GET
-            $principalType = $principal."@odata.type".Split(".")[2]
         }catch{
-            Write-LogMessage -level 2 -message "Failed to resolve principal $($roleEligibility.principalId) to a directory object, was it deleted?"    
+            Write-LogMessage -level 2 -message "Failed to resolve principal $($roleEligibility.principalId) to a directory object, was it deleted?" 
             $principal = $Null
+            continue  
         }
-        if($principalType -eq "group" -and $expandGroups){
+        if($principal."@odata.type" -eq "#microsoft.graph.group" -and $expandGroups){
             try{
                 $groupMembers = get-entraGroupMembers -groupId $principal.id
             }catch{
@@ -110,12 +128,36 @@
             }
             foreach($groupMember in $groupMembers){
                 Update-StatisticsObject -category "Entra" -subject "Roles"
-                New-EntraPermissionEntry -path $roleEligibility.directoryScopeId -type "EligibleRole" -principalId $groupMember.id -roleDefinitionId $roleEligibility.roleDefinitionId -principalName $groupMember.displayName -principalUpn $groupMember.userPrincipalName -principalType $groupMember.principalType -roleDefinitionName $roleDefinition.displayName -startDateTime $roleEligibility.startDateTime -endDateTime $roleEligibility.endDateTime -parent $principal.id -through "SecurityGroup"
+                $permissionSplat = @{
+                    targetPath = $roleEligibility.directoryScopeId
+                    principalEntraId = $groupMember.id
+                    principalEntraUpn = $groupMember.userPrincipalName
+                    principalSysName = $groupMember.displayName
+                    principalType = $roleAssignment.principal."@odata.type"
+                    principalRole = $roleDefinition.displayName
+                    through = "EntraSecurityGroup"
+                    parentId = $principal.id
+                    tenure = "Eligible"  
+                    startDateTime = $roleEligibility.startDateTime
+                    endDateTime = $roleEligibility.endDateTime                  
+                }
+                New-EntraPermissionEntry @permissionSplat
             }
         }
         if(!$groupMembers){
             Update-StatisticsObject -category "Entra" -subject "Roles"
-            New-EntraPermissionEntry -path $roleEligibility.directoryScopeId -type "EligibleRole" -principalId $principal.id -roleDefinitionId $roleEligibility.roleDefinitionId -principalName $principal.displayName -principalUpn $principal.userPrincipalName -principalType $principalType -roleDefinitionName $roleDefinition.displayName -startDateTime $roleEligibility.startDateTime -endDateTime $roleEligibility.endDateTime
+            $permissionSplat = @{
+                targetPath = $roleAssignment.directoryScopeId
+                principalEntraId = $principal.id
+                principalEntraUpn = $principal.userPrincipalName
+                principalSysName = $principal.displayName
+                principalType = $principal."@odata.type"
+                principalRole = $roleDefinition.displayName
+                tenure = "Eligible"    
+                startDateTime = $roleEligibility.startDateTime
+                endDateTime = $roleEligibility.endDateTime                 
+            }            
+            New-EntraPermissionEntry @permissionSplat
         }
         Write-Progress -Id 2 -Completed -Activity "Processing flexible (PIM) assignments"
     }
@@ -125,50 +167,39 @@
     Remove-Variable roleEligibilities -Force -Confirm:$False
 
     Write-Progress -Id 1 -PercentComplete 50 -Activity "Scanning Entra ID" -Status "Getting Service Principals"
-    $servicePrincipals = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/servicePrincipals?$expand=transitiveMemberOf' -Method GET
+    $servicePrincipals = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/servicePrincipals?$expand=appRoleAssignments' -Method GET
     
     foreach($servicePrincipal in $servicePrincipals){
         Update-StatisticsObject -category "Entra" -subject "Roles"
         #skip disabled SPN's
-        if($servicePrincipal.accountEnabled -eq $false){
+        if($servicePrincipal.accountEnabled -eq $false -or $servicePrincipal.appRoleAssignments.Count -eq 0){
             continue
         }
-
-        foreach($appRole in @($servicePrincipal.appRoles | Where-Object { $_.allowedMemberTypes -contains "Application" })){
+        foreach($appRole in @($servicePrincipal.appRoleAssignments)){
             #skip disabled roles
-            if($appRole.isEnabled -eq $false){
+            if($appRole.deletedDateTime){
                 continue
             }
-            New-EntraPermissionEntry -path "/$($servicePrincipal.displayName)" -type "APIPermission" -principalId $servicePrincipal.appId -roleDefinitionId $appRole.value -principalName $servicePrincipal.displayName -principalUpn "N/A" -principalType "ServicePrincipal" -roleDefinitionName $appRole.displayName
+
+            $appRoleMeta = $Null;$appRoleMeta = @($servicePrincipals.appRoles | Where-Object { $_.id -eq $appRole.appRoleId })[0]
+            if($False -eq $appRoleMeta.isEnabled){
+                continue
+            }
+
+            $permissionSplat = @{
+                targetPath = "/$($appRole.resourceDisplayName)"
+                targetType = "API"
+                targetId = $appRole.resourceId
+                principalEntraId = $servicePrincipal.id
+                principalSysName = $servicePrincipal.displayName
+                principalType = $servicePrincipal.servicePrincipalType
+                principalRole = $appRoleMeta.value
+                tenure = "Permanent"             
+            }   
+            New-EntraPermissionEntry @permissionSplat
         }
     }
 
-    Write-Progress -Id 1 -PercentComplete 75 -Activity "Scanning Entra ID" -Status "Getting Graph Subscriptions"
-    if($global:octo.userConfig.authMode -ne "Delegated"){
-        Write-LogMessage -level 2 -message "Graph subscriptions can only be retrieved in delegated mode and will not be added to your report."
-    }else{
-        $graphSubscriptions = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/subscriptions' -Method GET
-        foreach($graphSubscription in $graphSubscriptions){
-            Update-StatisticsObject -category "Entra" -subject "Roles"
-            $spn = $null; $spn = $servicePrincipals | Where-Object { $_.appId -eq $graphSubscription.applicationId }
-            if(!$spn){
-                $spn = @{
-                    displayName = "Microsoft"
-                    id = $graphSubscription.applicationId
-                }
-            }
-            try{$parent = $Null; $parent = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/directoryObjects/$($graphSubscription.creatorId)" -Method GET}catch{$parent = $Null}
-            if(!$parent){
-                $parent = @{
-                    displayName = "Unknown"
-                    "@odata.type" = "Deleted?"
-                }
-            }
-            New-EntraPermissionEntry -path "/graph/$($graphSubscription.resource)" -type "Subscription/Webhook" -principalId $graphSubscription.applicationId -roleDefinitionId "N/A" -principalName $spn.displayName -principalUpn "N/A" -principalType "ServicePrincipal" -roleDefinitionName "Get $($graphSubscription.changeType) events" -startDateTime "See audit log" -endDateTime $graphSubscription.expirationDateTime -through "GraphAPI" -parent "$($parent.displayName) ($($parent.'@odata.type'.Split(".")[2]))"
-        }
-
-        Remove-Variable graphSubscriptions -Force -Confirm:$False
-    }
     Remove-Variable servicePrincipals -Force -Confirm:$False
 
     Stop-statisticsObject -category "Entra" -subject "Roles"
@@ -176,18 +207,22 @@
     $permissionRows = foreach($row in $global:EntraPermissions.Keys){
         foreach($permission in $global:EntraPermissions.$row){
             [PSCustomObject]@{
-                "Path" = $row
-                "Type" = $permission.Type
-                "principalName" = $permission.principalName
-                "roleDefinitionName" = $permission.roleDefinitionName               
-                "principalUpn" = $permission.principalUpn
+                "targetPath" = $row
+                "targetType" = $permission.targetType
+                "targetId" = $permission.targetId
+                "principalEntraId" = $permission.principalEntraId
+                "principalSysId" = $permission.principalSysId
+                "principalSysName" = $permission.principalSysName
                 "principalType" = $permission.principalType
+                "principalRole" = $permission.principalRole
                 "through" = $permission.through
-                "parent" = $permission.parent
+                "parentId" = $permission.parentId
+                "accessType" = $permission.accessType
+                "tenure" = $permission.tenure
                 "startDateTime" = $permission.startDateTime
                 "endDateTime" = $permission.endDateTime
-                "principalId"    = $permission.principalId                
-                "roleDefinitionId" = $permission.roleDefinitionId
+                "createdDateTime" = $permission.createdDateTime
+                "modifiedDateTime" = $permission.modifiedDateTime
             }
         }
     }
