@@ -16,8 +16,6 @@ Function New-PBIPermissionEntry{
         [Parameter(Mandatory=$true)]$principalRole,
         [Parameter(Mandatory=$false)]$through="Direct",
         [Parameter(Mandatory=$false)]$parentId = "",
-        [Parameter(Mandatory=$false)][ValidateSet("Allow", "Deny")]$accessType = "Allow",
-        [Parameter(Mandatory=$false)][ValidateSet("Permanent", "Eligible")]$tenure="Permanent",
         [Parameter(Mandatory=$false)]$startDateTime,
         [Parameter(Mandatory=$false)]$endDateTime,
         [Parameter(Mandatory=$false)]$createdDateTime,
@@ -25,13 +23,13 @@ Function New-PBIPermissionEntry{
     )
 
     if($global:octo.currentUser.userPrincipalName -eq $principalEntraUpn -and !$global:octo.userConfig.includeCurrentUser){
-        Write-LogMessage -level 5 -message "Skipping permission $($principalRole) scoped at $targetPath for $($principalEntraUpn) as it is the auditor account"
+        Write-LogMessage -level 5 -message "Skipping permission $($principalRole) scoped at $targetPath for $($principalEntraId) as it is the auditor account"
         return $Null
     }
 
     $principalType = $principalType.Replace("User (Member)","Internal User").Replace("User (Guest)","External User")
 
-    Write-LogMessage -level 5 -message "Adding permission $($principalRole) scoped at $targetPath for $($principalEntraUpn)"
+    Write-LogMessage -level 5 -message "Adding permission $($principalRole) scoped at $targetPath for $($principalEntraId)"
     if(!$global:PBIPermissions.$targetPath){
         $global:PBIPermissions.$targetPath = @()
     }
@@ -42,14 +40,14 @@ Function New-PBIPermissionEntry{
         targetId = $targetId
         principalEntraId = $principalEntraId
         principalSysId = $principalSysId
-        principalUpn = $principalUpn
-        roleDefinitionName = $roleDefinitionName
-        principalName = $principalName
-        principalType = $principalType        
-        principalId = $principalId
+        principalSysName = $principalSysName
+        principalType = $principalType   
+        principalRole = $principalRole  
         through = $through
-        parent = $parent      
-        created = $created
-        modified = $modified  
+        parentId = $parentId
+        startDateTime = $startDateTime
+        endDateTime = $endDateTime
+        createdDateTime = $createdDateTime
+        modifiedDateTime = $modifiedDateTime
     }
 }

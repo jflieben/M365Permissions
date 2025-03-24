@@ -19,7 +19,7 @@ function Write-Report {
         Write-LogMessage -Level 5 -Message "Found $($sourceJSONFiles.Count) JSON files to process"
         foreach($JSONFile in $sourceJSONFiles){
             Write-LogMessage -Level 5 -Message "Sorting $($JSONFile.Name)"
-            $data = Get-Content -Path $JSONFile.FullName | ConvertFrom-Json -Depth 2 | Sort-Object -Property "Path"
+            $data = Get-Content -Path $JSONFile.FullName | ConvertFrom-Json -Depth 2 | Sort-Object -Property "targetPath"
             $category = $JSONFile.Name.Split("_")[1].replace(".json","")
             Write-LogMessage -Level 5 -Message "Saving $($JSONFile.Name)"
             if($global:octo.userConfig.outputFormat -eq "XLSX"){
