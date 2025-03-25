@@ -5,11 +5,9 @@
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
         
         Parameters:
-        -expandGroups: if set, group memberships will be expanded to individual users
         -excludeGroupsAndUsers: exclude group and user memberships from the report, only show role assignments
     #>        
     Param(
-        [Switch]$expandGroups,
         [Switch]$skipReportGeneration
     )
 
@@ -89,7 +87,7 @@
                     $permissionSplat["principalEntraUpn"] = ""
                     $permissionSplat["principalSysId"] = $user.graphId
                     $permissionSplat["principalSysName"] = $user.displayName
-                    $permissionSplat["principalType"] = "$($user.principalType) ($($user.userType))"
+                    $permissionSplat["principalType"] = "EntraSecurityGroup"
                     $permissionSplat["through"] = "Direct"
                     New-PBIPermissionEntry @permissionSplat
                 }else{
@@ -166,47 +164,28 @@
     }
     for($s=0;$s -lt $scanResults.count; $s++){
         Write-Progress -Id 2 -PercentComplete $(Try{ ($s/$scanResults.count)*100 } catch {0}) -Activity "Analyzing securables..." -Status "$($s+1)/$($scanResults.count) $($scanResults[$s].name)"
-
         foreach($secureableType in $secureableTypes.Keys){ #$secureableType = "reports"
             foreach($secureable in $scanResults[$s].$secureableType){ #$secureable = $scanResults[$s].$secureableType[0]
                 Update-StatisticsObject -category "PowerBI" -subject "Securables"
-                $created = $secureableTypes.$secureableType.CreatedProperty -eq "N/A" ? "Unknown" : $secureable.$($secureableTypes.$secureableType.CreatedProperty)
-                $modified = $secureableTypes.$secureableType.ModifiedProperty -eq "N/A" ? "Unknown" : $secureable.$($secureableTypes.$secureableType.ModifiedProperty)
+                $created = $secureableTypes.$secureableType.CreatedProperty -eq "N/A" ? $Null : $secureable.$($secureableTypes.$secureableType.CreatedProperty)
+                $modified = $secureableTypes.$secureableType.ModifiedProperty -eq "N/A" ? $Null : $secureable.$($secureableTypes.$secureableType.ModifiedProperty)
                 foreach($user in $secureable.users){ #$user = $secureable.users[0]
-                    if($user.principalType -eq "Group"){
-                        $permissionSplat = @{
-                            targetPath = "/workspaces/$($scanResults[$s].name)/$secureableType/$($secureable.name)"
-                            targetType = $secureableTypes.$secureableType.Type
-                            targetId = $secureable.id
-                            createdDateTime = $created
-                            modifiedDateTime = $modified
-                            principalEntraId = $user.graphId
-                            principalEntraUpn = ""
-                            principalSysId = $user.graphId
-                            principalSysName = $user.displayName
-                            principalType = "EntraSecurityGroup"
-                            principalRole = $user.$($secureableTypes.$secureableType.UserAccessRightProperty)
-                            through = "Direct"              
-                        }
-                        New-PBIPermissionEntry @permissionSplat                                                        
-                    }else{
-                        $metaData = $Null;$metaData = get-PBIUserMetaData -user $user
-                        $permissionSplat = @{
-                            targetPath = "/workspaces/$($scanResults[$s].name)/$secureableType/$($secureable.name)"
-                            targetType = $secureableTypes.$secureableType.Type
-                            targetId = $secureable.id
-                            principalEntraId = $metaData.principalEntraId
-                            principalEntraUpn = $metaData.principalEntraUpn
-                            principalSysId = $user.identifier
-                            principalSysName = $user.displayName
-                            principalType = $metaData.principalType
-                            principalRole = $user.$($secureableTypes.$secureableType.UserAccessRightProperty)
-                            through = "Direct"
-                            createdDateTime = $created
-                            modifiedDateTime = $modified
-                        }
-                        New-PBIPermissionEntry @permissionSplat
+                    $metaData = $Null;$metaData = get-PBIUserMetaData -user $user
+                    $permissionSplat = @{
+                        targetPath = "/workspaces/$($scanResults[$s].name)/$secureableType/$($secureable.name)"
+                        targetType = $secureableTypes.$secureableType.Type
+                        targetId = $secureable.id
+                        createdDateTime = $created
+                        modifiedDateTime = $modified
+                        principalEntraId = $metaData.principalEntraId
+                        principalEntraUpn = ""
+                        principalSysId = $user.graphId
+                        principalSysName = $user.displayName
+                        principalType = $metaData.principalType
+                        principalRole = $user.$($secureableTypes.$secureableType.UserAccessRightProperty)
+                        through = "Direct"              
                     }
+                    New-PBIPermissionEntry @permissionSplat 
                 }                  
             }
         }
