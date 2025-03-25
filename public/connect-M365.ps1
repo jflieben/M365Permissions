@@ -77,17 +77,17 @@
 
         Write-LogMessage -message "Authenticated successfully! Here are some examples using this module:"
         Write-LogMessage -message ""
-        Write-LogMessage -message ">> Get-AllM365Permissions -expandGroups"
+        Write-LogMessage -message ">> Get-AllM365Permissions"
         
         Write-LogMessage -message ">> Get-AllExOPermissions -includeFolderLevelPermissions"
         
         Write-LogMessage -message ">> Get-ExOPermissions -recipientIdentity `$mailbox.Identity -includeFolderLevelPermissions"
         
-        Write-LogMessage -message ">> Get-SpOPermissions -siteUrl `"https://tenant.sharepoint.com/sites/site`" -ExpandGroups"
+        Write-LogMessage -message ">> Get-SpOPermissions -siteUrl `"https://tenant.sharepoint.com/sites/site`""
         
         Write-LogMessage -message ">> Get-SpOPermissions -teamName `"INT-Finance Department`""
         
-        Write-LogMessage -message ">> get-AllSPOPermissions -ExpandGroups -IncludeOneDriveSites -ExcludeOtherSites"
+        Write-LogMessage -message ">> get-AllSPOPermissions -IncludeOneDriveSites -ExcludeOtherSites"
         
         Write-LogMessage -message ">> get-AllEntraPermissions -excludeGroupsAndUsers"    
 

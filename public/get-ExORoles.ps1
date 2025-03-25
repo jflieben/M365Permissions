@@ -5,11 +5,9 @@
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
         
         Parameters:
-        -expandGroups: if set, group memberships will be expanded to individual users
         -includeFolderLevelPermissions: if set, folder level permissions for each mailbox will be retrieved. This can be (very) slow
     #>        
     Param(
-        [Switch]$expandGroups
     )
 
     Write-LogMessage -message "Starting Exo role scan..." -level 4

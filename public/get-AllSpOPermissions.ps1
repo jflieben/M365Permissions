@@ -7,7 +7,6 @@
     Param(
         [Switch]$includeOnedriveSites,
         [Switch]$excludeOtherSites,
-        [Switch]$expandGroups,
         [Switch]$skipReportGeneration
     )
 
@@ -37,7 +36,6 @@
     foreach($site in $sites){
         New-ScanJob -Title "Scanning Sharepoint Online" -Target $site.Url -FunctionToRun "get-SpOPermissions" -FunctionArguments @{
             "siteUrl" = $site.Url
-            "expandGroups" = $expandGroups.IsPresent
             "isParallel" = $True
         }
     }

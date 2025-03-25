@@ -14,6 +14,9 @@ function get-PBIUserMetaData{
         $retVal.principalType = "AllInternalUsers"
         $retVal.principalEntraId = "AllInternalUsers"
     }
+    if($user.PrincipalType -eq "Group"){
+        $retVal.principalType = "EntraSecurityGroup"
+    }
 
     return $retVal
 }

@@ -45,7 +45,7 @@
     
     Get-SpOPermissions -teamName `"INT-Finance Department`"
     
-    get-AllSPOPermissions -ExpandGroups -IncludeOneDriveSites -ExcludeOtherSites
+    get-AllSPOPermissions -IncludeOneDriveSites -ExcludeOtherSites
     
     get-AllEntraPermissions
 

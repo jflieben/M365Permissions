@@ -7,7 +7,6 @@
         Parameters:
         -teamName: the name of the Team to scan
         -siteUrl: the URL of the Team (or any sharepoint location) to scan (e.g. if name is not unique)
-        -expandGroups: if set, group memberships will be expanded to individual users
     #>        
     Param(
         [parameter(Mandatory=$true,
@@ -19,8 +18,7 @@
         ParameterSetName="BySite")]
         [String]
         $siteUrl, 
-
-        [Switch]$expandGroups,
+        
         [Boolean]$isParallel=$False
     )
 

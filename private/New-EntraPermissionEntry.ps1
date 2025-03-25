@@ -44,7 +44,10 @@ Function New-EntraPermissionEntry{
             $principalType = "Device"
         }
         "#microsoft.graph.group" {
-            $principalType = "Group"
+            $principalType = "EntraSecurityGroup"
+        }
+        Default {
+            #leave unmodified
         }
     }
 

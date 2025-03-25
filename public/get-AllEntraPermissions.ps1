@@ -5,10 +5,8 @@
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
         
         Parameters:
-        -expandGroups: if set, group memberships will be expanded to individual users
     #>        
     Param(
-        [Switch]$expandGroups,
         [Switch]$skipReportGeneration
     )
 
@@ -56,43 +54,18 @@
 
     foreach($roleAssignment in $roleAssignments){
         $roleDefinition = $roleDefinitions | Where-Object { $_.id -eq $roleAssignment.roleDefinitionId }
-        $groupMembers = $Null
-        if($roleAssignment.principal."@odata.type" -eq "#microsoft.graph.group" -and $expandGroups){
-            try{
-                $groupMembers = get-entraGroupMembers -groupId $roleAssignment.principal.id    
-            }catch{
-                Write-LogMessage -level 2 -message "Failed to retrieve group members for $($roleAssignment.principal.displayName), adding as group principal type instead"
-            }
-            foreach($groupMember in $groupMembers){
-                Update-StatisticsObject -category "Entra" -subject "Roles"
-                $permissionSplat = @{
-                    targetPath = $roleAssignment.directoryScopeId
-                    principalEntraId = $groupMember.id
-                    principalEntraUpn = $groupMember.userPrincipalName
-                    principalSysName = $groupMember.displayName
-                    principalType = $roleAssignment.principal."@odata.type"
-                    principalRole = $roleDefinition.displayName
-                    through = "EntraSecurityGroup"
-                    parentId = $roleAssignment.principal.id
-                    tenure = "Permanent"                    
-                }
-                New-EntraPermissionEntry @permissionSplat
-            }
-        }
         
-        if(!$groupMembers){
-            Update-StatisticsObject -category "Entra" -subject "Roles"
-            $permissionSplat = @{
-                targetPath = $roleAssignment.directoryScopeId
-                principalEntraId = $roleAssignment.principal.id
-                principalEntraUpn = $roleAssignment.principal.userPrincipalName
-                principalSysName = $roleAssignment.principal.displayName
-                principalType = $roleAssignment.principal."@odata.type"
-                principalRole = $roleDefinition.displayName
-                tenure = "Permanent"                    
-            }            
-            New-EntraPermissionEntry @permissionSplat
-        }
+        Update-StatisticsObject -category "Entra" -subject "Roles"
+        $permissionSplat = @{
+            targetPath = $roleAssignment.directoryScopeId
+            principalEntraId = $roleAssignment.principal.id
+            principalEntraUpn = $roleAssignment.principal.userPrincipalName
+            principalSysName = $roleAssignment.principal.displayName
+            principalType = $roleAssignment.principal."@odata.type"
+            principalRole = $roleDefinition.displayName
+            tenure = "Permanent"                    
+        }            
+        New-EntraPermissionEntry @permissionSplat
     }
 
     Write-Progress -Id 1 -PercentComplete 35 -Activity "Scanning Entra ID" -Status "Retrieving flexible (PIM) assigments"
@@ -112,7 +85,6 @@
         $count++
         Write-Progress -Id 2 -PercentComplete $(try{$count / $roleEligibilities.Count *100}catch{1}) -Activity "Processing flexible (PIM) assignments" -Status "[$count / $($roleEligibilities.Count)]"
         $roleDefinition = $roleDefinitions | Where-Object { $_.id -eq $roleEligibility.roleDefinitionId }
-        $groupMembers = $Null
         try{
             $principal = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/directoryObjects/$($roleEligibility.principalId)" -Method GET
         }catch{
@@ -120,45 +92,20 @@
             $principal = $Null
             continue  
         }
-        if($principal."@odata.type" -eq "#microsoft.graph.group" -and $expandGroups){
-            try{
-                $groupMembers = get-entraGroupMembers -groupId $principal.id
-            }catch{
-                Write-LogMessage -level 2 -message "Failed to retrieve group members for $($principal.displayName), adding as group principal type instead"
-            }
-            foreach($groupMember in $groupMembers){
-                Update-StatisticsObject -category "Entra" -subject "Roles"
-                $permissionSplat = @{
-                    targetPath = $roleEligibility.directoryScopeId
-                    principalEntraId = $groupMember.id
-                    principalEntraUpn = $groupMember.userPrincipalName
-                    principalSysName = $groupMember.displayName
-                    principalType = $roleAssignment.principal."@odata.type"
-                    principalRole = $roleDefinition.displayName
-                    through = "EntraSecurityGroup"
-                    parentId = $principal.id
-                    tenure = "Eligible"  
-                    startDateTime = $roleEligibility.startDateTime
-                    endDateTime = $roleEligibility.endDateTime                  
-                }
-                New-EntraPermissionEntry @permissionSplat
-            }
-        }
-        if(!$groupMembers){
-            Update-StatisticsObject -category "Entra" -subject "Roles"
-            $permissionSplat = @{
-                targetPath = $roleAssignment.directoryScopeId
-                principalEntraId = $principal.id
-                principalEntraUpn = $principal.userPrincipalName
-                principalSysName = $principal.displayName
-                principalType = $principal."@odata.type"
-                principalRole = $roleDefinition.displayName
-                tenure = "Eligible"    
-                startDateTime = $roleEligibility.startDateTime
-                endDateTime = $roleEligibility.endDateTime                 
-            }            
-            New-EntraPermissionEntry @permissionSplat
-        }
+        
+        Update-StatisticsObject -category "Entra" -subject "Roles"
+        $permissionSplat = @{
+            targetPath = $roleAssignment.directoryScopeId
+            principalEntraId = $principal.id
+            principalEntraUpn = $principal.userPrincipalName
+            principalSysName = $principal.displayName
+            principalType = $principal."@odata.type"
+            principalRole = $roleDefinition.displayName
+            tenure = "Eligible"    
+            startDateTime = $roleEligibility.startDateTime
+            endDateTime = $roleEligibility.endDateTime                 
+        }            
+        New-EntraPermissionEntry @permissionSplat
         Write-Progress -Id 2 -Completed -Activity "Processing flexible (PIM) assignments"
     }
 
