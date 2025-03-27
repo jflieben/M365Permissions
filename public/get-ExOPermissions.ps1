@@ -118,23 +118,34 @@
                 try{
                     $folderPermissions = $Null; $folderPermissions = New-ExoQuery -cmdlet "Get-MailboxFolderPermission" -cmdParams @{Identity = "$($mailbox.Guid):$($folder.FolderId)"}
                     foreach($folderPermission in $folderPermissions){
-                        $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.DisplayName -eq $folderPermission.User}) | Select-Object -First 1
-                        if(!$entity){
-                            $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.Identity -eq $folderPermission.User}) | Select-Object -First 1
-                        }
-                        if($entity -and $entity.Identity -eq $recipient.Identity){
-                            Write-LogMessage -level 5 -message "Skipping permission $($folderPermission.AccessRights) scoped at $($mailbox.UserPrincipalName)$($folder.FolderPath) for $($recipient.Identity) as it is the owner"
-                            continue
-                        }
-                        #handle external permissions for e.g. calendars
-                        if($folderPermission.User.StartsWith("ExchangePublishedUser")){
+                        if($folderPermission.User -eq "Default"){
+                            $entity = [PSCustomObject]@{
+                                ExternalDirectoryObjectId = "AllInternalUsers"
+                                PrimarySmtpAddress = "AllInternalUsers"
+                                RecipientTypeDetails = "AllInternalUsers"
+                                Guid = "AllInternalUsers"
+                            }   
+                        }elseif($folderPermission.User -eq "Anonymous"){
+                            $entity =[PSCustomObject] @{
+                                ExternalDirectoryObjectId = "Anonymous"
+                                PrimarySmtpAddress = "Anonymous"
+                                RecipientTypeDetails = "Anonymous"
+                                Guid = "Anonymous"
+                            }      
+                        }elseif($folderPermission.User.StartsWith("ExchangePublishedUser")){
                             $entity = [PSCustomObject]@{
                                 PrimarySmtpAddress = $folderPermission.User.Replace("ExchangePublishedUser.","")
                                 ExternalDirectoryObjectId = ""
-                                RecipientTypeDetails = "ExternalUser"
-                                Guid = ""
-                                
+                                RecipientTypeDetails = "External User"
+                                Guid = $folderPermission.User
                             }
+                        }else{
+                            $entity = $Null; $entity= New-ExOQuery -cmdlet "Get-Recipient" -cmdParams @{"ResultSize" = "Unlimited"; "Identity" = $folderPermission.User} -retryCount 2
+                        }
+
+                        if($entity -and $entity.Identity -eq $recipient.Identity){
+                            Write-LogMessage -level 5 -message "Skipping permission $($folderPermission.AccessRights) scoped at $($mailbox.UserPrincipalName)$($folder.FolderPath) for $($recipient.Identity) as it is the owner"
+                            continue
                         }
                         if($folderPermission.AccessRights -notcontains "None"){
                             foreach($AccessRight in $folderPermission.AccessRights.Split(",").Trim()){
@@ -149,7 +160,7 @@
                                     principalType = $entity.RecipientTypeDetails
                                     principalRole = $AccessRight
                                     through = "Direct"
-                                    kind = "Allow"
+                                    accessType = "Allow"
                                     tenure = "Permanent"
                                 }
                                 New-ExOPermissionEntry @splat
@@ -182,7 +193,7 @@
                 principalType = $entity.RecipientTypeDetails
                 principalRole = $AccessRight
                 through = $(if($recipientPermission.IsInherited){ "Inherited" }else{ "Direct" })
-                kind = $recipientPermission.AccessControlType
+                accessType = $recipientPermission.AccessControlType
                 tenure = "Permanent"
             }
             New-ExOPermissionEntry @splat
