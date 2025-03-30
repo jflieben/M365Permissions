@@ -40,6 +40,24 @@
         Write-Progress -Id 2 -PercentComplete 5 -Activity "Scanning $($recipient.Identity)" -Status "Checking SendOnBehalf permissions..."
         #get mailbox meta for SOB permissions
         $mailbox = $Null; $mailbox = New-ExOQuery -cmdlet "Get-Mailbox" -cmdParams @{Identity = $recipient.Guid} -retryCount 2
+        #add root level permission
+        if($mailbox.ExternalDirectoryObjectId){
+            $splat = @{
+                targetPath = "/$($recipient.PrimarySmtpAddress)"
+                targetType = $recipient.RecipientTypeDetails
+                targetId = $mailbox.Guid
+                principalEntraId = $mailbox.ExternalDirectoryObjectId
+                principalEntraUpn = if($mailbox.PrimarySmtpAddress){$mailbox.PrimarySmtpAddress}else{$mailbox.windowsLiveId}
+                principalSysId = $mailbox.Guid
+                principalSysName = $mailbox.DisplayName
+                principalType = "Internal User"
+                principalRole = "Owner"
+                through = "Direct"
+                accessType = "Allow"
+                tenure = "Permanent"
+            }
+            New-ExOPermissionEntry @splat
+        }        
         if($mailbox.GrantSendOnBehalfTo){
             foreach($sendOnBehalf in $mailbox.GrantSendOnBehalfTo){
                 $entity = $Null; $entity= @($global:octo.recipients | Where-Object {$_.Alias -eq $sendOnBehalf}) | Select-Object -First 1
@@ -118,6 +136,10 @@
                 try{
                     $folderPermissions = $Null; $folderPermissions = New-ExoQuery -cmdlet "Get-MailboxFolderPermission" -cmdParams @{Identity = "$($mailbox.Guid):$($folder.FolderId)"}
                     foreach($folderPermission in $folderPermissions){
+                        if($folderPermission.User.StartsWith("NT:S-1-5-21-")){
+                            Write-LogMessage -level 6 -message "Ignoring pre-migration orphaned permissions $($folderPermission.User)"
+                            continue
+                        }                                 
                         if($folderPermission.User -eq "Default"){
                             $entity = [PSCustomObject]@{
                                 ExternalDirectoryObjectId = "AllInternalUsers"
@@ -140,7 +162,7 @@
                                 Guid = $folderPermission.User
                             }
                         }else{
-                            $entity = $Null; $entity= New-ExOQuery -cmdlet "Get-Recipient" -cmdParams @{"ResultSize" = "Unlimited"; "Identity" = $folderPermission.User} -retryCount 2
+                            $entity = $Null; $entity= New-ExOQuery -cmdlet "Get-Recipient" -cmdParams @{"ResultSize" = "Unlimited"; "Identity" = $folderPermission.User} -retryCount 2 -NonRetryErrors @("404 (Not Found)")
                         }
 
                         if($entity -and $entity.Identity -eq $recipient.Identity){
