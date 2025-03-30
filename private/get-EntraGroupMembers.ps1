@@ -1,4 +1,4 @@
-function Get-EntraGroupMembers {
+function get-entraGroupMembers {
     <#
         Author               = "Jos Lieben (jos@lieben.nu)"
         CompanyName          = "Lieben Consultancy"
@@ -9,11 +9,16 @@ function Get-EntraGroupMembers {
         [switch]$includeNonUsers
     )
 
-    if($includeNonUsers){
-        $groupMembers = new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/beta/groups/$groupId/transitiveMembers" | Where-Object {$_ -and $_."@odata.type" -ne "#microsoft.graph.group" }
-    }else{
-        $groupMembers = new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/groups/$groupId/transitiveMembers" | Where-Object {$_ -and $_."@odata.type" -ne "#microsoft.graph.group" }
+    try{
+        if($includeNonUsers){
+            [Array]$groupMembers = new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/beta/groups/$groupId/transitiveMembers" -ignoreableErrors @("404 (Not Found)") | Where-Object {$_ -and $_."@odata.type" -ne "#microsoft.graph.group" }
+        }else{
+            [Array]$groupMembers = new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/groups/$groupId/transitiveMembers" -ignoreableErrors @("404 (Not Found)") | Where-Object {$_ -and $_."@odata.type" -ne "#microsoft.graph.group" }
+        }
+    }catch{
+        [Array]$groupMembers = @()
     }
+
 
     for($i=0;$i -lt $groupMembers.count;$i++){
         if($groupmembers[$i]."@odata.type" -eq "#microsoft.graph.user"){
