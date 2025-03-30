@@ -10,7 +10,8 @@ function New-ExOQuery {
         [parameter(Mandatory = $True)]$cmdlet,
         $cmdParams,
         [Switch]$NoPagination,
-        $retryCount = 3
+        $retryCount = 3,
+        [Array]$nonRetryErrors = @()       
     )
     $token = Get-AccessToken -Resource "https://outlook.office365.com"
     if ($cmdParams) {
@@ -50,6 +51,13 @@ function New-ExOQuery {
                     $attempts = $retryCount
                 }catch {
                     $attempts++
+                    foreach($nonRetryError in $nonRetryErrors){
+                        if($_.Exception.Message -like "*$nonRetryError*"){
+                            Write-LogMessage -level 5 -message "EXO request failed, non-retryable error: $($_.Exception.Message)"
+                            $nextUrl = $null
+                            throw $_
+                        }
+                    }                    
                     if ($attempts -eq $retryCount) {
                         $nextUrl = $null
                         Throw $_
@@ -74,10 +82,7 @@ function New-ExOQuery {
                 ($Data)
             }         
         }catch {
-            $ReportedError = ($_.ErrorDetails | ConvertFrom-Json -ErrorAction SilentlyContinue)
-            $Message = if ($ReportedError.error.details.message) { $ReportedError.error.details.message } else { $ReportedError.error.innererror.internalException.message }
-            if ($null -eq $Message) { $Message = $($_.Exception.Message) }
-            throw $Message
+            throw $_
         }
     }until($null -eq $nextURL)
 
