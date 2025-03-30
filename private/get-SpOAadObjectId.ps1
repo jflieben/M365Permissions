@@ -15,13 +15,18 @@ function get-SpOAadObjectId{
             $global:aadUserIdCache = @{}
         }
         if($global:aadUserIdCache.Keys -contains $aadObjectId){
-            return $global:aadUserIdCache.$aadObjectId
+            if($False -eq $global:aadUserIdCache.$aadObjectId){
+                return $null
+            }else{
+                return $global:aadUserIdCache.$aadObjectId
+            }
         }else{
-            $aadUserId = $Null; $aadUserId = try{(new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$($aadObjectId)?`$select=id").id}catch{}
+            $aadUserId = $Null; $aadUserId = try{(new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$($aadObjectId.replace('#ext#',''))?`$select=id").id}catch{}
             if($aadUserId){
                 $global:aadUserIdCache.$aadObjectId = $aadUserId
                 return $aadUserId
             }else{
+                $global:aadUserIdCache.$aadObjectId = $False
                 return $null
             }
         }

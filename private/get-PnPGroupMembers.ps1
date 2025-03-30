@@ -75,11 +75,17 @@ Function Get-PnPGroupMembers{
     }else{
         #SPO Group
         try{
-            $spoGroupMembers=$Null; $spoGroupMembers = (New-RetryCommand -Command 'Get-PnPGroupMember' -Arguments @{Group = $group.Title; Connection =(Get-SpOConnection -Type User -Url $site.Url)})
+            $spoGroupMembers=$Null; $spoGroupMembers = (New-RetryCommand -Command 'Get-PnPGroupMember' -Arguments @{Group = $group.Title; Connection =$siteConn})
         }catch{
             Throw "Failed to get members for $($group.Title) because $_"
         }
         foreach($spoGroupMember in $spoGroupMembers){
+            $harmonizedMember = $Null; $harmonizedMember = Get-SpOHarmonizedEntity -entity $spoGroupMember
+            if($harmonizedMember -and $global:octo.PnPGroupCache.$($localGroupName).LoginName -notcontains $harmonizedMember.LoginName){
+                Write-LogMessage -level 5 -message "Found $($harmonizedMember.Title) in group"
+                $global:octo.PnPGroupCache.$($localGroupName) += $harmonizedMember
+                continue
+            }               
             if($spoGroupMember.PrincipalType -like "*group*"){
                 Get-PnPGroupMembers -group $spoGroupMember -parentId $spoGroupMember.Id -siteConn $siteConn -topLevelGroupName $localGroupName | Out-Null
                 #$group =$spoGroupMember;$parentId = $spoGroupMember.Id;$topLevelGroupName= $localGroupName 
@@ -91,7 +97,7 @@ Function Get-PnPGroupMembers{
                 }
             }
         }
-    }
+    }  
 
     return $global:octo.PnPGroupCache.$($localGroupName)
 }
