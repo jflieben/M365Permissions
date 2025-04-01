@@ -151,7 +151,11 @@
                         New-SpOPermissionEntry -targetPath $spoWeb.Url -Permission (get-spopermissionEntry -entity $member -object $spoWeb -permission "Full Control" -through "SharePointGroup" -parentId $spoSiteAdmin.Id)
                     }
                 }else{ #never enumerate entra groups since we have a mapping for current users
-                    New-SpOPermissionEntry -targetPath $spoWeb.Url -Permission (get-spopermissionEntry -entity $spoSiteAdmin -object $spoWeb -permission "Full Control" -through "Direct")                 
+                    if($spoSiteAdmin.PrincipalType -eq "SecurityGroup"){
+                        New-SpOPermissionEntry -targetPath $spoWeb.Url -Permission (get-spopermissionEntry -entity $spoSiteAdmin -object $spoWeb -permission "Full Control" -through "EntraSecurityGroup")                 
+                    }else{
+                        New-SpOPermissionEntry -targetPath $spoWeb.Url -Permission (get-spopermissionEntry -entity $spoSiteAdmin -object $spoWeb -permission "Full Control" -through "Direct")                 
+                    }       
                 }
             }        
 

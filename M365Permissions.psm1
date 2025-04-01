@@ -20,7 +20,8 @@
     1.1.x How to handle spo group membership pivoting if we don't expand spo group membership           
     1.1.x exo folder permission change results in update of LastModifiedTime attribute in 27/02/2025 15:07:10 format   
     1.1.x auto cleanup app registrations etc after a run?
-    1.1.x support for Sharepoint AsApp authorizations                                                                                                                                      
+    1.1.x support for Sharepoint AsApp authorizations  
+    1.1.x Add Cloud PC's                                                                                                                                    
 #>                                                                                                                                              
 
 $helperFunctions = @{

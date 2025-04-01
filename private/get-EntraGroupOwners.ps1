@@ -9,7 +9,7 @@ function Get-EntraGroupOwners {
     )
 
     try{
-        [Array]$groupMembers = new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/groups/$groupId/owners/microsoft.graph.user" -ignoreableErrors @("404 (Not Found)") | Where-Object {$_}
+        [Array]$groupMembers = new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/groups/$groupId/owners/microsoft.graph.user" | Where-Object {$_}
     }catch{
         [Array]$groupMembers = @()
     }

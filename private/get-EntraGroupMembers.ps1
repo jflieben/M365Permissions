@@ -11,9 +11,9 @@ function get-entraGroupMembers {
 
     try{
         if($includeNonUsers){
-            [Array]$groupMembers = new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/beta/groups/$groupId/transitiveMembers" -ignoreableErrors @("404 (Not Found)") | Where-Object {$_ -and $_."@odata.type" -ne "#microsoft.graph.group" }
+            [Array]$groupMembers = new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/beta/groups/$groupId/transitiveMembers" | Where-Object {$_ -and $_."@odata.type" -ne "#microsoft.graph.group" }
         }else{
-            [Array]$groupMembers = new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/groups/$groupId/transitiveMembers" -ignoreableErrors @("404 (Not Found)") | Where-Object {$_ -and $_."@odata.type" -ne "#microsoft.graph.group" }
+            [Array]$groupMembers = new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/groups/$groupId/transitiveMembers" | Where-Object {$_ -and $_."@odata.type" -ne "#microsoft.graph.group" }
         }
     }catch{
         [Array]$groupMembers = @()

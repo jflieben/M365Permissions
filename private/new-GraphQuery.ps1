@@ -88,6 +88,11 @@ function New-GraphQuery {
                     $attempts = $MaxAttempts
                 }
                 catch {
+                    if($_.Exception.Message -like "*404 (Not Found)*"){
+                        Write-LogMessage -level 6 -message "Not retrying: $($_)"
+                        $nextUrl = $Null
+                        throw $_
+                    }                    
                     if($ignoreableErrors){
                         foreach($ignoreableError in $ignoreableErrors){
                             if($_.Exception.Message -like "*$ignoreableError*"){
@@ -122,6 +127,11 @@ function New-GraphQuery {
                         $attempts = $MaxAttempts
                     }
                     catch {
+                        if($_.Exception.Message -like "*404 (Not Found)*"){
+                            Write-LogMessage -level 6 -message "Not retrying: $($_)"
+                            $nextUrl = $Null
+                            throw $_
+                        }                        
                         if($ignoreableErrors){
                             foreach($ignoreableError in $ignoreableErrors){
                                 if($_.Exception.Message -like "*$ignoreableError*"){

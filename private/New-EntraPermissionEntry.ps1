@@ -45,6 +45,7 @@ Function New-EntraPermissionEntry{
         }
         "#microsoft.graph.group" {
             $principalType = "EntraSecurityGroup"
+            $through = "EntraSecurityGroup"
         }
         Default {
             #leave unmodified

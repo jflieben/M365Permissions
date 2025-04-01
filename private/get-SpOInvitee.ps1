@@ -16,7 +16,7 @@ function get-SpOInvitee{
     #type 3 = external user
     if($invitee.Type -in @(1,2)){
         try{
-            $usr = $Null;$usr = New-GraphQuery -maxAttempts 10 -Uri "$siteUrl/_api/Web/GetUserById($($invitee.PId))" -Method GET -resource "https://www.sharepoint.com" -ignoreableErrors @("404 (Not Found)")
+            $usr = $Null;$usr = New-GraphQuery -maxAttempts 10 -Uri "$siteUrl/_api/Web/GetUserById($($invitee.PId))" -Method GET -resource "https://www.sharepoint.com"
         }catch{
             $usr = $Null
         }

@@ -88,7 +88,7 @@
                     $permissionSplat["principalSysId"] = $user.graphId
                     $permissionSplat["principalSysName"] = $user.displayName
                     $permissionSplat["principalType"] = "EntraSecurityGroup"
-                    $permissionSplat["through"] = "Direct"
+                    $permissionSplat["through"] = "EntraSecurityGroup"
                     New-PBIPermissionEntry @permissionSplat
                 }else{
                     $userId = $Null; $userId = $user.id.Replace("app-","")
@@ -183,7 +183,7 @@
                         principalSysName = $user.displayName
                         principalType = $metaData.principalType
                         principalRole = $user.$($secureableTypes.$secureableType.UserAccessRightProperty)
-                        through = "Direct"              
+                        through = if($metaData.principalType -eq "EntraSecurityGroup"){$metaData.principalType}else{"Direct"}           
                     }
                     New-PBIPermissionEntry @permissionSplat 
                 }                  

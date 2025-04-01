@@ -51,6 +51,11 @@ function New-ExOQuery {
                     $attempts = $retryCount
                 }catch {
                     $attempts++
+                    if($_.Exception.Message -like "*404 (Not Found)*"){
+                        Write-LogMessage -level 6 -message "Not retrying: $($_)"
+                        $nextUrl = $Null
+                        throw $_
+                    }                    
                     foreach($nonRetryError in $nonRetryErrors){
                         if($_.Exception.Message -like "*$nonRetryError*"){
                             Write-LogMessage -level 5 -message "EXO request failed, non-retryable error: $($_.Exception.Message)"

@@ -162,7 +162,7 @@
                                 Guid = $folderPermission.User
                             }
                         }else{
-                            $entity = $Null; $entity= New-ExOQuery -cmdlet "Get-Recipient" -cmdParams @{"ResultSize" = "Unlimited"; "Identity" = $folderPermission.User} -retryCount 2 -NonRetryErrors @("404 (Not Found)")
+                            $entity = $Null; $entity= New-ExOQuery -cmdlet "Get-Recipient" -cmdParams @{"ResultSize" = "Unlimited"; "Identity" = $folderPermission.User} -retryCount 2
                         }
 
                         if($entity -and $entity.Identity -eq $recipient.Identity){

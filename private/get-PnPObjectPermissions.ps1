@@ -143,7 +143,7 @@ Function get-PnPObjectPermissions{
                 }else{
                     $parentId = get-SpOAadObjectId -loginName $member.Member.LoginName
                 }
-                Get-PnPGroupMembers -Group $member.Member -parentId $member.Member.Id -siteConn (Get-SpOConnection -Type User -Url $siteUrl) | ForEach-Object {
+                Get-PnPGroupMembers -Group $member.Member -parentId $member.Member.Id -siteConn (Get-SpOConnection -Type User -Url $siteUrl) | Where-Object { $_ } | ForEach-Object {
                     #$Group= $member.Member;$parentId= $member.Member.Id;$siteConn= (Get-SpOConnection -Type User -Url $siteUrl)
                     New-SpOPermissionEntry -targetPath $obj.Url -Permission (get-spopermissionEntry -entity $_ -object $obj -permission $permissionName -through $principalType -parentId $parentId)
                 }
@@ -180,7 +180,7 @@ Function get-PnPObjectPermissions{
             $global:sharedLinks = @()
             foreach($listId in $sharedLinksList.Id.Guid){ 
                 try{
-                    $global:sharedLinks += (New-RetryCommand -Command 'Get-PnPListItem' -Arguments @{List = $listId; PageSize = 500;Fields = ("ID","AvailableLinks"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)}) | ForEach-Object {
+                    $global:sharedLinks += (New-RetryCommand -Command 'Get-PnPListItem' -Arguments @{List = $listId; PageSize = 500;Fields = ("ID","AvailableLinks"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)}) | Where-Object { $_ } | ForEach-Object {
                         $_.FieldValues["AvailableLinks"] | ConvertFrom-Json
                     }
                     Write-LogMessage -message "Cached $($sharedLinks.Count) shared links in $($Object.Title)..." -level 4
