@@ -99,7 +99,12 @@
         @{
             "resource" = "00000003-0000-0000-c000-000000000000" #Graph API
             "id" = "a82116e5-55eb-4c41-a434-62fe8a61c773" #Sites.FullControl.All
-        }                                       
+        } 
+        @{
+            "resource" = "00000003-0000-0000-c000-000000000000" #Graph API
+            "id" = "a9e09520-8ed4-4cde-838e-4fdea192c227" #CloudPC.Read.All 
+        }
+                                          
     )
 
     foreach ($role in $requiredRoles) {

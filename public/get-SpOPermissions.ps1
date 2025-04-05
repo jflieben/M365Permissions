@@ -46,7 +46,7 @@
         Throw "Failed to find a Team using $teamName $siteUrl. Please check the name and try again"
     }
 
-    if($sites[0].IsTeamsConnected){
+    if($sites[0].IsTeamsConnected -and !$isParallel){
         try{
             Write-LogMessage -message "Retrieving channels for this site/team..." -level 4
             $channels = New-GraphQuery -Uri "https://graph.microsoft.com/beta/teams/$($sites[0].GroupId.Guid)/channels" -Method GET -NoRetry

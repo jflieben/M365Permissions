@@ -89,7 +89,7 @@
         
         Write-LogMessage -message ">> get-AllSPOPermissions -IncludeOneDriveSites -ExcludeOtherSites"
         
-        Write-LogMessage -message ">> get-AllEntraPermissions -excludeGroupsAndUsers"    
+        Write-LogMessage -message ">> get-AllEntraPermissions"    
 
         Write-LogMessage -message ">> get-AllPBIPermissions" 
         
