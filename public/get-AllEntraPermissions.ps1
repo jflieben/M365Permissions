@@ -40,6 +40,23 @@
     $global:EntraPermissions = @{}
     New-StatisticsObject -category "Entra" -subject "Roles"  
 
+    $partners = New-GraphQuery -Uri 'https://graph.microsoft.com/beta/directory/partners' -Method GET
+    foreach($partner in $partners){
+        Update-StatisticsObject -category "Entra" -subject "Roles"
+        $permissionSplat = @{
+            targetPath = "/"
+            targetType = "tenant"
+            principalEntraId = $partner.partnerTenantId
+            principalEntraUpn = $partner.companyName
+            principalSysName = $partner.supportUrl
+            principalType = $partner.companyType
+            principalRole = $partner.contractType
+            through = "Direct"
+            tenure = "Permanent"                    
+        }            
+        New-EntraPermissionEntry @permissionSplat
+    }
+
     Write-Progress -Id 1 -PercentComplete 5 -Activity "Scanning Entra ID" -Status "Retrieving role definitions"
 
     #get role definitions
