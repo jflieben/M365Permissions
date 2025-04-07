@@ -22,6 +22,7 @@
 
     $count = 0
     foreach($cloudPC in $allCloudPCs){
+        $count++
         $percentComplete = try{$count / $allCloudPCs.count * 100} catch {0}
         Write-Progress -Id 2 -PercentComplete $percentComplete -Activity "Scanning CloudPCs" -Status "$count / $($allCloudPCs.count)"
         Update-StatisticsObject -category "Devices" -subject "CloudPCs"
@@ -59,6 +60,7 @@
     New-StatisticsObject -category "Devices" -subject "Entra"
     $count = 0
     foreach($device in $allEntraDevices){
+        $count++
         if($device.systemLabels -contains "CloudPC"){
             Write-LogMessage -message "Skipping device $($device.displayName) as it is a CloudPC" -level 5
             continue
@@ -95,6 +97,8 @@
         }
         New-DevicePermissionEntry @permissionsSplat
     }
+
+     Write-Progress -Id 2 -Completed -Activity "Scanning Entra Devices"
 
     Remove-Variable allEntraDevices -Force -Confirm:$False
     [System.GC]::GetTotalMemory($true) | out-null
