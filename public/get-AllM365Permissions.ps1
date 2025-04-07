@@ -19,5 +19,6 @@
     get-AllEntraPermissions -skipReportGeneration
     get-AllExOPermissions -includeFolderLevelPermissions -skipReportGeneration
     get-AllSpOPermissions -includeOnedriveSites -skipReportGeneration
+    get-AllDevicePermissions -skipReportGeneration
     Write-Report
 }
