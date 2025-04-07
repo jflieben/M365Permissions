@@ -100,8 +100,35 @@
     [System.GC]::GetTotalMemory($true) | out-null
     Stop-statisticsObject -category "Devices" -subject "Entra"
 
+    $permissionRows = foreach($row in $global:DevicePermissions.Keys){
+        foreach($permission in $global:DevicePermissions.$row){
+            [PSCustomObject]@{
+                "targetPath" = $row
+                "targetType" = $permission.targetType
+                "targetId" = $permission.targetId
+                "principalEntraId" = $permission.principalEntraId
+                "principalSysId" = $permission.principalSysId
+                "principalSysName" = $permission.principalSysName
+                "principalType" = $permission.principalType
+                "principalRole" = $permission.principalRole
+                "through" = $permission.through
+                "parentId" = $permission.parentId
+                "accessType" = $permission.accessType
+                "tenure" = $permission.tenure
+                "startDateTime" = $permission.startDateTime
+                "endDateTime" = $permission.endDateTime
+                "createdDateTime" = $permission.createdDateTime
+                "modifiedDateTime" = $permission.modifiedDateTime
+            }
+        }
+    }
+
+    Add-ToReportQueue -permissions $permissionRows -category "Devices"
+    Remove-Variable -Name DevicePermissions -Scope Global -Force -Confirm:$False
     if(!$skipReportGeneration){
         Write-LogMessage -message "Generating report..." -level 4
         Write-Report
+    }else{
+        Reset-ReportQueue
     }
 }
