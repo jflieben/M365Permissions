@@ -16,7 +16,7 @@ function get-SpOInvitee{
     #type 3 = external user
     if($invitee.Type -in @(1,2)){
         try{
-            $usr = $Null;$usr = New-GraphQuery -maxAttempts 10 -Uri "$siteUrl/_api/Web/GetUserById($($invitee.PId))" -Method GET -resource "https://www.sharepoint.com" -ignoreableErrors @("404 (Not Found)")
+            $usr = $Null;$usr = New-GraphQuery -maxAttempts 10 -Uri "$siteUrl/_api/Web/GetUserById($($invitee.PId))" -Method GET -resource "https://www.sharepoint.com"
         }catch{
             $usr = $Null
         }
@@ -26,13 +26,16 @@ function get-SpOInvitee{
             $retVal.Title = "Unknown (deleted?) PID: $($invitee.PId)"
             $retVal.LoginName = "Unknown (deleted?)"
             $retVal.Email = "Unknown (deleted?)"
-            $retVal.PrincipalType = "Internal User"        
+            $retVal.PrincipalType = "Internal User"
+            $retVal.ObjType = "Invitee"
         }
     }else{
         $retVal.Title = $invitee.Email.Split("@")[0]
         $retVal.Email = $invitee.Email
         $retVal.LoginName = $invitee.Email
-        $retVal.PrincipalType = "Guest User" 
+        $retVal.PrincipalType = "External User" 
+        $retVal.created = $invitee.InvitedOn
+        $retVal.ObjType = "Invitee"
     }
 
     return $retVal

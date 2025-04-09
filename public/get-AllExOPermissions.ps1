@@ -5,14 +5,12 @@
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
         
         Parameters:
-        -expandGroups: if set, group memberships will be expanded to individual users
         -includeFolderLevelPermissions: if set, folder level permissions for each mailbox will be retrieved. This can be (very) slow
 
         Potential to do:
         only reason we need GA rights for EXO scanning is because get-recipientpermission doesn't support Global Reader, this could be fixed by modifying the scope in EXO but is a config change a customer would need to accept
     #>        
     Param(
-        [Switch]$expandGroups,
         [Switch]$includeFolderLevelPermissions,
         [Switch]$skipReportGeneration
     )
@@ -24,7 +22,7 @@
     }
 
     Write-Progress -Id 1 -PercentComplete 1 -Activity $activity -Status "Scanning roles..."
-    get-ExORoles -expandGroups:$expandGroups.IsPresent
+    get-ExORoles
     Write-Progress -Id 1 -PercentComplete 1 -Activity $activity -Status "Retrieving all recipients..."
     Write-LogMessage -message "Getting all recipients..."
     [System.GC]::GetTotalMemory($true) | out-null
@@ -33,7 +31,6 @@
     foreach($recipient in $global:octo.recipients){
         New-ScanJob -Title $activity -Target $recipient.displayName -FunctionToRun "get-ExOPermissions" -FunctionArguments @{
             "recipientIdentity" = $recipient.Identity
-            "expandGroups" = $expandGroups.IsPresent
             "includeFolderLevelPermissions" = $includeFolderLevelPermissions.IsPresent
             "isParallel" = $True
         }

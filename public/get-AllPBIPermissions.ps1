@@ -5,11 +5,9 @@
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
         
         Parameters:
-        -expandGroups: if set, group memberships will be expanded to individual users
         -excludeGroupsAndUsers: exclude group and user memberships from the report, only show role assignments
     #>        
     Param(
-        [Switch]$expandGroups,
         [Switch]$skipReportGeneration
     )
 
@@ -77,21 +75,21 @@
             Update-StatisticsObject -category "PowerBI" -subject "Securables"
             Write-Progress -Id 2 -PercentComplete $(Try{ ($g/$gateways.count)*100 } catch {0}) -Activity "Analyzing gateways..." -Status "$($g+1)/$($gateways.count) $($gateways[$g].id)"
             foreach($user in $gateways[$g].permissions){
+                $permissionSplat = @{
+                    targetPath = "/gateways/$($gateways[$g].type)/$($gateways[$g].id)"
+                    targetType = "Gateway"
+                    targetId = $gateways[$g].id
+                    principalRole = $user.role
+                }
+                
                 if($user.principalType -eq "Group"){
-                    $groupMembers = $null
-                    if($expandGroups.IsPresent){
-                        try{
-                            $groupMembers = get-entraGroupMembers -groupId $user.graphId
-                            foreach($groupMember in $groupMembers){
-                                New-PBIPermissionEntry -path "/gateways/$($gateways[$g].type)/$($gateways[$g].id)" -type "Gateway" -principalId $groupMember.id -principalName $groupMember.displayName -principalUpn $groupMember.userPrincipalName -principalType $groupmember.principalType -roleDefinitionName $user.role -through "Group" -parent $user.id
-                            }                        
-                        }catch{
-                            Write-LogMessage -level 2 -message "Failed to retrieve group members for $($user.id), adding as group principal type instead"
-                        }
-                    }
-                    if(!$groupMembers){
-                        New-PBIPermissionEntry -path "/gateways/$($gateways[$g].type)/$($gateways[$g].id)" -type "Gateway" -principalId $user.graphId -principalName $user.displayName -principalUpn "N/A" -principalType "$($user.principalType) ($($user.userType))" -roleDefinitionName $user.role
-                    }
+                    $permissionSplat["principalEntraId"] = $user.graphId
+                    $permissionSplat["principalEntraUpn"] = ""
+                    $permissionSplat["principalSysId"] = $user.graphId
+                    $permissionSplat["principalSysName"] = $user.displayName
+                    $permissionSplat["principalType"] = "EntraSecurityGroup"
+                    $permissionSplat["through"] = "EntraSecurityGroup"
+                    New-PBIPermissionEntry @permissionSplat
                 }else{
                     $userId = $Null; $userId = $user.id.Replace("app-","")
                     if($user.id.startsWith("app-")){
@@ -100,13 +98,16 @@
                         try{
                             $userMetaData = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/users/$userId" -Method GET -maxAttempts 2
                         }catch{
-                            $userMetaData = @{
-                                displayName = "Unknown (deleted user?)"
-                                userPrincipalName = "Unknown"
-                            }
+                            Write-LogMessage -level 2 -message "Failed to retrieve user metadata for $($user.id), user was likely deleted, skipping..."
+                            continue
                         }
                     }
-                    New-PBIPermissionEntry -path "/gateways/$($gateways[$g].type)/$($gateways[$g].id)" -type "Gateway" -principalId $userId -principalName $userMetaData.displayName -principalUpn $userMetaData.userPrincipalName -principalType $user.principalType -roleDefinitionName $user.role
+                    $permissionSplat["principalEntraId"] = $userId
+                    $permissionSplat["principalEntraUpn"] = $userMetaData.userPrincipalName
+                    $permissionSplat["principalSysId"] = $userMetaData.id
+                    $permissionSplat["principalSysName"] = $userMetaData.displayName
+                    $permissionSplat["principalType"] = $($user.principalType)
+                    New-PBIPermissionEntry @permissionSplat
                 }
             }
         }
@@ -135,59 +136,56 @@
     }
     
     Write-Progress -Id 1 -PercentComplete 45 -Activity $activity -Status "Processing PowerBI securables..."
+    $secureableTypes = @{
+        "reports" = @{
+            "Type" = "Report"
+            "UserAccessRightProperty" = "reportUserAccessRight"
+            "CreatedProperty" = "createdDateTime"
+            "ModifiedProperty" = "modifiedDateTime"
+        }
+        "datasets" = @{
+            "Type" = "Dataset"
+            "UserAccessRightProperty" = "datasetUserAccessRight"
+            "CreatedProperty" = "createdDate"
+            "ModifiedProperty" = "N/A"
+        }    
+        "Lakehouse" = @{
+            "Type" = "Lakehouse"
+            "UserAccessRightProperty" = "artifactUserAccessRight"
+            "CreatedProperty" = "createdDate"
+            "ModifiedProperty" = "lastUpdatedDate"
+        } 
+        "warehouses" = @{
+            "Type" = "Warehouse"
+            "UserAccessRightProperty" = "datamartUserAccessRight"
+            "CreatedProperty" = "N/A"
+            "ModifiedProperty" = "modifiedDateTime"
+        }                                              
+    }
     for($s=0;$s -lt $scanResults.count; $s++){
         Write-Progress -Id 2 -PercentComplete $(Try{ ($s/$scanResults.count)*100 } catch {0}) -Activity "Analyzing securables..." -Status "$($s+1)/$($scanResults.count) $($scanResults[$s].name)"
-        $secureableTypes = @{
-            "reports" = @{
-                "Type" = "Report"
-                "UserAccessRightProperty" = "reportUserAccessRight"
-                "CreatedProperty" = "createdDateTime"
-                "ModifiedProperty" = "modifiedDateTime"
-            }
-            "datasets" = @{
-                "Type" = "Dataset"
-                "UserAccessRightProperty" = "datasetUserAccessRight"
-                "CreatedProperty" = "createdDate"
-                "ModifiedProperty" = "N/A"
-            }    
-            "Lakehouse" = @{
-                "Type" = "Lakehouse"
-                "UserAccessRightProperty" = "artifactUserAccessRight"
-                "CreatedProperty" = "createdDate"
-                "ModifiedProperty" = "lastUpdatedDate"
-            } 
-            "warehouses" = @{
-                "Type" = "Warehouse"
-                "UserAccessRightProperty" = "datamartUserAccessRight"
-                "CreatedProperty" = "N/A"
-                "ModifiedProperty" = "modifiedDateTime"
-            }                                              
-        }
-
-        foreach($secureableType in $secureableTypes.Keys){
-            foreach($secureable in $scanResults[$s].$secureableType){
+        foreach($secureableType in $secureableTypes.Keys){ #$secureableType = "reports"
+            foreach($secureable in $scanResults[$s].$secureableType){ #$secureable = $scanResults[$s].$secureableType[0]
                 Update-StatisticsObject -category "PowerBI" -subject "Securables"
-                $created = $secureableTypes.$secureableType.CreatedProperty -eq "N/A" ? "Unknown" : $secureable.$($secureableTypes.$secureableType.CreatedProperty)
-                $modified = $secureableTypes.$secureableType.ModifiedProperty -eq "N/A" ? "Unknown" : $secureable.$($secureableTypes.$secureableType.ModifiedProperty)
-                foreach($user in $secureable.users){
-                    if($user.principalType -eq "Group"){
-                        $groupMembers = $null;
-                        if($expandGroups.IsPresent){
-                            try{
-                                 $groupMembers = get-entraGroupMembers -groupId $user.graphId
-                                foreach($groupMember in $groupMembers){
-                                    New-PBIPermissionEntry -path "/workspaces/$($scanResults[$s].name)/$secureableType/$($secureable.name)" -type $secureableTypes.$secureableType.Type -principalId $groupMember.id -principalName $groupMember.displayName -principalUpn $groupMember.userPrincipalName -principalType $groupmember.principalType -roleDefinitionName $user.$($secureableTypes.$secureableType.UserAccessRightProperty) -through "Group" -parent $user.graphId -created $created -modified $modified
-                                }                                
-                            }catch{
-                                Write-LogMessage -level 2 -message "Failed to retrieve group members for $($user.displayName), adding as group principal type instead"
-                            }                          
-                        }
-                        if(!$groupMembers){
-                            New-PBIPermissionEntry -path "/workspaces/$($scanResults[$s].name)/$secureableType/$($secureable.name)" -type $secureableTypes.$secureableType.Type -principalId $user.graphId -principalName $user.displayName -principalUpn "N/A" -principalType "$($user.principalType) ($($user.userType))" -roleDefinitionName $user.$($secureableTypes.$secureableType.UserAccessRightProperty) -created $created -modified $modified
-                        }                                                            
-                    }else{
-                        New-PBIPermissionEntry -path "/workspaces/$($scanResults[$s].name)/$secureableType/$($secureable.name)" -type $secureableTypes.$secureableType.Type -principalId $user.graphId -principalName $user.displayName -principalUpn $user.identifier -principalType "$($user.principalType) ($($user.userType))" -roleDefinitionName $user.$($secureableTypes.$secureableType.UserAccessRightProperty) -created $created -modified $modified
+                $created = $secureableTypes.$secureableType.CreatedProperty -eq "N/A" ? $Null : $secureable.$($secureableTypes.$secureableType.CreatedProperty)
+                $modified = $secureableTypes.$secureableType.ModifiedProperty -eq "N/A" ? $Null : $secureable.$($secureableTypes.$secureableType.ModifiedProperty)
+                foreach($user in $secureable.users){ #$user = $secureable.users[0]
+                    $metaData = $Null;$metaData = get-PBIUserMetaData -user $user
+                    $permissionSplat = @{
+                        targetPath = "/workspaces/$($scanResults[$s].name)/$secureableType/$($secureable.name)"
+                        targetType = $secureableTypes.$secureableType.Type
+                        targetId = $secureable.id
+                        createdDateTime = $created
+                        modifiedDateTime = $modified
+                        principalEntraId = $metaData.principalEntraId
+                        principalEntraUpn = ""
+                        principalSysId = $user.graphId
+                        principalSysName = $user.displayName
+                        principalType = $metaData.principalType
+                        principalRole = $user.$($secureableTypes.$secureableType.UserAccessRightProperty)
+                        through = if($metaData.principalType -eq "EntraSecurityGroup"){$metaData.principalType}else{"Direct"}           
                     }
+                    New-PBIPermissionEntry @permissionSplat 
                 }                  
             }
         }
@@ -202,17 +200,22 @@
     $permissionRows = foreach($row in $global:PBIPermissions.Keys){
         foreach($permission in $global:PBIPermissions.$row){
             [PSCustomObject]@{
-                "Path" = $row
-                "Type" = $permission.Type
-                "principalName" = $permission.principalName
-                "roleDefinitionName" = $permission.roleDefinitionName               
-                "principalUpn" = $permission.principalUpn
+                "targetPath" = $row
+                "targetType" = $permission.targetType
+                "targetId" = $permission.targetId
+                "principalEntraId" = $permission.principalEntraId
+                "principalSysId" = $permission.principalSysId
+                "principalSysName" = $permission.principalSysName
                 "principalType" = $permission.principalType
+                "principalRole" = $permission.principalRole
                 "through" = $permission.through
-                "parent" = $permission.parent
-                "principalId"    = $permission.principalId  
-                "created" = $permission.created
-                "modified" = $permission.modified       
+                "parentId" = $permission.parentId
+                "accessType" = "Allow"
+                "tenure" = "Permanent"
+                "startDateTime" = $permission.startDateTime
+                "endDateTime" = $permission.endDateTime
+                "createdDateTime" = $permission.createdDateTime
+                "modifiedDateTime" = $permission.modifiedDateTime     
             }
         }
     }

@@ -1,14 +1,25 @@
-function Get-EntraGroupMembers {
+function get-entraGroupMembers {
     <#
         Author               = "Jos Lieben (jos@lieben.nu)"
         CompanyName          = "Lieben Consultancy"
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
     #>     
     Param(
-        [Parameter(Mandatory=$true)]$groupId
+        [Parameter(Mandatory=$true)]$groupId,
+        [switch]$includeNonUsers
     )
 
-    $groupMembers = new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/groups/$groupId/transitiveMembers" | Where-Object {$_ -and $_."@odata.type" -ne "#microsoft.graph.group" }
+    try{
+        if($includeNonUsers){
+            [Array]$groupMembers = new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/beta/groups/$groupId/transitiveMembers" | Where-Object {$_ -and $_."@odata.type" -ne "#microsoft.graph.group" }
+        }else{
+            [Array]$groupMembers = new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/groups/$groupId/transitiveMembers" | Where-Object {$_ -and $_."@odata.type" -ne "#microsoft.graph.group" }
+        }
+    }catch{
+        [Array]$groupMembers = @()
+    }
+
+
     for($i=0;$i -lt $groupMembers.count;$i++){
         if($groupmembers[$i]."@odata.type" -eq "#microsoft.graph.user"){
             if($groupMembers[$i].userPrincipalName -like "*#EXT#@*"){

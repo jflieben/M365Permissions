@@ -8,21 +8,18 @@ function get-SpOPermissionEntry{
         [Parameter(Mandatory=$true)]$entity,
         [Parameter(Mandatory=$true)]$object,
         [Parameter(Mandatory=$true)]$permission,
-        $through,
-        $parent,
+        $through="Direct",
+        $parentId,
         $linkCreationDate,
         $linkExpirationDate
     )
     
-    $localEntity = (Get-SpOHarmonizedEntity -entity $entity -alwaysReturn)
-
-    $name = $localEntity.Title
-    $type = $localEntity.PrincipalType
+    $localEntity = Get-SpOHarmonizedEntity -entity $entity -alwaysReturn
 
     $objectType = $object.Type ? $object.Type : "root"
     
-    if([string]::IsNullOrEmpty($parent)){
-        $parent = ""
+    if([string]::IsNullOrEmpty($parentId)){
+        $parentId = ""
     }
 
     if([string]::IsNullOrEmpty($linkCreationDate)){
@@ -33,17 +30,23 @@ function get-SpOPermissionEntry{
         $linkExpirationDate = ""
     }    
 
+    if($object.Id.Guid){
+        $objectId = $object.Id.Guid
+    }else{
+        $objectId = $object.Id
+    }
+
     return [PSCustomObject]@{
-        "Object" = $objectType
-        "Name" = $name
-        "Identity" = $localEntity.LoginName
-        "Email" = $localEntity.Email
-        "Type" = $type
-        "Permission" = $permission
-        "Through" = $through
-        "Parent" = $parent
-        "LinkCreationDate" = $linkCreationDate
-        "LinkExpirationDate" = $linkExpirationDate
-        "ObjectId" = $object.Id
+        "targetType" = $objectType
+        "targetId" = $objectId
+        "principalEntraId" = $localEntity.AadObjectId
+        "principalSysId" = $localEntity.LoginName
+        "principalSysName" = $localEntity.Title
+        "principalType" = $localEntity.PrincipalType
+        "principalRole" = $permission
+        "through" = $through
+        "parentId" = $parentId
+        "endDateTime" = $linkExpirationDate
+        "createdDateTime" = $linkCreationDate
     }
 }

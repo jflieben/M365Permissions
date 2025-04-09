@@ -92,19 +92,6 @@ Function get-PnPObjectPermissions{
                 }
             }
         }   
-        #sharepoint libraries / subsites etc do not list root level owner permissions, but we should still add them since those always trickle down
-        if($Object.TypedObject.ToString() -ne "Microsoft.SharePoint.Client.ListItem"){
-            foreach($folder in $($global:SPOPermissions.Keys)){
-                if($obj.Url.Contains($folder)){
-                    foreach($permission in $global:SPOPermissions.$folder){
-                        if($Permission.Object -eq "root"){
-                            Write-LogMessage -level 5 -message "Added: $($permission.Permission) for $($permission.Name) because of forced inheritance through the site root"
-                            New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity @{Email = $Permission.Email; LoginName = $Permission.Identity;Title = $Permission.Name;PrincipalType=$Permission.Type} -object $obj -permission $Permission.Permission -Through "ForcedInheritance" -parent $folder)
-                        }
-                    }
-                }
-            }
-        }        
     } 
 
     #processes all ACL's on the object
@@ -116,38 +103,52 @@ Function get-PnPObjectPermissions{
                 Write-LogMessage -level 5 -message "Ignoring $($permissionName) permission type for $($member.Member.Title) because it is only relevant at a deeper level or hidden"
                 continue
             }
-            if($member.Member.PrincipalType -eq 1){ #users
-                New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity $member.Member -object $obj -permission $permissionName -Through "DirectAssignment")
-            }else{ #groups
-                if($member.Member.LoginName -like "SharingLinks*"){
-                    $sharingLinkInfo = $Null; $sharingLinkInfo = get-SpOSharingLinkInfo -sharingLinkGuid $member.Member.LoginName.Split(".")[3]
-                    if($sharingLinkInfo){
-                        switch([Int]$sharingLinkInfo.LinkKind){
-                            {$_ -in (2,3)}  { #Org wide
-                                New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -linkCreationDate $sharingLinkInfo.CreatedDate -linkExpirationDate $sharingLinkInfo.ExpirationDateTime -entity @{Email = "N/A";Title = "All Internal Users";PrincipalType="ORG-WIDE"} -object $obj -permission $permissionName -Through "SharingLink" -parent "LinkId: $($sharingLinkInfo.ShareId)")
-                            }                            
-                            {$_ -in (4,5)}  { #Anonymous
-                                New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -linkCreationDate $sharingLinkInfo.CreatedDate -linkExpirationDate $sharingLinkInfo.ExpirationDateTime -entity @{Email = "N/A";Title = "Anyone / Anonymous";PrincipalType="ANYONE"} -object $obj -permission $permissionName -Through "SharingLink" -parent "LinkId: $($sharingLinkInfo.ShareId)")
-                            }                            
-                            {$_ -in (1,6)}  { #direct, flexible
-                                foreach($invitee in $sharingLinkInfo.invitees){
-                                    New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -linkCreationDate $sharingLinkInfo.CreatedDate -linkExpirationDate $sharingLinkInfo.ExpirationDateTime -entity (get-spoInvitee -invitee $invitee -siteUrl $siteUrl) -object $obj -permission $permissionName -Through "SharingLink" -parent "LinkId: $($sharingLinkInfo.ShareId)")
-                                }
+            $principalType = get-SpOPrincipalType -type $member.Member.PrincipalType
+            
+            if($member.Member.LoginName -like "SharingLinks*"){
+                $sharingLinkInfo = $Null; $sharingLinkInfo = get-SpOSharingLinkInfo -sharingLinkGuid $member.Member.LoginName.Split(".")[3]
+                $permissionSplat = @{
+                    targetPath = $obj.Url
+                }
+                if($sharingLinkInfo){
+                    switch([Int]$sharingLinkInfo.LinkKind){
+                        {$_ -in (2,3)}  { #Org wide
+                            $entity = @{LoginName = "AllInternalUsers"; Title = "AllInternalUsers";PrincipalType="SharingLink"}
+                            $permissionSplat["Permission"] = get-spopermissionEntry -linkCreationDate $sharingLinkInfo.CreatedDate -linkExpirationDate $sharingLinkInfo.ExpirationDateTime -entity $entity -object $obj -permission $permissionName -Through "SharingLink" -parentId $sharingLinkInfo.ShareId
+                            New-SpOPermissionEntry @permissionSplat
+                        }                            
+                        {$_ -in (4,5)}  { #Anonymous
+                            $entity = @{LoginName = "Anonymous";Title = "Anonymous";PrincipalType="SharingLink"} 
+                            $permissionSplat["Permission"] = get-spopermissionEntry -linkCreationDate $sharingLinkInfo.CreatedDate -linkExpirationDate $sharingLinkInfo.ExpirationDateTime -entity $entity -object $obj -permission $permissionName -Through "SharingLink" -parentId $sharingLinkInfo.ShareId
+                            New-SpOPermissionEntry @permissionSplat
+                        }                            
+                        {$_ -in (1,6)}  { #direct, flexible
+                            foreach($invitee in $sharingLinkInfo.invitees){
+                                $entity = get-spoInvitee -invitee $invitee -siteUrl $siteUrl
+                                $permissionSplat["Permission"] = get-spopermissionEntry -linkCreationDate $sharingLinkInfo.CreatedDate -linkExpirationDate $sharingLinkInfo.ExpirationDateTime -entity $entity -object $obj -permission $permissionName -Through "SharingLink" -parentId $sharingLinkInfo.ShareId
+                                New-SpOPermissionEntry @permissionSplat
                             }
                         }
-                    }else{
-                        New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity $member.Member -object $obj -permission $permissionName -Through "SharingLink")
-                    }                    
-                }else{
-                    if($expandGroups){
-                        Get-PnPGroupMembers -Group $member.Member -parentId $member.Member.Id -siteConn (Get-SpOConnection -Type User -Url $siteUrl) | ForEach-Object {
-                            if($_.PrincipalType -ne "User"){$through = "DirectAssignment"}else{$through = "GroupMembership"}
-                            New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity $_ -object $obj -permission $permissionName -Through $through -parent $member.Member.Title)
-                        }
-                    }else{
-                        New-SpOPermissionEntry -Path $obj.Url -Permission (get-spopermissionEntry -entity $member.Member -object $obj -permission $permissionName -Through "DirectAssignment")
                     }
+                }else{
+                    $permissionSplat["Permission"] = (get-spopermissionEntry -entity $member.Member -object $obj -permission $permissionName)
+                    New-SpOPermissionEntry @permissionSplat
                 }
+                continue
+            }
+            
+            if($principalType -like "*Group*"){
+                if($principalType -eq "SharePointGroup"){
+                    $parentId = $member.Member.Id
+                }else{
+                    $parentId = get-SpOAadObjectId -loginName $member.Member.LoginName
+                }
+                Get-PnPGroupMembers -Group $member.Member -parentId $member.Member.Id -siteConn (Get-SpOConnection -Type User -Url $siteUrl) | Where-Object { $_ } | ForEach-Object {
+                    #$Group= $member.Member;$parentId= $member.Member.Id;$siteConn= (Get-SpOConnection -Type User -Url $siteUrl)
+                    New-SpOPermissionEntry -targetPath $obj.Url -Permission (get-spopermissionEntry -entity $_ -object $obj -permission $permissionName -through $principalType -parentId $parentId)
+                }
+            }else{
+                New-SpOPermissionEntry -targetPath $obj.Url -Permission (get-spopermissionEntry -entity $member.Member -object $obj -permission $permissionName)
             }
         }
     }
@@ -179,7 +180,7 @@ Function get-PnPObjectPermissions{
             $global:sharedLinks = @()
             foreach($listId in $sharedLinksList.Id.Guid){ 
                 try{
-                    $global:sharedLinks += (New-RetryCommand -Command 'Get-PnPListItem' -Arguments @{List = $listId; PageSize = 500;Fields = ("ID","AvailableLinks"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)}) | ForEach-Object {
+                    $global:sharedLinks += (New-RetryCommand -Command 'Get-PnPListItem' -Arguments @{List = $listId; PageSize = 500;Fields = ("ID","AvailableLinks"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)}) | Where-Object { $_ } | ForEach-Object {
                         $_.FieldValues["AvailableLinks"] | ConvertFrom-Json
                     }
                     Write-LogMessage -message "Cached $($sharedLinks.Count) shared links in $($Object.Title)..." -level 4

@@ -5,7 +5,6 @@
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
     #>         
     Param(
-        [Switch]$expandGroups
     )
 
     Write-LogMessage -message "Starting FULL M365 Tenant scan as $($global:octo.currentUser.userPrincipalName)"
@@ -14,11 +13,13 @@
     Write-LogMessage -message "2. Entra permissions"
     Write-LogMessage -message "3. Exchange permissions"
     Write-LogMessage -message "4. Onedrive permissions"
-    Write-LogMessage -message "5. Teams and Sharepoint permissions"
+    Write-LogMessage -message "5. Teams and other Sharepoint permissions"
+    Write-LogMessage -message "6. Entra device permissions"
 
-    get-AllPBIPermissions -expandGroups:$expandGroups.IsPresent -skipReportGeneration
-    get-AllEntraPermissions -expandGroups:$expandGroups.IsPresent -skipReportGeneration
-    get-AllExOPermissions -expandGroups:$expandGroups.IsPresent -includeFolderLevelPermissions -skipReportGeneration
-    get-AllSpOPermissions -expandGroups:$expandGroups.IsPresent -includeOnedriveSites -skipReportGeneration
+    get-AllPBIPermissions -skipReportGeneration
+    get-AllEntraPermissions -skipReportGeneration
+    get-AllExOPermissions -includeFolderLevelPermissions -skipReportGeneration
+    get-AllSpOPermissions -includeOnedriveSites -skipReportGeneration
+    get-AllDevicePermissions -skipReportGeneration
     Write-Report
 }

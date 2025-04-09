@@ -53,7 +53,22 @@ function get-EntraUsersAndGroupsBatch {
                     "Role" = "Owner"
                 }) > $Null
             }else{
-                New-EntraPermissionEntry -path "/$($ownedObject.id) ($($ownedObject.displayName))" -type "$($ownedObject."@odata.type".Split(".")[2])" -principalId $entraUser.id -roleDefinitionId "N/A" -principalName $entraUser.displayName -principalUpn $entraUser.userPrincipalName -principalType "User" -roleDefinitionName "Owner"
+                $permissionsSplat = @{
+                    targetPath = "/$($ownedObject.displayName)"
+                    targetType = $ownedObject."@odata.type".Split(".")[2]
+                    targetId = $ownedObject.id
+                    principalEntraId = $entraUser.id
+                    principalSysName = $entraUser.displayName
+                    principalType = $principalType
+                    principalRole = "Owner"
+                    through = "Direct"
+                    parentId = ""
+                    accessType = "Allow"
+                    tenure = "Permanent"
+                    startDateTime = ""
+                    endDateTime = ""
+                }
+                New-EntraPermissionEntry @permissionsSplat
             }
         }
     }
@@ -67,18 +82,22 @@ function get-EntraUsersAndGroupsBatch {
     $permissionRows = foreach($row in $global:EntraPermissions.Keys){
         foreach($permission in $global:EntraPermissions.$row){
             [PSCustomObject]@{
-                "Path" = $row
-                "Type" = $permission.Type
-                "principalName" = $permission.principalName
-                "roleDefinitionName" = $permission.roleDefinitionName               
-                "principalUpn" = $permission.principalUpn
+                "targetPath" = $row
+                "targetType" = $permission.targetType
+                "targetId" = $permission.targetId
+                "principalEntraId" = $permission.principalEntraId
+                "principalSysId" = $permission.principalSysId
+                "principalSysName" = $permission.principalSysName
                 "principalType" = $permission.principalType
+                "principalRole" = $permission.principalRole
                 "through" = $permission.through
-                "parent" = $permission.parent
+                "parentId" = $permission.parentId
+                "accessType" = $permission.accessType
+                "tenure" = $permission.tenure
                 "startDateTime" = $permission.startDateTime
                 "endDateTime" = $permission.endDateTime
-                "principalId"    = $permission.principalId                
-                "roleDefinitionId" = $permission.roleDefinitionId
+                "createdDateTime" = $permission.createdDateTime
+                "modifiedDateTime" = $permission.modifiedDateTime
             }
         }
     }

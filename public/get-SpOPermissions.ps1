@@ -7,7 +7,6 @@
         Parameters:
         -teamName: the name of the Team to scan
         -siteUrl: the URL of the Team (or any sharepoint location) to scan (e.g. if name is not unique)
-        -expandGroups: if set, group memberships will be expanded to individual users
     #>        
     Param(
         [parameter(Mandatory=$true,
@@ -19,8 +18,7 @@
         ParameterSetName="BySite")]
         [String]
         $siteUrl, 
-
-        [Switch]$expandGroups,
+        
         [Boolean]$isParallel=$False
     )
 
@@ -48,7 +46,7 @@
         Throw "Failed to find a Team using $teamName $siteUrl. Please check the name and try again"
     }
 
-    if($sites[0].IsTeamsConnected){
+    if($sites[0].IsTeamsConnected -and !$isParallel){
         try{
             Write-LogMessage -message "Retrieving channels for this site/team..." -level 4
             $channels = New-GraphQuery -Uri "https://graph.microsoft.com/beta/teams/$($sites[0].GroupId.Guid)/channels" -Method GET -NoRetry
@@ -136,19 +134,32 @@
             $global:SPOPermissions.$($spoWeb.Url) = @()
 
             foreach($spoSiteAdmin in $spoSiteAdmins){
-                if($spoSiteAdmin.PrincipalType -ne "User" -and $expandGroups){
+                Update-StatisticsObject -Category $siteCategory -Subject $site.Url
+                $aadId = $Null; $aadId = get-SpOAadObjectId -loginName $spoSiteAdmin.LoginName
+                if($spoSiteAdmin.PrincipalType -eq "DistributionList"){
+                    Throw "Unsupported site admin type: distributionList, please log a ticket"
+                }
+                if($spoSiteAdmin.LoginName -and $spoSiteAdmin.LoginName.EndsWith("_o")){
+                    #special case where the group is an AAD group but the loginname ends with _o which means the OWNERS of the group are the owners of the site, we should always retrieve those
                     $members = $Null; $members = Get-PnPGroupMembers -group $spoSiteAdmin -parentId $spoSiteAdmin.Id -siteConn (Get-SpOConnection -Type User -Url $site.Url) | Where-Object {$_}
                     foreach($member in $members){
-                        Update-StatisticsObject -Category $siteCategory -Subject $site.Url
-                        New-SpOPermissionEntry -Path $spoWeb.Url -Permission (get-spopermissionEntry -entity $member -object $spoWeb -permission "Owner" -Through "GroupMembership" -parent $spoSiteAdmin.Title)
+                        New-SpOPermissionEntry -targetPath $spoWeb.Url -Permission (get-spopermissionEntry -entity $member -object $spoWeb -permission "Full Control" -through "EntraSecurityGroupOwners" -parentId $aadId)
                     }
-                }else{
-                    Update-StatisticsObject -Category $siteCategory -Subject $site.Url
-                    New-SpOPermissionEntry -Path $spoWeb.Url -Permission (get-spopermissionEntry -entity $spoSiteAdmin -object $spoWeb -permission "Owner" -Through "DirectAssignment")
+                }elseif($spoSiteAdmin.PrincipalType -eq "SharepointGroup"){ #always enumerate sharepoint groups
+                    $members = $Null; $members = Get-PnPGroupMembers -group $spoSiteAdmin -parentId $spoSiteAdmin.Id -siteConn (Get-SpOConnection -Type User -Url $site.Url) | Where-Object {$_}
+                    foreach($member in $members){
+                        New-SpOPermissionEntry -targetPath $spoWeb.Url -Permission (get-spopermissionEntry -entity $member -object $spoWeb -permission "Full Control" -through "SharePointGroup" -parentId $spoSiteAdmin.Id)
+                    }
+                }else{ #never enumerate entra groups since we have a mapping for current users
+                    if($spoSiteAdmin.PrincipalType -eq "SecurityGroup"){
+                        New-SpOPermissionEntry -targetPath $spoWeb.Url -Permission (get-spopermissionEntry -entity $spoSiteAdmin -object $spoWeb -permission "Full Control" -through "EntraSecurityGroup")                 
+                    }else{
+                        New-SpOPermissionEntry -targetPath $spoWeb.Url -Permission (get-spopermissionEntry -entity $spoSiteAdmin -object $spoWeb -permission "Full Control" -through "Direct")                 
+                    }       
                 }
             }        
 
-            get-PnPObjectPermissions -Object $spoWeb -Category $siteCategory
+            get-PnPObjectPermissions -Object $spoWeb -Category $siteCategory #$Object= $spoWeb;$Category= $siteCategory
 
             Stop-StatisticsObject -Category $siteCategory -Subject $site.Url
         }catch{
@@ -180,18 +191,22 @@
         $permissionRows = foreach($row in $global:SPOPermissions.Keys){
             foreach($permission in $global:SPOPermissions.$row){
                 [PSCustomObject]@{
-                    "Path" = $row
-                    "Object"    = $permission.Object
-                    "Name" = $permission.Name
-                    "Identity" = $permission.Identity
-                    "Email" = $permission.Email
-                    "Type" = $permission.Type
-                    "Permission" = $permission.Permission
-                    "Through" = $permission.Through
-                    "Parent" = $permission.Parent
-                    "LinkCreationDate" = $permission.LinkCreationDate
-                    "LinkExpirationDate" = $permission.LinkExpirationDate
-                    "ObjectId" = $permission.ObjectId          
+                    "targetPath" = $row
+                    "targetType" = $permission.targetType
+                    "targetId" = $permission.targetId
+                    "principalEntraId" = $permission.principalEntraId
+                    "principalSysId" = $permission.principalSysId
+                    "principalSysName" = $permission.principalSysName
+                    "principalType" = $permission.principalType
+                    "principalRole" = $permission.principalRole
+                    "through" = $permission.through
+                    "parentId" = $permission.parentId
+                    "accessType" = "Allow"
+                    "tenure" = "Permanent"
+                    "startDateTime" = $permission.startDateTime
+                    "endDateTime" = $permission.endDateTime
+                    "createdDateTime" = $permission.createdDateTime
+                    "modifiedDateTime" = $permission.modifiedDateTime
                 }
             }
         }

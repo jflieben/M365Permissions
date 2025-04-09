@@ -1,4 +1,4 @@
-Function New-EntraPermissionEntry{
+Function New-DevicePermissionEntry{
     <#
         Author               = "Jos Lieben (jos@lieben.nu)"
         CompanyName          = "Lieben Consultancy"
@@ -6,18 +6,18 @@ Function New-EntraPermissionEntry{
     #>    
     Param(
         [Parameter(Mandatory=$true)]$targetPath,
-        [Parameter(Mandatory=$false)]$targetType="resource",
-        [Parameter(Mandatory=$false)]$targetId= "Unknown",
-        [Parameter(Mandatory=$true)]$principalEntraId,
+        [Parameter(Mandatory=$true)]$targetType,
+        [Parameter(Mandatory=$true)]$targetId,
+        [Parameter(Mandatory=$false)]$principalEntraId,
         [Parameter(Mandatory=$false)]$principalEntraUpn,
         [Parameter(Mandatory=$false)]$principalSysId,
         [Parameter(Mandatory=$false)]$principalSysName,
-        [Parameter(Mandatory=$true)]$principalType,
-        [Parameter(Mandatory=$false)]$principalRole ="Legacy Role",
+        [Parameter(Mandatory=$false)]$principalType,
+        [Parameter(Mandatory=$false)]$principalRole ="User",
         [Parameter(Mandatory=$false)]$through="Direct",
         [Parameter(Mandatory=$false)]$parentId = "",
         [Parameter(Mandatory=$false)][ValidateSet("Allow", "Deny")]$accessType = "Allow",
-        [Parameter(Mandatory=$true)][ValidateSet("Permanent", "Eligible")]$tenure,
+        [Parameter(Mandatory=$false)][ValidateSet("Permanent", "Eligible")]$tenure = "Permanent",
         [Parameter(Mandatory=$false)]$startDateTime,
         [Parameter(Mandatory=$false)]$endDateTime,
         [Parameter(Mandatory=$false)]$createdDateTime,
@@ -52,28 +52,12 @@ Function New-EntraPermissionEntry{
         }
     }
 
-    $targetType = "tenant"
-    if($targetPath -like "*administrativeUnits*"){
-        if(!$global:entraAdminUnitMapping){
-            $global:entraAdminUnitMapping = @{}
-        }        
-        $targetType = "administrativeUnit"
-        $targetId = $targetPath.Split("/")[2]
-        if(!$global:entraAdminUnitMapping.$targetId){
-            $global:entraAdminUnitMapping.$targetId = (New-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/directory/administrativeUnits/$targetId").displayName
-        }
-        $targetPath = $targetPath.Replace($targetId, $global:entraAdminUnitMapping.$targetId)
-    }elseif($targetPath -eq "/"){
-        $targetType = "tenant"
-        $targetId = $global:octo.onMicrosoft
-    }
-
     Write-LogMessage -level 5 -message "Adding permission $($principalRole) scoped at $targetPath for $($principalEntraUpn) $($principalEntraId)"
-    if(!$global:EntraPermissions.$targetPath){
-        $global:EntraPermissions.$targetPath = @()
+    if(!$global:DevicePermissions.$targetPath){
+        $global:DevicePermissions.$targetPath = @()
     }
     
-    $global:EntraPermissions.$targetPath += [PSCustomObject]@{
+    $global:DevicePermissions.$targetPath += [PSCustomObject]@{
         targetPath = $targetPath
         targetType = $targetType
         targetId = $targetId
