@@ -15,7 +15,12 @@
     New-StatisticsObject -category "Devices" -subject "CloudPCs"
     Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Devices" -Status "Getting CloudPCs" 
 
-    [Array]$allCloudPCs = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/cloudPCs' -Method GET
+    try{
+        [Array]$allCloudPCs = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/cloudPCs' -Method GET
+    }catch{
+        Write-Error $_ -ErrorAction Continue
+        $allCloudPCs = @()
+    }
     Write-LogMessage -message "Got $($allCloudPCs.count) cloud PC's"
 
     Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Devices" -Status "Scanning $($allCloudPCs.count) CloudPCs"

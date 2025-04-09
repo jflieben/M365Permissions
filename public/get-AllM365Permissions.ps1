@@ -13,7 +13,8 @@
     Write-LogMessage -message "2. Entra permissions"
     Write-LogMessage -message "3. Exchange permissions"
     Write-LogMessage -message "4. Onedrive permissions"
-    Write-LogMessage -message "5. Teams and Sharepoint permissions"
+    Write-LogMessage -message "5. Teams and other Sharepoint permissions"
+    Write-LogMessage -message "6. Entra device permissions"
 
     get-AllPBIPermissions -skipReportGeneration
     get-AllEntraPermissions -skipReportGeneration
