@@ -3,7 +3,7 @@
     RootModule           = 'M365Permissions.psm1'
 
     # Version number of this module.
-    ModuleVersion        = "1.1.6"
+    ModuleVersion        = "1.1.8"
     
     # Supported PSEditions
     CompatiblePSEditions = @('Core')

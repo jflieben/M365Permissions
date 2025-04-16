@@ -59,7 +59,7 @@ function New-GraphQuery {
         Write-Progress -Id 10 -Activity "Querying $resource API" -Status "Retrieving initial batch of $expectedTotalResults expected records" -PercentComplete 0
     }
 
-    if($resource -like "*sharepoint.com*"){
+    if($resource -like "*sharepoint.com*" -or $resource -like "*outlook.office365.com*"){
         $headers['Accept'] = "application/json;odata=nometadata"
     }    
 

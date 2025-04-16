@@ -29,7 +29,8 @@
         try{
             $mailbox = $Null; $mailbox = $identityCache.$($assignedManagementRole.EffectiveUserName)
             if($Null -eq $mailbox){
-                $mailbox = (New-ExOQuery -cmdlet "Get-Mailbox" -cmdParams @{Identity = $assignedManagementRole.EffectiveUserName} -retryCount 1)[0]
+                $identifierEncoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($assignedManagementRole.EffectiveUserName))   
+                $mailbox = $Null; $mailbox = New-GraphQuery -resource "https://outlook.office365.com" -Method GET -Uri "https://outlook.office365.com/adminapi/beta/$($global:octo.OnMicrosoft)/Mailbox('$($identifierEncoded)')?isEncoded=true" -MaxAttempts 1 | select -first 1
                 if(!$mailbox){
                     $identityCache.$($assignedManagementRole.EffectiveUserName) = $False
                 }else{

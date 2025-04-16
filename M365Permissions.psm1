@@ -22,7 +22,7 @@
     1.1.x auto cleanup app registrations etc after a run?
     1.1.x support for Sharepoint AsApp authorizations    
 
-#>                                                                                                                                              
+#>                        
 
 $helperFunctions = @{
     private = @( Get-ChildItem -Path "$($PSScriptRoot)\private" -Filter '*.ps*1' -ErrorAction SilentlyContinue )
@@ -42,7 +42,7 @@ ForEach ($helperFunction in (($helperFunctions.private + $helperFunctions.public
 }
 
 if ($helperFunctions.public) { Export-ModuleMember -Alias * -Function @($helperFunctions.public.BaseName) }
-if ($env:username -like "*joslieben*"){Export-ModuleMember -Alias * -Function @($helperFunctions.private.BaseName) }
+if ($helperFunctions.private) { Export-ModuleMember -Alias * -Function @($helperFunctions.private.BaseName) }
 
 #first load config, subsequent loads will detect global var and skip this section (multi-threading)
 if(!$global:octo){
@@ -57,7 +57,7 @@ if(!$global:octo){
         $global:octo.interactiveMode=$false
     } else {
         $global:octo.interactiveMode=$true
-        cls
+        Clear-Host
     }
 
     $global:octo.moduleVersion = (Get-Content -Path (Join-Path -Path $($PSScriptRoot) -ChildPath "M365Permissions.psd1") | Out-String | Invoke-Expression).ModuleVersion
