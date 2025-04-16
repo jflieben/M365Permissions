@@ -57,7 +57,7 @@ if(!$global:octo){
         $global:octo.interactiveMode=$false
     } else {
         $global:octo.interactiveMode=$true
-        cls
+        Clear-Host
     }
 
     $global:octo.moduleVersion = (Get-Content -Path (Join-Path -Path $($PSScriptRoot) -ChildPath "M365Permissions.psd1") | Out-String | Invoke-Expression).ModuleVersion

@@ -6,7 +6,7 @@ Function New-EntraPermissionEntry{
     #>    
     Param(
         [Parameter(Mandatory=$true)]$targetPath,
-        [Parameter(Mandatory=$false)]$targetType="resource",
+        [Parameter(Mandatory=$false)]$targetType="tenant",
         [Parameter(Mandatory=$false)]$targetId= "Unknown",
         [Parameter(Mandatory=$true)]$principalEntraId,
         [Parameter(Mandatory=$false)]$principalEntraUpn,
@@ -52,7 +52,6 @@ Function New-EntraPermissionEntry{
         }
     }
 
-    $targetType = "tenant"
     if($targetPath -like "*administrativeUnits*"){
         if(!$global:entraAdminUnitMapping){
             $global:entraAdminUnitMapping = @{}
