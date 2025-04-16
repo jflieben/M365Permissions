@@ -40,7 +40,7 @@
         Write-Progress -Id 2 -PercentComplete 5 -Activity "Scanning $($recipient.Identity)" -Status "Checking SendOnBehalf permissions..."
         #get mailbox meta for SOB permissions
         $identifierEncoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($recipient.Guid))   
-        $mailbox = $Null; $mailbox = New-GraphQuery -resource "https://outlook.office365.com" -Method GET -Uri "https://outlook.office365.com/adminapi/beta/$($global:octo.OnMicrosoft)/Mailbox('$($identifierEncoded)')?isEncoded=true" -MaxAttempts 3
+        $mailbox = $Null; $mailbox = New-GraphQuery -resource "https://outlook.office365.com" -Method GET -Uri "https://outlook.office365.com/adminapi/beta/$($global:octo.OnMicrosoft)/Mailbox('$($identifierEncoded)')?isEncoded=true&`$select=GrantSendOnBehalfTo" -MaxAttempts 3
         #add root level permission
         if($mailbox.ExternalDirectoryObjectId){
             $splat = @{
