@@ -59,9 +59,14 @@ function New-GraphQuery {
         Write-Progress -Id 10 -Activity "Querying $resource API" -Status "Retrieving initial batch of $expectedTotalResults expected records" -PercentComplete 0
     }
 
-    if($resource -like "*sharepoint.com*" -or $resource -like "*outlook.office365.com*"){
+    if($resource -like "*sharepoint.com*"){
         $headers['Accept'] = "application/json;odata=nometadata"
     }    
+
+    if($resource -like "*outlook.office365.com*"){
+        $headers['Accept'] = "application/json;odata.metadata=minimal"
+        $ContentType = "application/json;odata.metadata=minimal"
+    } 
 
     if ($ComplexFilter) {
         $headers['ConsistencyLevel'] = 'eventual'
