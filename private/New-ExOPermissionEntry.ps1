@@ -60,7 +60,7 @@ Function New-ExOPermissionEntry{
                     return $Null
                 }
                 foreach($ExistingPermission in $global:ExOPermissions.$exoPath){
-                    if($ExistingPermission.accessType -eq $accessType -and $ExistingPermission.through -eq $through -and $ExistingPermission.targetType -eq $targetType){
+                    if($ExistingPermission.accessType -eq $accessType -and $ExistingPermission.through -eq $through -and $ExistingPermission.targetType -eq $targetType -and $ExistingPermission.principalSysName -eq $principalSysName){
                         if($ExistingPermission.principalRole -eq "FullAccess"){
                             Write-LogMessage -level 5 -message "Skipping permission $($principalRole) scoped at $targetPath for $($principalSysName) as FullAccess already present"
                             return $Null
