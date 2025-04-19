@@ -179,9 +179,10 @@
                             }else{
                                 $userType = "Internal User"
                             }
+                            $aadObj = get-aadObject -id $folderPermission.MailboxFolderUser.UserPrincipalName
                             $entity = $Null; $entity= @{
                                 UserPrincipalName = $folderPermission.MailboxFolderUser.UserPrincipalName
-                                ExternalDirectoryObjectId = get-aadObjectId -upn $folderPermission.MailboxFolderUser.UserPrincipalName
+                                ExternalDirectoryObjectId = $aadObj.id
                                 RecipientTypeDetails = $userType
                                 Guid = $folderPermission.MailboxFolderUser.UserPrincipalName
                             }

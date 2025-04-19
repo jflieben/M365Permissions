@@ -31,14 +31,15 @@
         $percentComplete = try{$count / $allCloudPCs.count * 100} catch {0}
         Write-Progress -Id 2 -PercentComplete $percentComplete -Activity "Scanning CloudPCs" -Status "$count / $($allCloudPCs.count)"
         Update-StatisticsObject -category "Devices" -subject "CloudPCs"
+        $aadObj = get-aadObject -id $cloudPC.userPrincipalName
         $permissionsSplat = @{
             targetPath = "/cloudPCs/$($cloudPC.managedDeviceName)"
             targetType = "cloudPC"
             targetId   = $cloudPC.id
-            principalEntraId = get-aadObjectId -upn $cloudPC.userPrincipalName
+            principalEntraId = $aadObj.id
             principalEntraUpn = $cloudPC.userPrincipalName
-            principalSysId   = $cloudPC.userPrincipalName
-            principalSysName = $cloudPC.userPrincipalName
+            principalSysId   = $aadObj.userPrincipalName
+            principalSysName = $aadObj.displayName
             principalType    = "#microsoft.graph.user"
             principalRole    = "User"
             modifiedDateTime = $cloudPC.lastModifiedDateTime
@@ -74,24 +75,20 @@
         Write-Progress -Id 2 -PercentComplete $percentComplete -Activity "Scanning Entra Devices" -Status "$count / $($allEntraDevices.count)"
         Update-StatisticsObject -category "Devices" -subject "Entra"
 
-        $userId = $null
-        $userUpn = $null
-        $userDisplayName = $null
-
         if($device.registeredOwners){
-            $userId = $device.registeredOwners[0].id
-            $userUpn = $device.registeredOwners[0].userPrincipalName
-            $userDisplayName = $device.registeredOwners[0].displayName
+            $aadObj = get-aadObject -id $device.registeredOwners[0].id
+        }elseif($device."registeredOwners@delta"){
+            $aadObj = get-aadObject -id $device."registeredOwners@delta"[0].id
         }
     
         $permissionsSplat = @{
             targetPath = "/devices/$($device.displayName)"
             targetType = "device"
             targetId   = $device.id
-            principalEntraId = $userId
-            principalEntraUpn = $userUpn
-            principalSysId   = $userUpn
-            principalSysName = $userDisplayName
+            principalEntraId = $aadObj.id
+            principalEntraUpn = $aadObj.userPrincipalName
+            principalSysId   = $aadObj.userPrincipalName
+            principalSysName = $aadObj.displayName
             principalType    = "#microsoft.graph.user"
             principalRole    = "Owner"
             createdDateTime = $device.createdDateTime
@@ -100,6 +97,7 @@
             accessType       = "Allow"
             tenure           = "Permanent"
         }
+    
         New-DevicePermissionEntry @permissionsSplat
     }
 
