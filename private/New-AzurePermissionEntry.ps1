@@ -28,6 +28,7 @@ Function New-AzurePermissionEntry{
     $aadObj = get-aadObject -id $principalEntraId
     if($aadObj){
         $principalSysName = $aadObj.displayName
+        $principalSysId = $aadObj.userPrincipalName
     }
     switch ($principalType) {
         "User" {
@@ -77,7 +78,7 @@ Function New-AzurePermissionEntry{
         targetId = $targetId
         principalEntraId = $principalEntraId
         principalSysId = $principalSysId
-        principalSysName = $principalEntraUpn
+        principalSysName = $principalSysName
         principalType = $principalType
         principalRole = $principalRole
         through = $through
