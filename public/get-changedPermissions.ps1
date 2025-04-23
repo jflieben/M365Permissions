@@ -12,7 +12,7 @@
     Param(
         [Parameter(Mandatory = $false)][String]$oldPermissionsReportFolder,
         [Parameter(Mandatory = $false)][String]$newPermissionsReportFolder,
-        [String[]]$resources = @("SharePoint","Onedrive","Teams","O365Group","PowerBI","GroupsAndMembers","Entra","ExoRecipients","ExoRoles")
+        [String[]]$resources = @("SharePoint","Onedrive","Teams","O365Group","PowerBI","GroupsAndMembers","Entra","ExoRecipients","ExoRoles","Azure")
     )
 
     $excludeProps = @{
@@ -25,7 +25,8 @@
         "OneDrive" = @("Name")
         "Teams" = @("Name")
         "SharePoint" = @("Name")
-        "PowerBI" = @("created","modified")
+        "PowerBI" = @("createdDateTime","modifiedDateTime")
+        "Azure" = @("createdDateTime","modifiedDateTime")
     }
 
     #register version specific exclusions here to avoid generating large numbers of falsely detected changed permissions.

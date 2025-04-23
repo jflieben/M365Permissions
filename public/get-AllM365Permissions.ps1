@@ -15,11 +15,13 @@
     Write-LogMessage -message "4. Onedrive permissions"
     Write-LogMessage -message "5. Teams and other Sharepoint permissions"
     Write-LogMessage -message "6. Entra device permissions"
+    Write-LogMessage -message "7. Azure permissions"
 
     get-AllPBIPermissions -skipReportGeneration
     get-AllEntraPermissions -skipReportGeneration
     get-AllExOPermissions -includeFolderLevelPermissions -skipReportGeneration
     get-AllSpOPermissions -includeOnedriveSites -skipReportGeneration
     get-AllDevicePermissions -skipReportGeneration
+    get-AllAzurePermissions -skipReportGeneration
     Write-Report
 }

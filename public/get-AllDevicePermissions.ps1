@@ -12,8 +12,9 @@
 
     $global:DevicePermissions = @{}
 
+    $activity = "Scanning Devices"
     New-StatisticsObject -category "Devices" -subject "CloudPCs"
-    Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Devices" -Status "Getting CloudPCs" 
+    Write-Progress -Id 1 -PercentComplete 0 -Activity $activity -Status "Getting CloudPCs" 
 
     try{
         [Array]$allCloudPCs = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/cloudPCs' -Method GET
@@ -23,7 +24,7 @@
     }
     Write-LogMessage -message "Got $($allCloudPCs.count) cloud PC's"
 
-    Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Devices" -Status "Scanning $($allCloudPCs.count) CloudPCs"
+    Write-Progress -Id 1 -PercentComplete 0 -Activity $activity -Status "Scanning $($allCloudPCs.count) CloudPCs"
 
     $count = 0
     foreach($cloudPC in $allCloudPCs){
@@ -31,14 +32,15 @@
         $percentComplete = try{$count / $allCloudPCs.count * 100} catch {0}
         Write-Progress -Id 2 -PercentComplete $percentComplete -Activity "Scanning CloudPCs" -Status "$count / $($allCloudPCs.count)"
         Update-StatisticsObject -category "Devices" -subject "CloudPCs"
+        $aadObj = get-aadObject -id $cloudPC.userPrincipalName
         $permissionsSplat = @{
             targetPath = "/cloudPCs/$($cloudPC.managedDeviceName)"
             targetType = "cloudPC"
             targetId   = $cloudPC.id
-            principalEntraId = get-aadObjectId -upn $cloudPC.userPrincipalName
+            principalEntraId = $aadObj.id
             principalEntraUpn = $cloudPC.userPrincipalName
-            principalSysId   = $cloudPC.userPrincipalName
-            principalSysName = $cloudPC.userPrincipalName
+            principalSysId   = $aadObj.userPrincipalName
+            principalSysName = $aadObj.displayName
             principalType    = "#microsoft.graph.user"
             principalRole    = "User"
             modifiedDateTime = $cloudPC.lastModifiedDateTime
@@ -57,10 +59,10 @@
     Write-Progress -Id 2 -Completed -Activity "Scanning CloudPCs"
 
     Write-LogMessage -message "Getting EntraID devices..." -level 4
-    Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Devices" -Status "Getting Entra devices..."
+    Write-Progress -Id 1 -PercentComplete 0 -Activity $activity -Status "Getting Entra devices..."
     [Array]$allEntraDevices = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/devices?$select=displayName,registeredOwners,systemLabels,id,createdDateTime&$expand=registeredOwners' -Method GET
     Write-LogMessage -message "Got $($allEntraDevices.count) EntraID devices"
-    Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Devices" -Status "Scanning $($allEntraDevices.count) Entra devices..."
+    Write-Progress -Id 1 -PercentComplete 0 -Activity $activity -Status "Scanning $($allEntraDevices.count) Entra devices..."
 
     New-StatisticsObject -category "Devices" -subject "Entra"
     $count = 0
@@ -74,24 +76,20 @@
         Write-Progress -Id 2 -PercentComplete $percentComplete -Activity "Scanning Entra Devices" -Status "$count / $($allEntraDevices.count)"
         Update-StatisticsObject -category "Devices" -subject "Entra"
 
-        $userId = $null
-        $userUpn = $null
-        $userDisplayName = $null
-
         if($device.registeredOwners){
-            $userId = $device.registeredOwners[0].id
-            $userUpn = $device.registeredOwners[0].userPrincipalName
-            $userDisplayName = $device.registeredOwners[0].displayName
+            $aadObj = get-aadObject -id $device.registeredOwners[0].id
+        }elseif($device."registeredOwners@delta"){
+            $aadObj = get-aadObject -id $device."registeredOwners@delta"[0].id
         }
     
         $permissionsSplat = @{
             targetPath = "/devices/$($device.displayName)"
             targetType = "device"
             targetId   = $device.id
-            principalEntraId = $userId
-            principalEntraUpn = $userUpn
-            principalSysId   = $userUpn
-            principalSysName = $userDisplayName
+            principalEntraId = $aadObj.id
+            principalEntraUpn = $aadObj.userPrincipalName
+            principalSysId   = $aadObj.userPrincipalName
+            principalSysName = $aadObj.displayName
             principalType    = "#microsoft.graph.user"
             principalRole    = "Owner"
             createdDateTime = $device.createdDateTime
@@ -100,6 +98,7 @@
             accessType       = "Allow"
             tenure           = "Permanent"
         }
+    
         New-DevicePermissionEntry @permissionsSplat
     }
 
@@ -140,4 +139,5 @@
     }else{
         Reset-ReportQueue
     }
+    Write-Progress -Id 1 -Completed -Activity $activity
 }
