@@ -12,8 +12,9 @@
 
     $global:DevicePermissions = @{}
 
+    $activity = "Scanning Devices"
     New-StatisticsObject -category "Devices" -subject "CloudPCs"
-    Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Devices" -Status "Getting CloudPCs" 
+    Write-Progress -Id 1 -PercentComplete 0 -Activity $activity -Status "Getting CloudPCs" 
 
     try{
         [Array]$allCloudPCs = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/cloudPCs' -Method GET
@@ -23,7 +24,7 @@
     }
     Write-LogMessage -message "Got $($allCloudPCs.count) cloud PC's"
 
-    Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Devices" -Status "Scanning $($allCloudPCs.count) CloudPCs"
+    Write-Progress -Id 1 -PercentComplete 0 -Activity $activity -Status "Scanning $($allCloudPCs.count) CloudPCs"
 
     $count = 0
     foreach($cloudPC in $allCloudPCs){
@@ -58,10 +59,10 @@
     Write-Progress -Id 2 -Completed -Activity "Scanning CloudPCs"
 
     Write-LogMessage -message "Getting EntraID devices..." -level 4
-    Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Devices" -Status "Getting Entra devices..."
+    Write-Progress -Id 1 -PercentComplete 0 -Activity $activity -Status "Getting Entra devices..."
     [Array]$allEntraDevices = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/devices?$select=displayName,registeredOwners,systemLabels,id,createdDateTime&$expand=registeredOwners' -Method GET
     Write-LogMessage -message "Got $($allEntraDevices.count) EntraID devices"
-    Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Devices" -Status "Scanning $($allEntraDevices.count) Entra devices..."
+    Write-Progress -Id 1 -PercentComplete 0 -Activity $activity -Status "Scanning $($allEntraDevices.count) Entra devices..."
 
     New-StatisticsObject -category "Devices" -subject "Entra"
     $count = 0
@@ -138,4 +139,5 @@
     }else{
         Reset-ReportQueue
     }
+    Write-Progress -Id 1 -Completed -Activity $activity
 }
