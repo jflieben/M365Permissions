@@ -155,19 +155,7 @@ Function get-PnPObjectPermissions{
 
     #retrieve permissions for any (if present) child objects and recursively call this function for each
     If(!$Object.ListGuid -and $Object.TypedObject.ToString() -eq "Microsoft.SharePoint.Client.Web"){
-        Write-Progress -Id 2 -PercentComplete 0 -Activity $($siteUrl.Split("/")[4]) -Status "Getting child objects..."
-        $Null = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object; Property = "Webs"; Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
-        $childObjects = $Null; $childObjects = $Object.Webs
-        foreach($childObject in $childObjects){
-            #check if permissions are unique
-            $Null = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject= $childObject;Property = "HasUniqueRoleAssignments"; Connection= (Get-SpOConnection -Type User -Url $siteUrl)})
-            if($childObject.HasUniqueRoleAssignments -eq $False){
-                Write-LogMessage -level 5 -message "Skipping $($childObject.Title) child web as it fully inherits permissions from parent"
-                continue
-            }                
-            Write-LogMessage -level 5 -message "Enumerating permissions for sub web $($childObject.Title)..."
-            get-PnPObjectPermissions -Object $childObject -Category $Category
-        }
+        Write-Progress -Id 2 -PercentComplete 0 -Activity $($siteUrl.Split("/")[4]) -Status "Getting child lists..."
         $childObjects = $Null; $childObjects = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object; Property = "Lists"; Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
         $ExcludedListTitles = @("Access Requests","App Packages","appdata","appfiles","Apps in Testing","Cache Profiles","Composed Looks","Content and Structure Reports","Content type publishing error log","Converted Forms",
         "Device Channels","Form Templates","fpdatasources","Get started with Apps for Office and SharePoint","List Template Gallery", "Long Running Operation Status","Maintenance Log Library", "Images", "site collection images"

@@ -16,7 +16,7 @@ function get-SpOPermissionEntry{
     
     $localEntity = Get-SpOHarmonizedEntity -entity $entity -alwaysReturn
 
-    $objectType = $object.Type ? $object.Type : "root"
+    $objectType = $object.Type ? $object.Type : "Site"
     
     if([string]::IsNullOrEmpty($parentId)){
         $parentId = ""
@@ -30,7 +30,9 @@ function get-SpOPermissionEntry{
         $linkExpirationDate = ""
     }    
 
-    if($object.Id.Guid){
+    if($object.SiteId.Guid){
+        $objectId = $object.SiteId.Guid
+    }elseif($object.Id.Guid){
         $objectId = $object.Id.Guid
     }else{
         $objectId = $object.Id
