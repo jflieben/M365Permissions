@@ -62,34 +62,13 @@
     #get role definitions
     $roleDefinitions = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/directoryRoleTemplates' -Method GET
 
-    Write-Progress -Id 1 -PercentComplete 10 -Activity "Scanning Entra ID" -Status "Retrieving fixed assigments"
-
-    #get fixed assignments
-    $roleAssignments = New-GraphQuery -Uri 'https://graph.microsoft.com/beta/roleManagement/directory/roleAssignments?$expand=principal' -Method GET
-
-    Write-Progress -Id 1 -PercentComplete 20 -Activity "Scanning Entra ID" -Status "Processing fixed assigments"
-
-    foreach($roleAssignment in $roleAssignments){
-        $roleDefinition = $roleDefinitions | Where-Object { $_.id -eq $roleAssignment.roleDefinitionId }
-        
-        Update-StatisticsObject -category "Entra" -subject "Roles"
-        $permissionSplat = @{
-            targetPath = $roleAssignment.directoryScopeId
-            principalEntraId = $roleAssignment.principal.id
-            principalEntraUpn = $roleAssignment.principal.userPrincipalName
-            principalSysName = $roleAssignment.principal.displayName
-            principalType = $roleAssignment.principal."@odata.type"
-            principalRole = $roleDefinition.displayName
-            tenure = "Permanent"                    
-        }            
-        New-EntraPermissionEntry @permissionSplat
-    }
 
     Write-Progress -Id 1 -PercentComplete 35 -Activity "Scanning Entra ID" -Status "Retrieving flexible (PIM) assigments"
 
     #get eligible role assignments
     try{
         $roleEligibilities = (New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/roleManagement/directory/roleEligibilityScheduleInstances' -Method GET -NoRetry | Where-Object {$_})
+        $roleActivations = (New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignmentScheduleInstances' -Method GET | Where-Object {$_.assignmentType -eq "Activated"})
     }catch{
         Write-LogMessage -level 2 -message "Failed to retrieve flexible assignments, this is fine if you don't use PIM and/or don't have P2 licensing."
         $roleEligibilities = @()
@@ -112,7 +91,7 @@
         
         Update-StatisticsObject -category "Entra" -subject "Roles"
         $permissionSplat = @{
-            targetPath = $roleAssignment.directoryScopeId
+            targetPath = $roleEligibility.directoryScopeId
             principalEntraId = $principal.id
             principalEntraUpn = $principal.userPrincipalName
             principalSysName = $principal.displayName
@@ -124,6 +103,32 @@
         }            
         New-EntraPermissionEntry @permissionSplat
         Write-Progress -Id 2 -Completed -Activity "Processing flexible (PIM) assignments"
+    }
+
+    Write-Progress -Id 1 -PercentComplete 10 -Activity "Scanning Entra ID" -Status "Retrieving fixed assigments"
+
+    #get fixed assignments
+    $roleAssignments = New-GraphQuery -Uri 'https://graph.microsoft.com/beta/roleManagement/directory/roleAssignments?$expand=principal' -Method GET
+
+    Write-Progress -Id 1 -PercentComplete 20 -Activity "Scanning Entra ID" -Status "Processing fixed assigments"
+
+    foreach($roleAssignment in $roleAssignments){
+        if($roleActivations -and $roleActivations.roleAssignmentOriginId -contains $roleAssignment.id){
+            Write-LogMessage -level 5 -message "Ignoring $($roleAssignment.id) because it is Eligible as well"
+            continue
+        }        
+        $roleDefinition = $roleDefinitions | Where-Object { $_.id -eq $roleAssignment.roleDefinitionId }
+        Update-StatisticsObject -category "Entra" -subject "Roles"
+        $permissionSplat = @{
+            targetPath = $roleAssignment.directoryScopeId
+            principalEntraId = $roleAssignment.principal.id
+            principalEntraUpn = $roleAssignment.principal.userPrincipalName
+            principalSysName = $roleAssignment.principal.displayName
+            principalType = $roleAssignment.principal."@odata.type"
+            principalRole = $roleDefinition.displayName
+            tenure = "Permanent"                    
+        }            
+        New-EntraPermissionEntry @permissionSplat
     }
 
     Remove-Variable roleDefinitions -Force -Confirm:$False
