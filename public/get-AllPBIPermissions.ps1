@@ -17,7 +17,7 @@
     if($global:octo.userConfig.authMode -eq "Delegated"){
         $powerBIServicePlans = @("PBI_PREMIUM_EM1_ADDON","PBI_PREMIUM_EM2_ADDON","BI_AZURE_P_2_GOV","PBI_PREMIUM_P1_ADDON_GCC","PBI_PREMIUM_P1_ADDON","BI_AZURE_P3","BI_AZURE_P2","BI_AZURE_P1")
         $hasPowerBI = $False
-        $licenses = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/users/$($global:octo.currentUser.userPrincipalName)/licenseDetails" -Method GET
+        $licenses = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users/$($global:octo.currentUser.userPrincipalName)/licenseDetails" -Method GET
         if($licenses){
             foreach($servicePlan in $licenses.servicePlans.servicePlanName){
                 if($powerBIServicePlans -contains $servicePlan){
@@ -93,10 +93,10 @@
                 }else{
                     $userId = $Null; $userId = $user.id.Replace("app-","")
                     if($user.id.startsWith("app-")){
-                        $userMetaData = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/serviceprincipals(appId='$userId')" -Method GET
+                        $userMetaData = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/serviceprincipals(appId='$userId')" -Method GET
                     }else{
                         try{
-                            $userMetaData = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/users/$userId" -Method GET -maxAttempts 2
+                            $userMetaData = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users/$userId" -Method GET -maxAttempts 2
                         }catch{
                             Write-LogMessage -level 2 -message "Failed to retrieve user metadata for $($user.id), user was likely deleted, skipping..."
                             continue

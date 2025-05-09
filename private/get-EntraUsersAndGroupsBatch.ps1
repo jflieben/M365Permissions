@@ -22,8 +22,8 @@ function get-EntraUsersAndGroupsBatch {
             $principalType = "Internal User"
         }
 
-        $ownedObjects = New-GraphQuery -Uri  "https://graph.microsoft.com/v1.0/users/$($entraUser.id)/ownedObjects?`$select=id,displayName,groupTypes,mailEnabled,securityEnabled,membershipRule&`$top=999" -Method GET
-        $memberships = New-GraphQuery -Uri  "https://graph.microsoft.com/v1.0/users/$($entraUser.id)/transitiveMemberOf/microsoft.graph.group?`$select=id,displayName,groupTypes,mailEnabled,securityEnabled,membershipRule&`$top=999" -Method GET
+        $ownedObjects = New-GraphQuery -Uri  "$($global:octo.graphUrl)/v1.0/users/$($entraUser.id)/ownedObjects?`$select=id,displayName,groupTypes,mailEnabled,securityEnabled,membershipRule&`$top=999" -Method GET
+        $memberships = New-GraphQuery -Uri  "$($global:octo.graphUrl)/v1.0/users/$($entraUser.id)/transitiveMemberOf/microsoft.graph.group?`$select=id,displayName,groupTypes,mailEnabled,securityEnabled,membershipRule&`$top=999" -Method GET
         
         foreach($membership in $memberships){
             $groupType = Get-EntraGroupType -group $membership

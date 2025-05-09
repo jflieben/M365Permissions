@@ -59,7 +59,7 @@ Function New-EntraPermissionEntry{
         $targetType = "administrativeUnit"
         $targetId = $targetPath.Split("/")[2]
         if(!$global:entraAdminUnitMapping.$targetId){
-            $global:entraAdminUnitMapping.$targetId = (New-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/directory/administrativeUnits/$targetId").displayName
+            $global:entraAdminUnitMapping.$targetId = (New-GraphQuery -Method GET -Uri "$($global:octo.graphUrl)/v1.0/directory/administrativeUnits/$targetId").displayName
         }
         $targetPath = $targetPath.Replace($targetId, $global:entraAdminUnitMapping.$targetId)
     }elseif($targetPath -eq "/"){

@@ -17,7 +17,7 @@
         [Switch]$includeOnedriveSites = $True
     }
 
-    $spoBaseAdmUrl = "https://$($global:octo.tenantName)-admin.sharepoint.com"
+    $spoBaseAdmUrl = "https://$($global:octo.tenantName)-admin.$($global:octo.sharepointUrl)"
 
     $ignoredSiteTypes = @("REDIRECTSITE#0","SRCHCEN#0", "SPSMSITEHOST#0", "APPCATALOG#0", "POINTPUBLISHINGHUB#0", "EDISC#0", "STS#-1","EHS#1","POINTPUBLISHINGTOPIC#0")
     $sites = @(Get-PnPTenantSite -IncludeOneDriveSites:$includeOnedriveSites.IsPresent -Connection (Get-SpOConnection -Type Admin -Url $spoBaseAdmUrl) | Where-Object {`
@@ -26,7 +26,7 @@
 
     if($excludeOtherSites.IsPresent){
         Write-LogMessage -message "Only scanning Onedrive for Business sites"
-        $sites = $sites | Where-Object {$_ -and $_.Url -notlike "https://$($global:octo.tenantName).sharepoint.com/*"}
+        $sites = $sites | Where-Object {$_ -and $_.Url -notlike "https://$($global:octo.tenantName).$($global:octo.sharepointUrl)/*"}
     }
 
     if($sites.Count -eq 0 -or $Null -eq $sites){

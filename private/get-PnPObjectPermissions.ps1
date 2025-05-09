@@ -39,16 +39,16 @@ Function get-PnPObjectPermissions{
     }
 
     if($Object.ListGuid){
-        $itemData = New-GraphQuery -resource "https://www.sharepoint.com" -Uri "$($siteUrl)/_api/web/lists/getbyid('$($Object.ListGuid)')/items($($Object.ID))?`$expand=File,Folder,RoleAssignments/Member,RoleAssignments/RoleDefinitionBindings&`$select=FileSystemObjectType,Folder,File,Id,Title,RoleAssignments&`$format=json" -Method GET
+        $itemData = New-GraphQuery -resource "https://www.$($global:octo.sharepointUrl)" -Uri "$($siteUrl)/_api/web/lists/getbyid('$($Object.ListGuid)')/items($($Object.ID))?`$expand=File,Folder,RoleAssignments/Member,RoleAssignments/RoleDefinitionBindings&`$select=FileSystemObjectType,Folder,File,Id,Title,RoleAssignments&`$format=json" -Method GET
         If($itemData.FileSystemObjectType -eq 1){
             $obj.Title = $itemData.Folder.Name
-            $obj.Url = "$($siteUrl.Split(".com")[0]).com$($itemData.Folder.ServerRelativeUrl)"
+            $obj.Url = "$($siteUrl.Split($global:octo.sharepointUrl)[0])$($global:octo.sharepointUrl)$($itemData.Folder.ServerRelativeUrl)"
             $obj.Type = "Folder"
             $obj.id = $Object.ID
         }Else{
             If($Null -ne $itemData.File.Name){
                 $obj.Title = $itemData.File.Name
-                $obj.Url = "$($siteUrl.Split(".com")[0]).com$($itemData.File.ServerRelativeUrl)"
+                $obj.Url = "$($siteUrl.Split($global:octo.sharepointUrl)[0])$($global:octo.sharepointUrl)$($itemData.File.ServerRelativeUrl)"
                 $obj.Type = "File"
                 $obj.id = $Object.ID
             }else{
@@ -73,13 +73,13 @@ Function get-PnPObjectPermissions{
                     Write-LogMessage -level 5 -message "Skipping $($obj.Title) as it fully inherits permissions from parent"
                     continue
                 }else{
-                    $ACLs = New-GraphQuery -resource "https://www.sharepoint.com" -Uri "$($Object.Url)/_api/web/roleAssignments?`$expand=Member,RoleDefinitionBindings&`$top=5000&`$format=json" -Method GET -expectedTotalResults $Object.RoleAssignments.Count
+                    $ACLs = New-GraphQuery -resource "https://www.$($global:octo.sharepointUrl)" -Uri "$($Object.Url)/_api/web/roleAssignments?`$expand=Member,RoleDefinitionBindings&`$top=5000&`$format=json" -Method GET -expectedTotalResults $Object.RoleAssignments.Count
                 }
             }
             Default{ 
                 $rootFolder = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object;Property ="RootFolder"; Connection =(Get-SpOConnection -Type User -Url $siteUrl)})
                 $obj.Title = $Object.Title
-                $obj.Url = "$($siteUrl.Split(".com")[0]).com$($rootFolder.ServerRelativeUrl)"
+                $obj.Url = "$($siteUrl.Split($global:octo.sharepointUrl)[0])$($global:octo.sharepointUrl)$($rootFolder.ServerRelativeUrl)"
                 $obj.Type = "List or Library"
                 $obj.id = $Object.Id
                 Update-StatisticsObject -Category $Category -Subject $siteUrl
@@ -88,7 +88,7 @@ Function get-PnPObjectPermissions{
                     Write-LogMessage -level 5 -message "Skipping $($obj.Title) as it fully inherits permissions from parent"
                     continue
                 }else{            
-                    $ACLs = New-GraphQuery -resource "https://www.sharepoint.com" -Uri "$($siteUrl)/_api/web/lists/getbyid('$($Object.Id)')/roleassignments?`$expand=Member,RoleDefinitionBindings&`$top=5000&`$format=json" -Method GET -expectedTotalResults $Object.RoleAssignments.Count
+                    $ACLs = New-GraphQuery -resource "https://www.$($global:octo.sharepointUrl)" -Uri "$($siteUrl)/_api/web/lists/getbyid('$($Object.Id)')/roleassignments?`$expand=Member,RoleDefinitionBindings&`$top=5000&`$format=json" -Method GET -expectedTotalResults $Object.RoleAssignments.Count
                 }
             }
         }   
@@ -196,7 +196,7 @@ Function get-PnPObjectPermissions{
                 }     
 
                 Write-LogMessage -level 5 -message "List contains $($List.ItemCount) items"
-                $allListItems = $Null; $allListItems = New-GraphQuery -resource "https://www.sharepoint.com" -Uri "$($Object.Url)/_api/web/lists/getbyid('$($List.Id.Guid)')/items?`$select=ID,HasUniqueRoleAssignments&`$top=5000&`$format=json" -Method GET -expectedTotalResults $List.ItemCount
+                $allListItems = $Null; $allListItems = New-GraphQuery -resource "https://www.$($global:octo.sharepointUrl)" -Uri "$($Object.Url)/_api/web/lists/getbyid('$($List.Id.Guid)')/items?`$select=ID,HasUniqueRoleAssignments&`$top=5000&`$format=json" -Method GET -expectedTotalResults $List.ItemCount
                 $allUniqueListItemIDs = $Null; $allUniqueListItemIDs = @($allListItems | Where-Object { $_.HasUniqueRoleAssignments -eq $True }) | select -ExpandProperty Id
                 if(($global:octo.userConfig.defaultTimeoutMinutes*20) -lt $allUniqueListItemIDs.Count){
                     Write-Error "List $($List.Title) has too many ($($allUniqueListItemIDs.Count)) items with unique permissions, we probably can't process them inside the current default timeout of $($global:octo.userConfig.defaultTimeoutMinutes). Please set it to at least $($allUniqueListItemIDs.Count/20) using set-M365PermissionsConfig -defaultTimeoutMinutes XXX" -ErrorAction Continue

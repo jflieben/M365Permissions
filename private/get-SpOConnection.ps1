@@ -14,9 +14,9 @@ Function Get-SpOConnection{
     }
 
     if($Type -eq "Admin"){
-        $resource = "https://$($global:octo.tenantName)-admin.sharepoint.com"
+        $resource = "https://$($global:octo.tenantName)-admin.$($global:octo.sharepointUrl)"
     }else{
-        $resource = "https://$($global:octo.tenantName).sharepoint.com"
+        $resource = "https://$($global:octo.tenantName).$($global:octo.sharepointUrl)"
     }
 
     if(!$global:pnpUrlAuthCaches.$Url){

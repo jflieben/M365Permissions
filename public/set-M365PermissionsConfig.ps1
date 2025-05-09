@@ -18,6 +18,7 @@
         -authMode: the authentication method to use, either Delegated (Interactive), ServicePrincipal or ManagedIdentity (Azure VM/Runbook/Functions etc)
         -logLevel: the level of logging to use, either Full, Normal, Minimal or None. Full will log everything, None will log nothing, even errors. Normal and minimal are in between. Use Full for troubleshooting.
         -respectSiteLocks: if set to True (default is False), the script will respect site locks when scanning SharePoint sites. By default, this is set to false which means the script will remove a lock if it exists and reapply it when done scanning. This ONLY happens when scanning as a user, Service Principals do not need to unlock a site first
+        -cloudType: global, usgov, usdod, china. Default: global
     #>        
     Param(
         [Int]$maxThreads,
@@ -34,7 +35,9 @@
         [String]$authMode,
         [ValidateSet('Full','Normal','Minimal','None')]	
         [String]$logLevel,
-        [Boolean]$respectSiteLocks
+        [Boolean]$respectSiteLocks,
+        [ValidateSet('global','usgov','usdod','china')]	
+        [String]$cloudType
     )
 
     $defaultConfig = @{
@@ -50,6 +53,7 @@
         "authMode" = [String]"Delegated"
         "logLevel" = [String]"Minimal"
         "respectSiteLocks" = [Boolean]$false
+        "cloudType" = [String]"global"
     }
 
     $configLocation = Join-Path -Path $env:appdata -ChildPath "LiebenConsultancy\M365Permissions.conf"
@@ -102,5 +106,37 @@
 
     if($global:octo.sessionIdentifier -and !$global:octo.userConfig.outputFolder.EndsWith($global:octo.sessionIdentifier)){
         $global:octo.userConfig.outputFolder = "$($global:octo.userConfig.outputFolder)\$($global:octo.sessionIdentifier)"
+    }
+
+    #set login url's based on selected Cloud
+    switch($global:octo.userConfig.cloudType){
+        'global' {
+            $global:octo.idpUrl = "https://login.microsoftonline.com"
+            $global:octo.graphUrl = "https://graph.microsoft.com"
+            $global:octo.sharepointUrl = "sharepoint.com"
+            $global:octo.outlookUrl = "outlook.office365.com"
+            $global:octo.azureUrl = "https://management.azure.com"
+        }
+        'usgov' {
+            $global:octo.idpUrl = "https://login.microsoftonline.us"
+            $global:octo.graphUrl = "https://graph.microsoft.us"
+            $global:octo.sharepointUrl = "sharepoint.us"
+            $global:octo.outlookUrl = "outlook.office365.us"
+            $global:octo.azureUrl = "https://management.usgovcloudapi.net"
+        }
+        'usdod' {
+            $global:octo.idpUrl = "https://login.microsoftonline.us"
+            $global:octo.graphUrl = "https://dod-graph.microsoft.us"
+            $global:octo.sharepointUrl = "sharepoint-mil.us"
+            $global:octo.outlookUrl = "outlook-dod.office365.us"
+            $global:octo.azureUrl = "https://management.usgovcloudapi.net" #not sure if this one is even remotely correct
+        }
+        'china' {
+            $global:octo.idpUrl = "https://login.chinacloudapi.cn"
+            $global:octo.graphUrl = "https://microsoftgraph.chinacloudapi.cn"
+            $global:octo.sharepointUrl = "sharepoint.cn"
+            $global:octo.outlookUrl = "partner.outlook.cn"
+            $global:octo.azureUrl = "https://management.chinacloudapi.cn"
+        }
     }
 }

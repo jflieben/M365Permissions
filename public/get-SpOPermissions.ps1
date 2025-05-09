@@ -26,7 +26,7 @@
 
     Write-LogMessage -message "Starting SpO Scan of $($teamName)$($siteUrl)" -level 4
 
-    $spoBaseAdmUrl = "https://$($global:octo.tenantName)-admin.sharepoint.com"
+    $spoBaseAdmUrl = "https://$($global:octo.tenantName)-admin.$($global:octo.sharepointUrl)"
     Write-LogMessage -level 5 -message "Using Sharepoint base URL: $spoBaseAdmUrl"
 
     $ignoredSiteTypes = @("REDIRECTSITE#0","SRCHCEN#0", "SPSMSITEHOST#0", "APPCATALOG#0", "POINTPUBLISHINGHUB#0", "EDISC#0", "STS#-1","EHS#1","POINTPUBLISHINGTOPIC#0")
@@ -51,7 +51,7 @@
     if($site.IsTeamsConnected -and !$isParallel){
         try{
             Write-LogMessage -message "Retrieving channels for this site/team..." -level 4
-            $channels = New-GraphQuery -Uri "https://graph.microsoft.com/beta/teams/$($site[0].GroupId.Guid)/channels" -Method GET -NoRetry
+            $channels = New-GraphQuery -Uri "$($global:octo.graphUrl)/beta/teams/$($site[0].GroupId.Guid)/channels" -Method GET -NoRetry
             Write-LogMessage -message "Found $($channels.Count) channels" -level 4
         }catch{
             Write-LogMessage -level 4 -message "Failed to retrieve channels for $($site[0].Url), the connected group was probably deleted. No additional sub sites to scan"
@@ -59,7 +59,7 @@
         }
         foreach($channel in $channels){
             if($channel.filesFolderWebUrl){
-                $targetUrl = $Null; $targetUrl ="https://$($global:octo.tenantName).sharepoint.com/$($channel.filesFolderWebUrl.Split("/")[3])/$($channel.filesFolderWebUrl.Split("/")[4])"
+                $targetUrl = $Null; $targetUrl ="https://$($global:octo.tenantName).$($global:octo.sharepointUrl)/$($channel.filesFolderWebUrl.Split("/")[3])/$($channel.filesFolderWebUrl.Split("/")[4])"
             }
             if($targetUrl -and $site.Url -ne $targetUrl){
                 try{
@@ -80,7 +80,7 @@
         $siteCategory = "Teams"
         Write-LogMessage -message "Site is connected to a Team will be categorized as Teams site" -level 4
     }
-    if($site.Url -like "*-my.sharepoint.com*"){
+    if($site.Url -like "*-my.$($global:octo.sharepointUrl)*"){
         $siteCategory = "OneDrive"
         Write-LogMessage -message "Site is a OneDrive site" -level 4
     }

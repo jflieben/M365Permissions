@@ -15,11 +15,11 @@
     New-StatisticsObject -category "GroupsAndMembers" -subject "Entities"
     Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Entra ID" -Status "Getting users and groups" 
 
-    $userCount = (New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/users?$top=1' -Method GET -ComplexFilter -nopagination)."@odata.count"
+    $userCount = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users?`$top=1" -Method GET -ComplexFilter -nopagination)."@odata.count"
     Write-LogMessage -message "Retrieving metadata for $userCount users..."
     Write-Progress -Id 1 -PercentComplete 1 -Activity "Scanning Entra ID" -Status "Getting users and groups" 
 
-    $allUsers = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/users?$select=id,userPrincipalName,displayName' -Method GET
+    $allUsers = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users?`$select=id,userPrincipalName,displayName" -Method GET
     Write-LogMessage -message "Got metadata for $userCount users"
 
     $activity = "Entra ID users"
@@ -40,7 +40,7 @@
     $global:EntraPermissions = @{}
     New-StatisticsObject -category "Entra" -subject "Roles"  
 
-    $partners = New-GraphQuery -Uri 'https://graph.microsoft.com/beta/directory/partners' -Method GET
+    $partners = New-GraphQuery -Uri "$($global:octo.graphUrl)/beta/directory/partners" -Method GET
     foreach($partner in $partners){
         Update-StatisticsObject -category "Entra" -subject "Roles"
         $permissionSplat = @{
@@ -60,15 +60,15 @@
     Write-Progress -Id 1 -PercentComplete 5 -Activity "Scanning Entra ID" -Status "Retrieving role definitions"
 
     #get role definitions
-    $roleDefinitions = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/directoryRoleTemplates' -Method GET
+    $roleDefinitions = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/directoryRoleTemplates" -Method GET
 
 
     Write-Progress -Id 1 -PercentComplete 35 -Activity "Scanning Entra ID" -Status "Retrieving flexible (PIM) assigments"
 
     #get eligible role assignments
     try{
-        $roleEligibilities = (New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/roleManagement/directory/roleEligibilityScheduleInstances' -Method GET -NoRetry | Where-Object {$_})
-        $roleActivations = (New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignmentScheduleInstances' -Method GET | Where-Object {$_.assignmentType -eq "Activated"})
+        $roleEligibilities = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/roleManagement/directory/roleEligibilityScheduleInstances" -Method GET -NoRetry | Where-Object {$_})
+        $roleActivations = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/roleManagement/directory/roleAssignmentScheduleInstances" -Method GET | Where-Object {$_.assignmentType -eq "Activated"})
     }catch{
         Write-LogMessage -level 2 -message "Failed to retrieve flexible assignments, this is fine if you don't use PIM and/or don't have P2 licensing."
         $roleEligibilities = @()
@@ -82,7 +82,7 @@
         Write-Progress -Id 2 -PercentComplete $(try{$count / $roleEligibilities.Count *100}catch{1}) -Activity "Processing flexible (PIM) assignments" -Status "[$count / $($roleEligibilities.Count)]"
         $roleDefinition = $roleDefinitions | Where-Object { $_.id -eq $roleEligibility.roleDefinitionId }
         try{
-            $principal = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/directoryObjects/$($roleEligibility.principalId)" -Method GET
+            $principal = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/directoryObjects/$($roleEligibility.principalId)" -Method GET
         }catch{
             Write-LogMessage -level 2 -message "Failed to resolve principal $($roleEligibility.principalId) to a directory object, was it deleted?" 
             $principal = $Null
@@ -108,7 +108,7 @@
     Write-Progress -Id 1 -PercentComplete 10 -Activity "Scanning Entra ID" -Status "Retrieving fixed assigments"
 
     #get fixed assignments
-    $roleAssignments = New-GraphQuery -Uri 'https://graph.microsoft.com/beta/roleManagement/directory/roleAssignments?$expand=principal' -Method GET
+    $roleAssignments = New-GraphQuery -Uri "$($global:octo.graphUrl)/beta/roleManagement/directory/roleAssignments?`$expand=principal" -Method GET
 
     Write-Progress -Id 1 -PercentComplete 20 -Activity "Scanning Entra ID" -Status "Processing fixed assigments"
 
@@ -136,7 +136,7 @@
     Remove-Variable roleEligibilities -Force -Confirm:$False
 
     Write-Progress -Id 1 -PercentComplete 50 -Activity "Scanning Entra ID" -Status "Getting Service Principals"
-    $servicePrincipals = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/servicePrincipals?$expand=appRoleAssignments' -Method GET
+    $servicePrincipals = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals?`$expand=appRoleAssignments" -Method GET
     
     foreach($servicePrincipal in $servicePrincipals){
         Update-StatisticsObject -category "Entra" -subject "Roles"

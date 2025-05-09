@@ -40,7 +40,7 @@
         Write-Progress -Id 2 -PercentComplete 5 -Activity "Scanning $($recipient.Identity)" -Status "Checking SendOnBehalf permissions..."
         #get mailbox meta for SOB permissions
         $identifierEncoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($recipient.Guid))   
-        $mailbox = $Null; $mailbox = New-GraphQuery -resource "https://outlook.office365.com" -Method GET -Uri "https://outlook.office365.com/adminapi/beta/$($global:octo.OnMicrosoft)/Mailbox('$($identifierEncoded)')?isEncoded=true&`$select=GrantSendOnBehalfTo" -MaxAttempts 3
+        $mailbox = $Null; $mailbox = New-GraphQuery -resource "https://$($global:octo.outlookUrl)" -Method GET -Uri "https://$($global:octo.outlookUrl)/adminapi/beta/$($global:octo.OnMicrosoft)/Mailbox('$($identifierEncoded)')?isEncoded=true&`$select=GrantSendOnBehalfTo" -MaxAttempts 3
         #add root level permission
         if($mailbox.ExternalDirectoryObjectId){
             $splat = @{
@@ -65,7 +65,7 @@
                 $extraHeaders = @(
                     @{"Name" = "XParameter-Identity"; "Value" = "$($identifierEncoded)"}
                 )
-                $entity = $Null; $entity= New-GraphQuery -extraHeaders $extraHeaders -resource "https://outlook.office365.com" -Method GET -Uri "https://outlook.office365.com/adminapi/beta/$($global:octo.OnMicrosoft)/Recipient?`$select=displayName,Identity,PrimarySmtpAddress,RecipientTypeDetails,Guid,ExternalDirectoryObjectId&ReadIdsAndParamsFromHeaders=True" -MaxAttempts 2 | select -First 1            
+                $entity = $Null; $entity= New-GraphQuery -extraHeaders $extraHeaders -resource "https://$($global:octo.outlookUrl)" -Method GET -Uri "https://$($global:octo.outlookUrl)/adminapi/beta/$($global:octo.OnMicrosoft)/Recipient?`$select=displayName,Identity,PrimarySmtpAddress,RecipientTypeDetails,Guid,ExternalDirectoryObjectId&ReadIdsAndParamsFromHeaders=True" -MaxAttempts 2 | select -First 1            
                 $splat = @{
                     targetPath = "/$($recipient.PrimarySmtpAddress)"
                     targetType = $recipient.RecipientTypeDetails
@@ -88,14 +88,14 @@
             Write-LogMessage -level 5 -message "Got mailbox $($mailbox.Guid) for $($recipient.Identity)"
             Write-Progress -Id 2 -PercentComplete 15 -Activity "Scanning $($recipient.Identity)" -Status "Checking Mailbox permissions..."
             $identifierEncoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($mailbox.Guid))
-            $mailboxPermissions = $Null; $mailboxPermissions= New-GraphQuery -resource "https://outlook.office365.com" -Method GET -Uri "https://outlook.office365.com/adminapi/beta/$($global:octo.OnMicrosoft)/Mailbox('$($identifierEncoded)')/MailboxPermission?isEncoded=true" | Where-Object {$_.User -like "*@*"}
+            $mailboxPermissions = $Null; $mailboxPermissions= New-GraphQuery -resource "https://$($global:octo.outlookUrl)" -Method GET -Uri "https://$($global:octo.outlookUrl)/adminapi/beta/$($global:octo.OnMicrosoft)/Mailbox('$($identifierEncoded)')/MailboxPermission?isEncoded=true" | Where-Object {$_.User -like "*@*"}
             foreach($mailboxPermission in $mailboxPermissions){
                 foreach($permission in $mailboxPermission.PermissionList){
                     $identifierEncoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($mailboxPermission.User))
                     $extraHeaders = @(
                         @{"Name" = "XParameter-Identity"; "Value" = "$($identifierEncoded)"}
                     )
-                    $entity = $Null; $entity= New-GraphQuery -extraHeaders $extraHeaders -resource "https://outlook.office365.com" -Method GET -Uri "https://outlook.office365.com/adminapi/beta/$($global:octo.OnMicrosoft)/Recipient?`$select=displayName,Identity,PrimarySmtpAddress,RecipientTypeDetails,Guid,ExternalDirectoryObjectId&ReadIdsAndParamsFromHeaders=True" -MaxAttempts 2 | select -First 1            
+                    $entity = $Null; $entity= New-GraphQuery -extraHeaders $extraHeaders -resource "https://$($global:octo.outlookUrl)" -Method GET -Uri "https://$($global:octo.outlookUrl)/adminapi/beta/$($global:octo.OnMicrosoft)/Recipient?`$select=displayName,Identity,PrimarySmtpAddress,RecipientTypeDetails,Guid,ExternalDirectoryObjectId&ReadIdsAndParamsFromHeaders=True" -MaxAttempts 2 | select -First 1            
                     $splat = @{
                         targetPath = "/$($recipient.PrimarySmtpAddress)"
                         targetType = $recipient.RecipientTypeDetails
@@ -122,7 +122,7 @@
             Write-Progress -Id 3 -PercentComplete 1 -Activity "Scanning folders $($recipient.Identity)" -Status "Retrieving folder list for $($mailbox.UserPrincipalName)"
             $guidEncoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($mailbox.Guid.ToString()))
             try{
-                $folders = $Null; $folders = New-GraphQuery -resource "https://outlook.office365.com" -Method GET -Uri "https://outlook.office365.com/adminapi/beta/$($global:octo.OnMicrosoft)/Mailbox('$guidEncoded')/MailboxFolder/Exchange.GetMailboxFolderStatistics(folderscope=Exchange.ElcFolderType'All')?isEncoded=true"
+                $folders = $Null; $folders = New-GraphQuery -resource "https://$($global:octo.outlookUrl)" -Method GET -Uri "https://$($global:octo.outlookUrl)/adminapi/beta/$($global:octo.OnMicrosoft)/Mailbox('$guidEncoded')/MailboxFolder/Exchange.GetMailboxFolderStatistics(folderscope=Exchange.ElcFolderType'All')?isEncoded=true"
                 Write-LogMessage -level 5 -message "Got $($folders.count) folders for for $($recipient.Identity)"
             }catch{
                 Write-LogMessage -level 2 -message "Failed to retrieve folder list for $($mailbox.UserPrincipalName)"
@@ -146,7 +146,7 @@
                 
                 try{
                     $folderIdEncoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($folder.FolderId))
-                    $folderPermissions = $Null; $folderPermissions = New-GraphQuery -resource "https://outlook.office365.com" -Method GET -Uri "https://outlook.office365.com/adminapi/beta/$($global:octo.OnMicrosoft)/Mailbox('$guidEncoded')/MailboxFolder('$folderIdEncoded')/MailboxFolderPermission?IsUsingMailboxFolderId=True&isEncoded=true"
+                    $folderPermissions = $Null; $folderPermissions = New-GraphQuery -resource "https://$($global:octo.outlookUrl)" -Method GET -Uri "https://$($global:octo.outlookUrl)/adminapi/beta/$($global:octo.OnMicrosoft)/Mailbox('$guidEncoded')/MailboxFolder('$folderIdEncoded')/MailboxFolderPermission?IsUsingMailboxFolderId=True&isEncoded=true"
                     foreach($folderPermission in $folderPermissions){
                         if($folderPermission.User.StartsWith("NT:S-1-5-21-")){
                             Write-LogMessage -level 6 -message "Ignoring pre-migration orphaned permissions $($folderPermission.User)"
@@ -192,7 +192,7 @@
                                 $extraHeaders = @(
                                     @{"Name" = "XParameter-Identity"; "Value" = "$($identifierEncoded)"}
                                 )
-                                $entity = $Null; $entity= New-GraphQuery -extraHeaders $extraHeaders -resource "https://outlook.office365.com" -Method GET -Uri "https://outlook.office365.com/adminapi/beta/$($global:octo.OnMicrosoft)/Recipient?`$select=displayName,Identity,PrimarySmtpAddress,RecipientTypeDetails,Guid,ExternalDirectoryObjectId&ReadIdsAndParamsFromHeaders=True" -MaxAttempts 2 | select -First 1            
+                                $entity = $Null; $entity= New-GraphQuery -extraHeaders $extraHeaders -resource "https://$($global:octo.outlookUrl)" -Method GET -Uri "https://$($global:octo.outlookUrl)/adminapi/beta/$($global:octo.OnMicrosoft)/Recipient?`$select=displayName,Identity,PrimarySmtpAddress,RecipientTypeDetails,Guid,ExternalDirectoryObjectId&ReadIdsAndParamsFromHeaders=True" -MaxAttempts 2 | select -First 1            
                             }catch{
                                 Write-LogMessage -level 5 -message "Failed to get entity for $($folderPermission.User) with error $($_.Exception.Message), skipping..."
                                 continue
@@ -234,7 +234,7 @@
     #all recipients can have recipient permissions
     Write-Progress -Id 2 -PercentComplete 85 -Activity "Scanning $($recipient.Identity)" -Status "Checking SendAs permissions..."
     $identifierEncoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($recipient.Guid))   
-    $recipientPermissions = $Null; $recipientPermissions = New-GraphQuery -resource "https://outlook.office365.com" -Method GET -Uri "https://outlook.office365.com/adminapi/beta/$($global:octo.OnMicrosoft)/Recipient('$($identifierEncoded)')?`$expand=RecipientPermission&isEncoded=true&`$select=RecipientPermission,%20ExternalDirectoryObjectId" -MaxAttempts 3
+    $recipientPermissions = $Null; $recipientPermissions = New-GraphQuery -resource "https://$($global:octo.outlookUrl)" -Method GET -Uri "https://$($global:octo.outlookUrl)/adminapi/beta/$($global:octo.OnMicrosoft)/Recipient('$($identifierEncoded)')?`$expand=RecipientPermission&isEncoded=true&`$select=RecipientPermission,%20ExternalDirectoryObjectId" -MaxAttempts 3
     foreach($recipientPermission in $recipientPermissions.RecipientPermission){
         if($recipientPermission.Trustee -eq "NT AUTHORITY\SELF"){
             continue
@@ -244,7 +244,7 @@
             @{"Name" = "XParameter-Identity"; "Value" = "$($identifierEncoded)"}
         )
         try{
-            $entity = $Null; $entity= New-GraphQuery -extraHeaders $extraHeaders -resource "https://outlook.office365.com" -Method GET -Uri "https://outlook.office365.com/adminapi/beta/$($global:octo.OnMicrosoft)/Recipient?`$select=displayName,Identity,PrimarySmtpAddress,RecipientTypeDetails,Guid,ExternalDirectoryObjectId&ReadIdsAndParamsFromHeaders=True" -MaxAttempts 2 | select -First 1            
+            $entity = $Null; $entity= New-GraphQuery -extraHeaders $extraHeaders -resource "https://$($global:octo.outlookUrl)" -Method GET -Uri "https://$($global:octo.outlookUrl)/adminapi/beta/$($global:octo.OnMicrosoft)/Recipient?`$select=displayName,Identity,PrimarySmtpAddress,RecipientTypeDetails,Guid,ExternalDirectoryObjectId&ReadIdsAndParamsFromHeaders=True" -MaxAttempts 2 | select -First 1            
         }catch{
             $entity = $Null
         }

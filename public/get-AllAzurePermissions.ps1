@@ -11,7 +11,7 @@
     $activity = "Scanning Azure"
     Write-Progress -Id 1 -PercentComplete 1 -Activity $activity -Status "Getting subscriptions..."
     Write-LogMessage -level 4 -message "Getting subscriptions..."
-    $subscriptions = New-GraphQuery -Uri "https://management.azure.com/subscriptions?api-version=2020-01-01" -Method GET -resource "https://management.azure.com/"
+    $subscriptions = New-GraphQuery -Uri "$($global:octo.azureUrl)/subscriptions?api-version=2020-01-01" -Method GET -resource "$($global:octo.azureUrl)/"
     Write-LogMessage -level 4 -message "$($subscriptions.Count) subscriptions retrieved :)"
     Write-Progress -Id 1 -PercentComplete 2 -Activity $activity -Status "Scanning subscriptions..."
     

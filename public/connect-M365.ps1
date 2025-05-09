@@ -56,7 +56,7 @@
         try{
             $global:octo.connection = "Connecting"
             $global:octo.currentUser = Get-CurrentUser
-            $global:octo.OnMicrosoft = (New-GraphQuery -Method GET -Uri 'https://graph.microsoft.com/v1.0/domains?$top=999' | Where-Object -Property isInitial -EQ $true).id 
+            $global:octo.OnMicrosoft = (New-GraphQuery -Method GET -Uri "$($global:octo.graphUrl)/v1.0/domains?`$top=999" | Where-Object -Property isInitial -EQ $true).id 
             $global:octo.tenantName = $($global:octo.OnMicrosoft).Split(".")[0]
             $global:octo.sessionIdentifier = "$($global:octo.tenantName)_$((Get-Date).ToString("yyyyMMdd"))"
             if(!$global:octo.userConfig.outputFolder.EndsWith($global:octo.sessionIdentifier)){

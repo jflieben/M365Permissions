@@ -46,7 +46,7 @@
             })
         }| ConvertTo-Json -Depth 10
 
-        New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/applications/$($importToEntraAppId)" -Method PATCH -Body $payload
+        New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/applications/$($importToEntraAppId)" -Method PATCH -Body $payload
         Write-LogMessage -message "Certificate imported successfully!"
     }else{
         Write-LogMessage -message "CER file: $cerPath  --> Import this into your application in Entra ID"

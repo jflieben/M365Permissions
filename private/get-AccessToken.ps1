@@ -36,12 +36,12 @@ function get-AccessToken{
         Write-LogMessage -level 5 -message "Token cache miss, refreshing $($global:octo.userConfig.authMode) V1 token for $resource..."
         if($global:octo.userConfig.authMode -eq "ServicePrincipal"){
             $assertion = Get-Assertion
-            $response = (Invoke-RestMethod "https://login.microsoftonline.com/$($global:octo.userConfig.LCTenantId)/oauth2/token" -Method POST -Body "resource=$([System.Web.HttpUtility]::UrlEncode($resource))&grant_type=client_credentials&client_id=$([System.Web.HttpUtility]::UrlEncode($global:octo.userConfig.LCClientId))&client_assertion=$([System.Web.HttpUtility]::UrlEncode($assertion))&client_assertion_type=$([System.Web.HttpUtility]::UrlEncode('urn:ietf:params:oauth:client-assertion-type:jwt-bearer'))" -ErrorAction Stop -Verbose:$false)
+            $response = (Invoke-RestMethod "$($global:octo.idpUrl)/$($global:octo.userConfig.LCTenantId)/oauth2/token" -Method POST -Body "resource=$([System.Web.HttpUtility]::UrlEncode($resource))&grant_type=client_credentials&client_id=$([System.Web.HttpUtility]::UrlEncode($global:octo.userConfig.LCClientId))&client_assertion=$([System.Web.HttpUtility]::UrlEncode($assertion))&client_assertion_type=$([System.Web.HttpUtility]::UrlEncode('urn:ietf:params:oauth:client-assertion-type:jwt-bearer'))" -ErrorAction Stop -Verbose:$false)
         }elseif($global:octo.userConfig.authMode -eq "ManagedIdentity"){   
             $endpoint = "$($env:IDENTITY_ENDPOINT)?resource=$($resource)"
             $response = Invoke-RestMethod -Uri $endpoint -Headers @{"X-IDENTITY-HEADER"=$env:IDENTITY_HEADER;Metadata="true"} -Method GET
         }else{
-            $response = (Invoke-RestMethod "https://login.microsoftonline.com/common/oauth2/token" -Method POST -Body "resource=$([System.Web.HttpUtility]::UrlEncode($resource))&grant_type=refresh_token&refresh_token=$($global:octo.LCRefreshToken)&client_id=$($global:octo.userConfig.LCClientId)&scope=openid" -ErrorAction Stop -Verbose:$false)
+            $response = (Invoke-RestMethod "$($global:octo.idpUrl)/common/oauth2/token" -Method POST -Body "resource=$([System.Web.HttpUtility]::UrlEncode($resource))&grant_type=refresh_token&refresh_token=$($global:octo.LCRefreshToken)&client_id=$($global:octo.userConfig.LCClientId)&scope=openid" -ErrorAction Stop -Verbose:$false)
         }
         
         if($response.access_token){
