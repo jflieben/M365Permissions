@@ -68,8 +68,46 @@ Function get-PnPObjectPermissions{
                 $obj.Type = "Site"
                 $obj.id = $Object.Id
                 Update-StatisticsObject -Category $Category -Subject $siteUrl
+                $graphSite = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/sites/$($Object.Url.Replace("https://",'').Replace($global:octo.sharepointUrl,"$($global:octo.sharepointUrl):"))" -Method GET
+                $graphSiteLevelPermissions = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/sites/$($graphSite.id)/permissions" -Method GET
+                foreach($graphSiteLevelPermission in $graphSiteLevelPermissions){
+                    if($graphSiteLevelPermission.id){
+                        #grab the associated role
+                        $permissionInfo = $Null; $permissionInfo = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/sites/$($graphSite.id)/permissions/$($graphSiteLevelPermission.id)" -Method GET
+                        if($permissionInfo){
+                            foreach($identity in $permissionInfo.grantedToIdentitiesV2.application){
+                                #we need the actual SPN to determine if it is internal or external and get the objectId, which the spo api does not return
+                                $spn = $Null; $spn = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals(appId='$($identity.id)')" -Method GET
+                                if(!$spn){
+                                    Write-LogMessage -level 5 -message "Failed to get service principal for $($identity.id) because $_" -ErrorAction Continue
+                                    continue
+                                }
+                                if($spn.appOwnerOrganizationId -ne $global:octo.tenantId){
+                                    $principalType = "External Service Principal"
+                                }else{
+                                    $principalType = "Internal Service Principal"
+                                }
+                                foreach($role in $permissionInfo.roles){
+                                    $splat = @{
+                                        targetPath = $obj.Url
+                                        Permission = [PSCustomObject]@{
+                                            targetType = "Site"
+                                            targetId = $obj.id.Guid
+                                            principalEntraId = $spn.id
+                                            principalSysId = $identity.id
+                                            principalSysName = $identity.displayName
+                                            principalType = $principalType
+                                            principalRole = $role
+                                        }
+                                    }
+                                    New-SpOPermissionEntry @splat
+                                }
+                            }
+                        }
+                    }
+                }
                 $Null = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object;Property =@("HasUniqueRoleAssignments", "RoleAssignments");Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
-                if($Object.HasUniqueRoleAssignments -eq $False){
+                if($Object.HasUniqueRoleAssignments -eq $False -and $graphSiteLevelPermissions.Count -eq 0){
                     Write-LogMessage -level 5 -message "Skipping $($obj.Title) as it fully inherits permissions from parent"
                     continue
                 }else{
