@@ -71,7 +71,6 @@
                     principalType = $flowUser.properties.principal.type
                     principalRole = $flowUser.properties.roleName
                     tenure = "Permanent"
-                    permissionType = "PowerPlatform"
                 } 
                 New-PowerPermissionEntry @permissionSplat
             }
@@ -122,7 +121,6 @@
                     principalRole = $powerAppUser.properties.roleName
                     tenure = "Permanent"
                     createdDateTime = $powerAppUser.properties.createdOn
-                    permissionType = "PowerPlatform"
                 } 
                 New-PowerPermissionEntry @permissionSplat
             }

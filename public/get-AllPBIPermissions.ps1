@@ -52,8 +52,8 @@
 
     $workspaceParts = [math]::ceiling($workspaces.Count / 100)
 
-    if($workspaceParts -gt 500){
-        Throw "More than 50000 workspaces detected, this module does not support environments with > 50000 workspaces yet. Submit a feature request."
+    if($workspaceParts -gt 50){
+        Throw "More than 5000 workspaces detected, this module does not support environments with > 5000 workspaces. Please use the MSSQL/.NET backed M365Permissions Cloud"
     }
 
     Write-Progress -Id 1 -PercentComplete 5 -Activity $activity -Status "Submitting $workspaceParts scanjobs for $($workspaces.count) workspaces..."

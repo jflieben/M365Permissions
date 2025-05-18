@@ -41,7 +41,7 @@
     
     OTHER EXAMPLES: 
     
-    Get-SpOPermissions -siteUrl `"https://tenant.$($global:octo.sharepointUrl)/sites/site`"
+    Get-SpOPermissions -siteUrl `"https://tenant.www.sharepoint.com/sites/site`"
     
     Get-SpOPermissions -teamName `"INT-Finance Department`"
     
