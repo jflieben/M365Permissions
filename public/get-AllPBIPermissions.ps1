@@ -40,7 +40,7 @@
     $global:PBIPermissions = @{}
 
     try{
-        $workspaces = New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/groups?`$top=5000" -resource "https://api.fabric.microsoft.com" -method "GET" -maxAttempts 2
+        $workspaces = New-GraphQuery -Uri "$($global:octo.powerbiUrl)/v1.0/myorg/admin/groups?`$top=5000" -resource $global:octo.fabricUrl -method "GET" -maxAttempts 2
     }catch{
         if($_.Exception.Message -like "*401*"){
             Write-Error "You have not (yet) configured the correct permissions in PowerBI, aborting scan of PowerBI. See https://www.lieben.nu/liebensraum/2025/03/allowing-a-service-principal-to-scan-powerbi/ for instructions!" -ErrorAction Continue
@@ -65,12 +65,12 @@
             Write-LogMessage -message "Sleeping for 60 seconds to prevent throttling..." -level 4
             Start-Sleep -Seconds 60
         }
-        $scanJobs += New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/workspaces/getInfo?datasourceDetails=True&getArtifactUsers=True" -Method POST -Body $body -resource "https://api.fabric.microsoft.com"
+        $scanJobs += New-GraphQuery -Uri "$($global:octo.powerbiUrl)/v1.0/myorg/admin/workspaces/getInfo?datasourceDetails=True&getArtifactUsers=True" -Method POST -Body $body -resource $global:octo.fabricUrl
     }
 
     if($global:octo.userConfig.authMode -eq "Delegated"){
         Write-Progress -Id 1 -PercentComplete 10 -Activity $activity -Status "Retrieving gateways..."
-        $gateways = New-GraphQuery -Uri "https://api.powerbi.com/v2.0/myorg/gatewayclusters?`$expand=permissions&`$skip=0&`$top=5000" -resource "https://api.fabric.microsoft.com" -method "GET"
+        $gateways = New-GraphQuery -Uri "$($global:octo.powerbiUrl)/v2.0/myorg/gatewayclusters?`$expand=permissions&`$skip=0&`$top=5000" -resource $global:octo.fabricUrl -method "GET"
         for($g = 0; $g -lt $gateways.count; $g++){
             Update-StatisticsObject -category "PowerBI" -subject "Securables"
             Write-Progress -Id 2 -PercentComplete $(Try{ ($g/$gateways.count)*100 } catch {0}) -Activity "Analyzing gateways..." -Status "$($g+1)/$($gateways.count) $($gateways[$g].id)"
@@ -120,7 +120,7 @@
     Write-Progress -Id 1 -PercentComplete 15 -Activity $activity -Status "Waiting for scan jobs to complete..."
     foreach($scanJob in $scanJobs){
         do{
-            $res = New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/workspaces/scanStatus/$($scanJob.id)" -Method GET -resource "https://api.fabric.microsoft.com"
+            $res = New-GraphQuery -Uri "$($global:octo.powerbiUrl)/v1.0/myorg/admin/workspaces/scanStatus/$($scanJob.id)" -Method GET -resource $global:octo.fabricUrl
             if($res.status -ne "Succeeded"){
                 Write-LogMessage -message "Scan job $($scanJob.id) status $($res.status), sleeping for 30 seconds..." -level 4
                 Start-Sleep -Seconds 30
@@ -132,7 +132,7 @@
     Write-Progress -Id 1 -PercentComplete 25 -Activity $activity -Status "Receiving scan job results..."
     $scanResults = @()
     foreach($scanJob in $scanJobs){
-        $scanResults += (New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/workspaces/scanResult/$($scanJob.id)" -Method GET -resource "https://api.fabric.microsoft.com").workspaces
+        $scanResults += (New-GraphQuery -Uri "$($global:octo.powerbiUrl)/v1.0/myorg/admin/workspaces/scanResult/$($scanJob.id)" -Method GET -resource $global:octo.fabricUrl).workspaces
     }
     
     Write-Progress -Id 1 -PercentComplete 45 -Activity $activity -Status "Processing PowerBI securables..."

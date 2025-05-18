@@ -116,6 +116,12 @@
             $global:octo.sharepointUrl = "sharepoint.com"
             $global:octo.outlookUrl = "outlook.office365.com"
             $global:octo.azureUrl = "https://management.azure.com"
+            $global:octo.fabricUrl = "https://api.fabric.microsoft.com"
+            $global:octo.powerbiUrl = "https://api.powerbi.com"
+            $global:octo.babUrl = "https://api.bap.microsoft.com"
+            $global:octo.flowUrl = "https://api.flow.microsoft.com"
+            $global:octo.pappsUrl = "https://api.powerapps.com"
+            $global:octo.ppResource = "https://service.powerapps.com"
         }
         'usgov' {
             $global:octo.idpUrl = "https://login.microsoftonline.us"
@@ -123,6 +129,12 @@
             $global:octo.sharepointUrl = "sharepoint.us"
             $global:octo.outlookUrl = "outlook.office365.us"
             $global:octo.azureUrl = "https://management.usgovcloudapi.net"
+            $global:octo.fabricUrl = "https://api.fabric.microsoft.us"
+            $global:octo.powerbiUrl = "https://api.powerbi.us"
+            $global:octo.babUrl = "https://gov.api.bap.microsoft.us"
+            $global:octo.flowUrl = "https://api.flow.microsoft.us"
+            $global:octo.pappsUrl = "https://api.powerapps.us"
+            $global:octo.ppResource = "https://gov.service.powerapps.us"
         }
         'usdod' {
             $global:octo.idpUrl = "https://login.microsoftonline.us"
@@ -130,6 +142,12 @@
             $global:octo.sharepointUrl = "sharepoint-mil.us"
             $global:octo.outlookUrl = "outlook-dod.office365.us"
             $global:octo.azureUrl = "https://management.usgovcloudapi.net" #not sure if this one is even remotely correct
+            $global:octo.fabricUrl = "https://api.fabric.microsoft.us"
+            $global:octo.powerbiUrl = "https://api.powerbi.us"
+            $global:octo.babUrl = "https://api.bap.appsplatform.us"
+            $global:octo.flowUrl = "https://api.flow.microsoft.us" #not sure if this one is even remotely correct
+            $global:octo.pappsUrl = "https://api.powerapps.us" #not sure if this one is even remotely correct
+            $global:octo.ppResource = "https://service.apps.appsplatform.us"
         }
         'china' {
             $global:octo.idpUrl = "https://login.chinacloudapi.cn"
@@ -137,6 +155,12 @@
             $global:octo.sharepointUrl = "sharepoint.cn"
             $global:octo.outlookUrl = "partner.outlook.cn"
             $global:octo.azureUrl = "https://management.chinacloudapi.cn"
+            $global:octo.fabricUrl = "https://api.fabric.microsoft.cn" #not sure if this one is even remotely correct
+            $global:octo.powerbiUrl = "https://api.powerbi.cn" #not sure if this one is even remotely correct
+            $global:octo.babUrl = "https://api.bap.partner.microsoftonline.cn"
+            $global:octo.flowUrl = "https://api.flow.microsoft.cn" #not sure if this one is even remotely correct
+            $global:octo.pappsUrl = "https://api.powerapps.cn" #not sure if this one is even remotely correct
+            $global:octo.ppResource = "https://service.powerapps.cn" #not sure if this one is even remotely correct
         }
     }
 }
