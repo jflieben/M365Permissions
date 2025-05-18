@@ -16,7 +16,9 @@
     Write-LogMessage -message "5. Teams and other Sharepoint permissions"
     Write-LogMessage -message "6. Entra device permissions"
     Write-LogMessage -message "7. Azure permissions"
-    Write-LogMessage -message "8. Power Platform permissions"
+    if($global:octo.userConfig.authMode -ne "Delegated"){ 
+        Write-LogMessage -message "8. Power Platform permissions"
+    }
 
     get-AllPBIPermissions -skipReportGeneration
     get-AllEntraPermissions -skipReportGeneration
@@ -24,6 +26,8 @@
     get-AllSpOPermissions -includeOnedriveSites -skipReportGeneration
     get-AllDevicePermissions -skipReportGeneration
     get-AllAzurePermissions -skipReportGeneration
-    get-PowerPlatformPermissions -skipReportGeneration
+    if($global:octo.userConfig.authMode -ne "Delegated"){ 
+        get-PowerPlatformPermissions -skipReportGeneration
+    }
     Write-Report
 }

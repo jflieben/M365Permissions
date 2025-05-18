@@ -22,7 +22,7 @@
         Write-Progress -Id 2 -PercentComplete 1 -Activity $activity -Status "Getting roledefinitions..."
     
         Write-LogMessage -level 4 -message "Getting role definitions and generating lookup hash..."
-        $roleDefinitions = New-GraphQuery -Uri '$($global:octo.azureUrl)/providers/Microsoft.Authorization/roleDefinitions?api-version=2022-04-01' -Method GET -resource "$($global:octo.azureUrl)/"
+        $roleDefinitions = New-GraphQuery -Uri "$($global:octo.azureUrl)/providers/Microsoft.Authorization/roleDefinitions?api-version=2022-04-01" -Method GET -resource "$($global:octo.azureUrl)/"
         $roleDefinitionsLookup = @{}
         foreach($roleDefinition in $roleDefinitions){
             $roleDefinitionsLookup.$($roleDefinition.name) = $roleDefinition

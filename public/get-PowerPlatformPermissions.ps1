@@ -8,15 +8,24 @@
         [Boolean]$isParallel=$False
     )
 
+    if($global:octo.userConfig.authMode -eq "Delegated"){
+        Write-Error "You can only scan Power Platform permissions when using ServicePrincipal or ManagedIdentity authentication mode" -ErrorAction Continue
+        return $Null
+    }
+
     $global:PowerPlatformPermissions = @{}
     New-StatisticsObject -category "PowerPlatform" -subject "Securables"
-
-    Update-StatisticsObject -category "PowerPlatform" -subject "Securables"
 
     $activity = "Scanning Power Platform"
     Write-Progress -Id 1 -Activity $activity -Status "Starting scan" -PercentComplete 0
     Write-LogMessage -message "Starting Power Platform scan with Environments..." -level 4
-    $environments = New-GraphQuery -Uri "$($global:octo.babUrl)/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments?api-version=2020-10-01&`$expand=properties" -Method GET -resource $global:octo.babUrl
+    try{
+        $environments = New-GraphQuery -Uri "$($global:octo.babUrl)/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments?api-version=2020-10-01&`$expand=properties" -Method GET -resource $global:octo.babUrl
+    }catch{
+        Write-Error "You have not (yet) configured the correct permissions for the Power Platform, aborting scan. See https://m365permissions.com/?page_id=51 for instructions!" -ErrorAction Continue
+        return $Null
+    }
+
     foreach($environment in $environments){
         Update-StatisticsObject -category "PowerPlatform" -subject "Securables"
         Write-LogMessage -message "Scanning environment $($environment.name)...." -level 4
