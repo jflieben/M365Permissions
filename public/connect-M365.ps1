@@ -92,6 +92,8 @@
         Write-LogMessage -message ">> get-AllEntraPermissions"    
 
         Write-LogMessage -message ">> get-AllPBIPermissions" 
+
+        Write-LogMessage -message ">> get-PowerPlatformPermissions" 
         
         Write-LogMessage -message ">> Get-ChangedPermissions"   
 

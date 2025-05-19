@@ -22,7 +22,7 @@
     try{
         $environments = New-GraphQuery -Uri "$($global:octo.babUrl)/providers/Microsoft.BusinessAppPlatform/scopes/admin/environments?api-version=2020-10-01&`$expand=properties" -Method GET -resource $global:octo.babUrl
     }catch{
-        Write-Error "You have not (yet) configured the correct permissions for the Power Platform, aborting scan. See https://m365permissions.com/?page_id=51 for instructions!" -ErrorAction Continue
+        Write-Error "You have not (yet) configured the correct permissions for the Power Platform, aborting scan. See https://www.lieben.nu/liebensraum/2025/05/scanning-the-power-platform/ for instructions!" -ErrorAction Continue
         return $Null
     }
 
