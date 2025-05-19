@@ -230,7 +230,13 @@ Function get-PnPObjectPermissions{
                 #grab top level info of the list first
                 get-PnPObjectPermissions -Object $List -siteUrl $siteUrl -Category $Category
 
-                (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $List;Property = @("Title", "HasUniqueRoleAssignments", "DefaultDisplayFormUrl"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
+                try{
+                    (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $List;Property = @("Title", "HasUniqueRoleAssignments", "DefaultDisplayFormUrl"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
+                }catch{
+                    (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $List;Property = @("Title", "HasUniqueRoleAssignments", "RootFolder"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
+                    $List.DefaultDisplayFormUrl = "Lists/$($List.RootFolder.Name)"
+                }
+
                 if($List.HasUniqueRoleAssignments -eq $False){
                     Write-LogMessage -level 5 -message "Skipping $($List.Title) List as it fully inherits permissions from parent"
                     continue
