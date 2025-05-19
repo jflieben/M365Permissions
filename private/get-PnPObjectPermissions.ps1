@@ -39,16 +39,16 @@ Function get-PnPObjectPermissions{
     }
 
     if($Object.ListGuid){
-        $itemData = New-GraphQuery -resource "https://www.sharepoint.com" -Uri "$($siteUrl)/_api/web/lists/getbyid('$($Object.ListGuid)')/items($($Object.ID))?`$expand=File,Folder,RoleAssignments/Member,RoleAssignments/RoleDefinitionBindings&`$select=FileSystemObjectType,Folder,File,Id,Title,RoleAssignments&`$format=json" -Method GET
+        $itemData = New-GraphQuery -resource "https://www.$($global:octo.sharepointUrl)" -Uri "$($siteUrl)/_api/web/lists/getbyid('$($Object.ListGuid)')/items($($Object.ID))?`$expand=File,Folder,RoleAssignments/Member,RoleAssignments/RoleDefinitionBindings&`$select=FileSystemObjectType,Folder,File,Id,Title,RoleAssignments&`$format=json" -Method GET
         If($itemData.FileSystemObjectType -eq 1){
             $obj.Title = $itemData.Folder.Name
-            $obj.Url = "$($siteUrl.Split(".com")[0]).com$($itemData.Folder.ServerRelativeUrl)"
+            $obj.Url = "$($siteUrl.Split($global:octo.sharepointUrl)[0])$($global:octo.sharepointUrl)$($itemData.Folder.ServerRelativeUrl)"
             $obj.Type = "Folder"
             $obj.id = $Object.ID
         }Else{
             If($Null -ne $itemData.File.Name){
                 $obj.Title = $itemData.File.Name
-                $obj.Url = "$($siteUrl.Split(".com")[0]).com$($itemData.File.ServerRelativeUrl)"
+                $obj.Url = "$($siteUrl.Split($global:octo.sharepointUrl)[0])$($global:octo.sharepointUrl)$($itemData.File.ServerRelativeUrl)"
                 $obj.Type = "File"
                 $obj.id = $Object.ID
             }else{
@@ -68,18 +68,56 @@ Function get-PnPObjectPermissions{
                 $obj.Type = "Site"
                 $obj.id = $Object.Id
                 Update-StatisticsObject -Category $Category -Subject $siteUrl
+                $graphSite = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/sites/$($Object.Url.Replace("https://",'').Replace($global:octo.sharepointUrl,"$($global:octo.sharepointUrl):"))" -Method GET
+                $graphSiteLevelPermissions = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/sites/$($graphSite.id)/permissions" -Method GET
+                foreach($graphSiteLevelPermission in $graphSiteLevelPermissions){
+                    if($graphSiteLevelPermission.id){
+                        #grab the associated role
+                        $permissionInfo = $Null; $permissionInfo = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/sites/$($graphSite.id)/permissions/$($graphSiteLevelPermission.id)" -Method GET
+                        if($permissionInfo){
+                            foreach($identity in $permissionInfo.grantedToIdentitiesV2.application){
+                                #we need the actual SPN to determine if it is internal or external and get the objectId, which the spo api does not return
+                                $spn = $Null; $spn = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals(appId='$($identity.id)')" -Method GET
+                                if(!$spn){
+                                    Write-LogMessage -level 5 -message "Failed to get service principal for $($identity.id) because $_" -ErrorAction Continue
+                                    continue
+                                }
+                                if($spn.appOwnerOrganizationId -ne $global:octo.tenantId){
+                                    $principalType = "External Service Principal"
+                                }else{
+                                    $principalType = "Internal Service Principal"
+                                }
+                                foreach($role in $permissionInfo.roles){
+                                    $splat = @{
+                                        targetPath = $obj.Url
+                                        Permission = [PSCustomObject]@{
+                                            targetType = "Site"
+                                            targetId = $obj.id.Guid
+                                            principalEntraId = $spn.id
+                                            principalSysId = $identity.id
+                                            principalSysName = $identity.displayName
+                                            principalType = $principalType
+                                            principalRole = $role
+                                        }
+                                    }
+                                    New-SpOPermissionEntry @splat
+                                }
+                            }
+                        }
+                    }
+                }
                 $Null = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object;Property =@("HasUniqueRoleAssignments", "RoleAssignments");Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
-                if($Object.HasUniqueRoleAssignments -eq $False){
+                if($Object.HasUniqueRoleAssignments -eq $False -and $graphSiteLevelPermissions.Count -eq 0){
                     Write-LogMessage -level 5 -message "Skipping $($obj.Title) as it fully inherits permissions from parent"
                     continue
                 }else{
-                    $ACLs = New-GraphQuery -resource "https://www.sharepoint.com" -Uri "$($Object.Url)/_api/web/roleAssignments?`$expand=Member,RoleDefinitionBindings&`$top=5000&`$format=json" -Method GET -expectedTotalResults $Object.RoleAssignments.Count
+                    $ACLs = New-GraphQuery -resource "https://www.$($global:octo.sharepointUrl)" -Uri "$($Object.Url)/_api/web/roleAssignments?`$expand=Member,RoleDefinitionBindings&`$top=5000&`$format=json" -Method GET -expectedTotalResults $Object.RoleAssignments.Count
                 }
             }
             Default{ 
                 $rootFolder = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object;Property ="RootFolder"; Connection =(Get-SpOConnection -Type User -Url $siteUrl)})
                 $obj.Title = $Object.Title
-                $obj.Url = "$($siteUrl.Split(".com")[0]).com$($rootFolder.ServerRelativeUrl)"
+                $obj.Url = "$($siteUrl.Split($global:octo.sharepointUrl)[0])$($global:octo.sharepointUrl)$($rootFolder.ServerRelativeUrl)"
                 $obj.Type = "List or Library"
                 $obj.id = $Object.Id
                 Update-StatisticsObject -Category $Category -Subject $siteUrl
@@ -88,7 +126,7 @@ Function get-PnPObjectPermissions{
                     Write-LogMessage -level 5 -message "Skipping $($obj.Title) as it fully inherits permissions from parent"
                     continue
                 }else{            
-                    $ACLs = New-GraphQuery -resource "https://www.sharepoint.com" -Uri "$($siteUrl)/_api/web/lists/getbyid('$($Object.Id)')/roleassignments?`$expand=Member,RoleDefinitionBindings&`$top=5000&`$format=json" -Method GET -expectedTotalResults $Object.RoleAssignments.Count
+                    $ACLs = New-GraphQuery -resource "https://www.$($global:octo.sharepointUrl)" -Uri "$($siteUrl)/_api/web/lists/getbyid('$($Object.Id)')/roleassignments?`$expand=Member,RoleDefinitionBindings&`$top=5000&`$format=json" -Method GET -expectedTotalResults $Object.RoleAssignments.Count
                 }
             }
         }   
@@ -155,19 +193,7 @@ Function get-PnPObjectPermissions{
 
     #retrieve permissions for any (if present) child objects and recursively call this function for each
     If(!$Object.ListGuid -and $Object.TypedObject.ToString() -eq "Microsoft.SharePoint.Client.Web"){
-        Write-Progress -Id 2 -PercentComplete 0 -Activity $($siteUrl.Split("/")[4]) -Status "Getting child objects..."
-        $Null = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object; Property = "Webs"; Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
-        $childObjects = $Null; $childObjects = $Object.Webs
-        foreach($childObject in $childObjects){
-            #check if permissions are unique
-            $Null = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject= $childObject;Property = "HasUniqueRoleAssignments"; Connection= (Get-SpOConnection -Type User -Url $siteUrl)})
-            if($childObject.HasUniqueRoleAssignments -eq $False){
-                Write-LogMessage -level 5 -message "Skipping $($childObject.Title) child web as it fully inherits permissions from parent"
-                continue
-            }                
-            Write-LogMessage -level 5 -message "Enumerating permissions for sub web $($childObject.Title)..."
-            get-PnPObjectPermissions -Object $childObject -Category $Category
-        }
+        Write-Progress -Id 2 -PercentComplete 0 -Activity $($siteUrl.Split("/")[4]) -Status "Getting child lists..."
         $childObjects = $Null; $childObjects = (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $Object; Property = "Lists"; Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
         $ExcludedListTitles = @("Access Requests","App Packages","appdata","appfiles","Apps in Testing","Cache Profiles","Composed Looks","Content and Structure Reports","Content type publishing error log","Converted Forms",
         "Device Channels","Form Templates","fpdatasources","Get started with Apps for Office and SharePoint","List Template Gallery", "Long Running Operation Status","Maintenance Log Library", "Images", "site collection images"
@@ -196,22 +222,31 @@ Function get-PnPObjectPermissions{
         ForEach($List in $childObjects){
             Update-StatisticsObject -Category $Category -Subject $siteUrl -Amount $List.ItemCount
             If($List.Hidden -eq $False -and $ExcludedListTitles -notcontains $List.Title -and $List.ItemCount -gt 0 -and $List.TemplateFeatureId -notin $ExcludedListFeatureIDs){
+                if($List.ItemCount -gt 250000){
+                    Throw "List $($List.Title) has too many items (250k+). Please use the MSSQL/.NET backed M365Permissions Cloud as it can handle unlimited items."
+                }
                 $counter++
                 Write-Progress -Id 2 -PercentComplete ($Counter / ($childObjects.Count) * 100) -Activity $($siteUrl.Split("/")[4]) -Status "'$($List.Title)': $($List.ItemCount) items (List $counter of $($childObjects.Count))"
                 #grab top level info of the list first
                 get-PnPObjectPermissions -Object $List -siteUrl $siteUrl -Category $Category
 
-                (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $List;Property = @("Title", "HasUniqueRoleAssignments", "DefaultDisplayFormUrl"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
+                try{
+                    (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $List;Property = @("Title", "HasUniqueRoleAssignments", "DefaultDisplayFormUrl"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
+                }catch{
+                    (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $List;Property = @("Title", "HasUniqueRoleAssignments", "RootFolder"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
+                    $List.DefaultDisplayFormUrl = "Lists/$($List.RootFolder.Name)"
+                }
+
                 if($List.HasUniqueRoleAssignments -eq $False){
                     Write-LogMessage -level 5 -message "Skipping $($List.Title) List as it fully inherits permissions from parent"
                     continue
                 }     
 
                 Write-LogMessage -level 5 -message "List contains $($List.ItemCount) items"
-                $allListItems = $Null; $allListItems = New-GraphQuery -resource "https://www.sharepoint.com" -Uri "$($Object.Url)/_api/web/lists/getbyid('$($List.Id.Guid)')/items?`$select=ID,HasUniqueRoleAssignments&`$top=5000&`$format=json" -Method GET -expectedTotalResults $List.ItemCount
+                $allListItems = $Null; $allListItems = New-GraphQuery -resource "https://www.$($global:octo.sharepointUrl)" -Uri "$($Object.Url)/_api/web/lists/getbyid('$($List.Id.Guid)')/items?`$select=ID,HasUniqueRoleAssignments&`$top=5000&`$format=json" -Method GET -expectedTotalResults $List.ItemCount
                 $allUniqueListItemIDs = $Null; $allUniqueListItemIDs = @($allListItems | Where-Object { $_.HasUniqueRoleAssignments -eq $True }) | select -ExpandProperty Id
-                if(($global:octo.userConfig.defaultTimeoutMinutes*20) -lt $allUniqueListItemIDs.Count){
-                    Write-Error "List $($List.Title) has too many ($($allUniqueListItemIDs.Count)) items with unique permissions, we probably can't process them inside the current default timeout of $($global:octo.userConfig.defaultTimeoutMinutes). Please set it to at least $($allUniqueListItemIDs.Count/20) using set-M365PermissionsConfig -defaultTimeoutMinutes XXX" -ErrorAction Continue
+                if($allUniqueListItemIDs.Count -gt 10000){
+                    Throw "List $($List.Title) has too many ($($allUniqueListItemIDs.Count)) items with unique permissions. Please use the MSSQL/.NET backed M365Permissions Cloud as it can handle unlimited items."
                 }
 
                 for($a=0;$a -lt $allUniqueListItemIDs.Count;$a++){

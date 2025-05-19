@@ -20,6 +20,8 @@ Get-AllExOPermissions -includeFolderLevelPermissions
 
 get-AllPBIPermissions
 
+Get-PowerPlatformPermissions
+
 Get-ChangedPermissions
 
 Set-M365PermissionsConfig -includeCurrentUser $True -maxThreads 1 -Verbose $True

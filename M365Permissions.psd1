@@ -3,7 +3,7 @@
     RootModule           = 'M365Permissions.psm1'
 
     # Version number of this module.
-    ModuleVersion        = "1.2.1"
+    ModuleVersion        = "1.2.2"
     
     # Supported PSEditions
     CompatiblePSEditions = @('Core')
@@ -41,7 +41,7 @@
     
     OTHER EXAMPLES: 
     
-    Get-SpOPermissions -siteUrl `"https://tenant.sharepoint.com/sites/site`"
+    Get-SpOPermissions -siteUrl `"https://tenant.www.sharepoint.com/sites/site`"
     
     Get-SpOPermissions -teamName `"INT-Finance Department`"
     
@@ -55,6 +55,8 @@
 
     get-AllPBIPermissions
 
+    Get-AllAzurePermissions
+
     Get-ChangedPermissions
 
     Please note that this module is provided AS-IS, no guarantees or warranties provided. Use at your own risk
@@ -62,12 +64,18 @@
     Free for non-commercial use, see https://www.lieben.nu/liebensraum/commercial-use/ for commercial use"
 
     # Minimum version of the Windows PowerShell engine required by this module
-    PowerShellVersion    = '7.2'
+    PowerShellVersion    = '7.4'
 
     # Modules that must be imported into the global environment prior to importing this module
     RequiredModules      = @(
-        'PnP.PowerShell',
-        'ImportExcel'
+        @{
+            ModuleName      = 'PnP.PowerShell'
+            ModuleVersion  = '3.1.0'
+        }     
+        @{
+            ModuleName      = 'ImportExcel'
+            ModuleVersion  = '7.8.1'
+        }             
     )
 
     # Variables to export from this module

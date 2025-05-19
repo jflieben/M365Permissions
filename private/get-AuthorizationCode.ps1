@@ -33,7 +33,7 @@ function get-AuthorizationCode{
         }
     }
 
-    $targetUrl = "https://login.microsoftonline.com/common/oauth2/authorize?client_id=$($clientId)&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A1985&response_mode=query&resource=https://graph.microsoft.com$($adminPrompt)"
+    $targetUrl = "$($global:octo.idpUrl)/common/oauth2/authorize?client_id=$($clientId)&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A1985&response_mode=query&resource=$($global:octo.graphUrl)$($adminPrompt)"
 
     try{
         Write-LogMessage -level 5 -message "Opening $targetUrl in your browser..."
@@ -60,10 +60,10 @@ function get-AuthorizationCode{
     $writer.Close();$reader.Close();$client.Close();$tcpListener.Stop()
 
     $irmSplat = @{
-        Uri    = "https://login.microsoftonline.com/organizations/oauth2/v2.0/token"
+        Uri    = "$($global:octo.idpUrl)/organizations/oauth2/v2.0/token"
         Method = 'Post'
         Body = @{
-            scope                 = "offline_access https://graph.microsoft.com/.default"
+            scope                 = "offline_access $($global:octo.graphUrl)/.default"
             code                  = $code
             client_id             = $clientId
             grant_type            = 'authorization_code'

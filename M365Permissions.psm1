@@ -13,13 +13,7 @@
     https://www.lieben.nu/liebensraum/m365permissions
 
     .ROADMAP
-    1.1.x Dynamically add entra (and SPO?) groups and users while scanning other resources
-    1.1.x check defender xdr options 
-    1.1.x Assess if Azure RM should be added or if a good open source tool already exists
-    1.1.x Assess SQL or PBI as data destinations
-    1.1.x How to handle spo group membership pivoting if we don't expand spo group membership           
-    1.1.x exo folder permission change results in update of LastModifiedTime attribute in 27/02/2025 15:07:10 format   
-    1.1.x auto cleanup app registrations etc after a run?
+    1.1.x check defender xdr options
     1.1.x support for Sharepoint AsApp authorizations    
 
 #>                        
@@ -28,6 +22,7 @@ $helperFunctions = @{
     private = @( Get-ChildItem -Path "$($PSScriptRoot)\private" -Filter '*.ps*1' -ErrorAction SilentlyContinue )
     public  = @( Get-ChildItem -Path "$($PSScriptRoot)\public" -Filter '*.ps*1' -ErrorAction SilentlyContinue )
 }
+
 ForEach ($helperFunction in (($helperFunctions.private + $helperFunctions.public) | Where-Object { $null -ne $_ })) {
     try {
         Switch -Regex ($helperFunction.Extension) {

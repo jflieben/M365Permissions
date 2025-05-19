@@ -19,7 +19,7 @@ function Get-Assertion{
             x5t = [System.Convert]::ToBase64String(($cert.GetCertHash()))
         }
         ClaimsPayload = @{
-            aud = "https://login.microsoftonline.com/$($global:octo.userConfig.LCTenantId)/oauth2/token"
+            aud = "$($global:octo.idpUrl)/$($global:octo.userConfig.LCTenantId)/oauth2/token"
             exp = [math]::Round(((New-TimeSpan -Start ((Get-Date "1970-01-01T00:00:00Z" ).ToUniversalTime()) -End (Get-Date).ToUniversalTime().AddMinutes(2)).TotalSeconds), 0)
             iss = $($global:octo.userConfig.LCClientId)
             jti = (New-Guid).Guid

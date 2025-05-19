@@ -33,7 +33,7 @@ function New-GraphQuery {
         [int]$MaxResults = -1,        
 
         [Parameter(Mandatory = $false)]
-        [String]$resource = "https://graph.microsoft.com",
+        [String]$resource = $global:octo.graphUrl,
 
         [Parameter(Mandatory = $false)]
         [Int]$expectedTotalResults = 0,
@@ -59,11 +59,11 @@ function New-GraphQuery {
         Write-Progress -Id 10 -Activity "Querying $resource API" -Status "Retrieving initial batch of $expectedTotalResults expected records" -PercentComplete 0
     }
 
-    if($resource -like "*sharepoint.com*"){
+    if($resource -like "*$($global:octo.sharepointUrl)*"){
         $headers['Accept'] = "application/json;odata=nometadata"
     }    
 
-    if($resource -like "*outlook.office365.com*"){
+    if($resource -like "*$($global:octo.outlookUrl)*"){
         $headers['Accept'] = "application/json;odata.metadata=minimal"
         $ContentType = "application/json;odata.metadata=minimal"
     } 
@@ -153,7 +153,7 @@ function New-GraphQuery {
                         Start-Sleep -Seconds (1 + (3 * $attempts))
                     }
                 }
-                if($resource -like "*sharepoint.com*" -and $Data.PSObject.TypeNames -notcontains "System.Management.Automation.PSCustomObject"){
+                if($resource -like "*$($global:octo.sharepointUrl)*" -and $Data.PSObject.TypeNames -notcontains "System.Management.Automation.PSCustomObject"){
                     $Data = $Data | ConvertFrom-Json -AsHashtable
                 }
 

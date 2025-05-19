@@ -14,9 +14,9 @@ function get-aadObject{
         }
     }else{
         if($id.IndexOf("@") -ne -1){
-            $aadObj = $Null; $aadObj = try{(new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$($id)?`$select=id,userPrincipalName,displayName")}catch{}
+            $aadObj = $Null; $aadObj = try{(new-GraphQuery -Method GET -Uri "$($global:octo.graphUrl)/v1.0/users/$($id)?`$select=id,userPrincipalName,displayName")}catch{}
         }else{
-            $aadObj = $Null; $aadObj = try{(new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/directoryObjects/$($id)?`$select=id,userPrincipalName,displayName")}catch{}
+            $aadObj = $Null; $aadObj = try{(new-GraphQuery -Method GET -Uri "$($global:octo.graphUrl)/v1.0/directoryObjects/$($id)?`$select=id,userPrincipalName,displayName")}catch{}
         }
         if($aadObj){
             $global:aadObjectCache.$id = $aadObj

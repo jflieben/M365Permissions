@@ -17,7 +17,7 @@
     Write-Progress -Id 1 -PercentComplete 0 -Activity $activity -Status "Getting CloudPCs" 
 
     try{
-        [Array]$allCloudPCs = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/deviceManagement/virtualEndpoint/cloudPCs' -Method GET
+        [Array]$allCloudPCs = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/deviceManagement/virtualEndpoint/cloudPCs" -Method GET
     }catch{
         Write-Error $_ -ErrorAction Continue
         $allCloudPCs = @()
@@ -60,7 +60,7 @@
 
     Write-LogMessage -message "Getting EntraID devices..." -level 4
     Write-Progress -Id 1 -PercentComplete 0 -Activity $activity -Status "Getting Entra devices..."
-    [Array]$allEntraDevices = New-GraphQuery -Uri 'https://graph.microsoft.com/v1.0/devices?$select=displayName,registeredOwners,systemLabels,id,createdDateTime&$expand=registeredOwners' -Method GET
+    [Array]$allEntraDevices = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/devices?`$select=displayName,registeredOwners,systemLabels,id,createdDateTime&`$expand=registeredOwners" -Method GET
     Write-LogMessage -message "Got $($allEntraDevices.count) EntraID devices"
     Write-Progress -Id 1 -PercentComplete 0 -Activity $activity -Status "Scanning $($allEntraDevices.count) Entra devices..."
 

@@ -32,9 +32,9 @@
     }
 
     if(!$appId){
-        $spn = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$Filter=displayName eq '$appName'" -Method GET -ComplexFilter
+        $spn = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals?`$Filter=displayName eq '$appName'" -Method GET -ComplexFilter
     }else{
-        $spn = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$filter=appId eq '$appId'" -Method GET -ComplexFilter
+        $spn = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals?`$filter=appId eq '$appId'" -Method GET -ComplexFilter
     }
 
     if(!$spn -and $appName){
@@ -43,16 +43,16 @@
             "displayName" = $appName
         }
         try {
-            $app = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/applications" -Body ($desiredState | ConvertTo-Json) -Method POST
+            $app = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/applications" -Body ($desiredState | ConvertTo-Json) -Method POST
             Write-LogMessage -message "$appName created, waiting 10 seconds..."
             Start-Sleep -s 10
-            $spn = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$Filter=appId eq '$($app.appId)'" -Method GET
+            $spn = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals?`$Filter=appId eq '$($app.appId)'" -Method GET
             if(!$spn){
                 $desiredState = @{
                     "appId" = $app.appId
                 }
                 try {
-                    $spn = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals" -Body ($desiredState | ConvertTo-Json) -Method POST
+                    $spn = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals" -Body ($desiredState | ConvertTo-Json) -Method POST
                     Write-LogMessage -message "SPN added to $($app.displayName), waiting 10 seconds..."
                     Start-Sleep -s 10
                 } catch {
@@ -65,7 +65,7 @@
     }
 
     Write-LogMessage -message "SPN $($spn.displayName) detected, checking permissions..."
-    $appRoles = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals/$($spn.id)/appRoleAssignments" -Method GET
+    $appRoles = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals/$($spn.id)/appRoleAssignments" -Method GET
 
     $requiredRoles = @(
         @{
@@ -111,7 +111,7 @@
         $existingPermission = $null; $existingPermission = $appRoles | Where-Object { $_.appRoleId -eq $role.id}
         if (!$existingPermission) {
             try {
-                $targetSpn = $null; $targetSpn = (New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals(appId='$($role.resource)')" -Method GET -NoRetry)
+                $targetSpn = $null; $targetSpn = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals(appId='$($role.resource)')" -Method GET -NoRetry)
             }catch { $targetSpn = $null }
 
             if (!$targetSpn) {
@@ -120,7 +120,7 @@
                     "appId" = $role.resource
                 }
                 try {
-                    $targetSpn = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals" -Body ($desiredState | ConvertTo-Json) -Method POST
+                    $targetSpn = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals" -Body ($desiredState | ConvertTo-Json) -Method POST
                     Write-LogMessage -message "SPN registered, waiting 10 seconds..."
                     Start-Sleep -s 10
                 } catch {
@@ -138,7 +138,7 @@
             }
             try {
                 Write-LogMessage -message "Adding approle $($role.id)..."
-                New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals/$($targetSpn.id)/appRoleAssignments" -Body ($body | ConvertTo-Json -Depth 15) -Method POST
+                New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals/$($targetSpn.id)/appRoleAssignments" -Body ($body | ConvertTo-Json -Depth 15) -Method POST
                 Write-LogMessage -message "Added approle $($role.id) :)"
             }catch {
                 Write-Error $_ -ErrorAction Continue
@@ -146,10 +146,10 @@
         }
     }
 
-    $gaRole = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/roleManagement/directory/roleDefinitions?`$filter=DisplayName eq 'Global Administrator'&`$select=rolePermissions" -Method GET
+    $gaRole = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/roleManagement/directory/roleDefinitions?`$filter=DisplayName eq 'Global Administrator'&`$select=rolePermissions" -Method GET
     if (!$gaRole) { Throw "Global admin role not found!" }
 
-    $userRoles = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/servicePrincipals/$($spn.Id)/transitiveMemberOf" -Method GET | Where-Object { $_.'@odata.type' -eq "#microsoft.graph.directoryRole" }
+    $userRoles = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals/$($spn.Id)/transitiveMemberOf" -Method GET | Where-Object { $_.'@odata.type' -eq "#microsoft.graph.directoryRole" }
     if (!$userRoles -or $userRoles.roleTemplateId -notcontains $gaRole.id) {
         Write-LogMessage -message "assigning GA role..."
         $desiredState = @{
@@ -158,7 +158,7 @@
             principalId      = $spn.Id
             directoryScopeId = "/"
         }
-        $null = New-GraphQuery -Uri "https://graph.microsoft.com/beta/roleManagement/directory/roleAssignments" -Body ($desiredState | ConvertTo-Json) -Method POST
+        $null = New-GraphQuery -Uri "$($global:octo.graphUrl)/beta/roleManagement/directory/roleAssignments" -Body ($desiredState | ConvertTo-Json) -Method POST
 
         Write-LogMessage -message "GA role assigned"
     }else {

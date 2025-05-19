@@ -13,7 +13,7 @@ function New-ExOQuery {
         $retryCount = 3,
         [Array]$nonRetryErrors = @()       
     )
-    $token = Get-AccessToken -Resource "https://outlook.office365.com"
+    $token = Get-AccessToken -Resource "https://$($global:octo.outlookUrl)"
     if ($cmdParams) {
         $Params = $cmdParams
     }else {
@@ -40,7 +40,7 @@ function New-ExOQuery {
         "Content-Type" = "application/json"
     }
 
-    $nextURL = "https://outlook.office365.com/adminapi/beta/$($global:octo.OnMicrosoft)/InvokeCommand"
+    $nextURL = "https://$($global:octo.outlookUrl)/adminapi/beta/$($global:octo.OnMicrosoft)/InvokeCommand"
 
     $ReturnedData = do {
         try {

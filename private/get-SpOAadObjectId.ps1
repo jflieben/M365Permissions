@@ -21,7 +21,7 @@ function get-SpOAadObjectId{
                 return $global:aadUserIdCache.$aadObjectId
             }
         }else{
-            $aadUserId = $Null; $aadUserId = try{(new-GraphQuery -Method GET -Uri "https://graph.microsoft.com/v1.0/users/$($aadObjectId.replace('#ext#',''))?`$select=id").id}catch{}
+            $aadUserId = $Null; $aadUserId = try{(new-GraphQuery -Method GET -Uri "$($global:octo.graphUrl)/v1.0/users/$($aadObjectId.replace('#ext#',''))?`$select=id").id}catch{}
             if($aadUserId){
                 $global:aadUserIdCache.$aadObjectId = $aadUserId
                 return $aadUserId

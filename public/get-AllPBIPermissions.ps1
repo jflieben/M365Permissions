@@ -17,7 +17,7 @@
     if($global:octo.userConfig.authMode -eq "Delegated"){
         $powerBIServicePlans = @("PBI_PREMIUM_EM1_ADDON","PBI_PREMIUM_EM2_ADDON","BI_AZURE_P_2_GOV","PBI_PREMIUM_P1_ADDON_GCC","PBI_PREMIUM_P1_ADDON","BI_AZURE_P3","BI_AZURE_P2","BI_AZURE_P1")
         $hasPowerBI = $False
-        $licenses = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/users/$($global:octo.currentUser.userPrincipalName)/licenseDetails" -Method GET
+        $licenses = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users/$($global:octo.currentUser.userPrincipalName)/licenseDetails" -Method GET
         if($licenses){
             foreach($servicePlan in $licenses.servicePlans.servicePlanName){
                 if($powerBIServicePlans -contains $servicePlan){
@@ -40,7 +40,7 @@
     $global:PBIPermissions = @{}
 
     try{
-        $workspaces = New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/groups?`$top=5000" -resource "https://api.fabric.microsoft.com" -method "GET" -maxAttempts 2
+        $workspaces = New-GraphQuery -Uri "$($global:octo.powerbiUrl)/v1.0/myorg/admin/groups?`$top=5000" -resource $global:octo.fabricUrl -method "GET" -maxAttempts 2
     }catch{
         if($_.Exception.Message -like "*401*"){
             Write-Error "You have not (yet) configured the correct permissions in PowerBI, aborting scan of PowerBI. See https://www.lieben.nu/liebensraum/2025/03/allowing-a-service-principal-to-scan-powerbi/ for instructions!" -ErrorAction Continue
@@ -52,8 +52,8 @@
 
     $workspaceParts = [math]::ceiling($workspaces.Count / 100)
 
-    if($workspaceParts -gt 500){
-        Throw "More than 50000 workspaces detected, this module does not support environments with > 50000 workspaces yet. Submit a feature request."
+    if($workspaceParts -gt 50){
+        Throw "More than 5000 workspaces detected, this module does not support environments with > 5000 workspaces. Please use the MSSQL/.NET backed M365Permissions Cloud"
     }
 
     Write-Progress -Id 1 -PercentComplete 5 -Activity $activity -Status "Submitting $workspaceParts scanjobs for $($workspaces.count) workspaces..."
@@ -65,12 +65,12 @@
             Write-LogMessage -message "Sleeping for 60 seconds to prevent throttling..." -level 4
             Start-Sleep -Seconds 60
         }
-        $scanJobs += New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/workspaces/getInfo?datasourceDetails=True&getArtifactUsers=True" -Method POST -Body $body -resource "https://api.fabric.microsoft.com"
+        $scanJobs += New-GraphQuery -Uri "$($global:octo.powerbiUrl)/v1.0/myorg/admin/workspaces/getInfo?datasourceDetails=True&getArtifactUsers=True" -Method POST -Body $body -resource $global:octo.fabricUrl
     }
 
     if($global:octo.userConfig.authMode -eq "Delegated"){
         Write-Progress -Id 1 -PercentComplete 10 -Activity $activity -Status "Retrieving gateways..."
-        $gateways = New-GraphQuery -Uri "https://api.powerbi.com/v2.0/myorg/gatewayclusters?`$expand=permissions&`$skip=0&`$top=5000" -resource "https://api.fabric.microsoft.com" -method "GET"
+        $gateways = New-GraphQuery -Uri "$($global:octo.powerbiUrl)/v2.0/myorg/gatewayclusters?`$expand=permissions&`$skip=0&`$top=5000" -resource $global:octo.fabricUrl -method "GET"
         for($g = 0; $g -lt $gateways.count; $g++){
             Update-StatisticsObject -category "PowerBI" -subject "Securables"
             Write-Progress -Id 2 -PercentComplete $(Try{ ($g/$gateways.count)*100 } catch {0}) -Activity "Analyzing gateways..." -Status "$($g+1)/$($gateways.count) $($gateways[$g].id)"
@@ -93,10 +93,10 @@
                 }else{
                     $userId = $Null; $userId = $user.id.Replace("app-","")
                     if($user.id.startsWith("app-")){
-                        $userMetaData = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/serviceprincipals(appId='$userId')" -Method GET
+                        $userMetaData = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/serviceprincipals(appId='$userId')" -Method GET
                     }else{
                         try{
-                            $userMetaData = New-GraphQuery -Uri "https://graph.microsoft.com/v1.0/users/$userId" -Method GET -maxAttempts 2
+                            $userMetaData = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users/$userId" -Method GET -maxAttempts 2
                         }catch{
                             Write-LogMessage -level 2 -message "Failed to retrieve user metadata for $($user.id), user was likely deleted, skipping..."
                             continue
@@ -120,7 +120,7 @@
     Write-Progress -Id 1 -PercentComplete 15 -Activity $activity -Status "Waiting for scan jobs to complete..."
     foreach($scanJob in $scanJobs){
         do{
-            $res = New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/workspaces/scanStatus/$($scanJob.id)" -Method GET -resource "https://api.fabric.microsoft.com"
+            $res = New-GraphQuery -Uri "$($global:octo.powerbiUrl)/v1.0/myorg/admin/workspaces/scanStatus/$($scanJob.id)" -Method GET -resource $global:octo.fabricUrl
             if($res.status -ne "Succeeded"){
                 Write-LogMessage -message "Scan job $($scanJob.id) status $($res.status), sleeping for 30 seconds..." -level 4
                 Start-Sleep -Seconds 30
@@ -132,7 +132,7 @@
     Write-Progress -Id 1 -PercentComplete 25 -Activity $activity -Status "Receiving scan job results..."
     $scanResults = @()
     foreach($scanJob in $scanJobs){
-        $scanResults += (New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/workspaces/scanResult/$($scanJob.id)" -Method GET -resource "https://api.fabric.microsoft.com").workspaces
+        $scanResults += (New-GraphQuery -Uri "$($global:octo.powerbiUrl)/v1.0/myorg/admin/workspaces/scanResult/$($scanJob.id)" -Method GET -resource $global:octo.fabricUrl).workspaces
     }
     
     Write-Progress -Id 1 -PercentComplete 45 -Activity $activity -Status "Processing PowerBI securables..."
