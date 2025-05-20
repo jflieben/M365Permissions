@@ -15,24 +15,74 @@
     New-StatisticsObject -category "GroupsAndMembers" -subject "Entities"
     Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Entra ID" -Status "Getting users and groups" 
 
-    $userCount = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users/`$count" -Method GET -ComplexFilter -nopagination)
-    Write-LogMessage -message "Retrieving metadata for $userCount users..."
+    # Get user count with proper error handling
+    try {
+        $userCount = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users/`$count" -Method GET -ComplexFilter -nopagination)
+        Write-LogMessage -message "Retrieving metadata for $userCount users..." -level 4
+    }
+    catch {
+        Write-LogMessage -message "Failed to retrieve user count: $_" -level 2
+        $userCount = 0
+    }
+    
     Write-Progress -Id 1 -PercentComplete 1 -Activity "Scanning Entra ID" -Status "Getting users and groups" 
 
-    $allUsers = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users?`$select=id,userPrincipalName,displayName" -Method GET
-    Write-LogMessage -message "Got metadata for $userCount users"
-
-    $activity = "Entra ID users"
-    for ($i = 0; $i -lt $allUsers.Count; $i += 100) {
-        New-ScanJob -Title $activity -Target "users_$($i)_$($userCount)" -FunctionToRun "get-EntraUsersAndGroupsBatch" -FunctionArguments @{
-            "entraUsers" = ($allUsers[$i..([math]::Min($i + 99, $allUsers.Count - 1))])
-        }        
+    # Get users with proper error handling
+    try {
+        $allUsers = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users?`$select=id,userPrincipalName,displayName" -Method GET
+        Write-LogMessage -message "Got metadata for $($allUsers.Count) users" -level 4
+        
+        # Verify we have users
+        if ($null -eq $allUsers -or $allUsers.Count -eq 0) {
+            Write-LogMessage -message "No users retrieved from Graph API" -level 2
+            $allUsers = @()
+        }
+    }
+    catch {
+        Write-LogMessage -message "Failed to retrieve users: $_" -level 2
+        $allUsers = @()
     }
 
+    $activity = "Entra ID users"
+    $jobsCreated = 0
+    
+    # More robust chunking with verification
+    for ($i = 0; $i -lt $allUsers.Count; $i += 100) {
+        $endIndex = [math]::Min($i + 99, $allUsers.Count - 1)
+        
+        # Only proceed if we have a valid range
+        if ($i -le $endIndex) {
+            $userBatch = $allUsers[$i..$endIndex]
+            
+            # Verify the batch contains users
+            if ($null -ne $userBatch -and $userBatch.Count -gt 0) {
+                Write-LogMessage -message "Creating scan job for users $i to $endIndex" -level 5
+                
+                New-ScanJob -Title $activity -Target "users_$($i)_$($userCount)" -FunctionToRun "get-EntraUsersAndGroupsBatch" -FunctionArguments @{
+                    "entraUsers" = $userBatch
+                }
+                $jobsCreated++
+            }
+            else {
+                Write-LogMessage -message "Skipping empty batch for users $i to $endIndex" -level 2
+            }
+        }
+    }
+    
+    Write-LogMessage -message "Created $jobsCreated scan jobs for processing users" -level 4
+
+    # Continue with the rest of your function...
     Update-StatisticsObject -category "GroupsAndMembers" -subject "Entities" -Amount $allUsers.Count
     Stop-StatisticsObject -category "GroupsAndMembers" -subject "Entities"
 
-    Start-ScanJobs -Title $activity
+    # Only start jobs if we created any
+    if ($jobsCreated -gt 0) {
+        Start-ScanJobs -Title $activity
+    }
+    else {
+        Write-LogMessage -message "No scan jobs were created - skipping job execution" -level 2
+    }
+    
     Remove-Variable -name allUsers -Force -Confirm:$False
 
     [System.GC]::GetTotalMemory($true) | out-null
