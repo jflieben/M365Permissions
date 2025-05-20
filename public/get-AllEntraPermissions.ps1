@@ -15,7 +15,7 @@
     New-StatisticsObject -category "GroupsAndMembers" -subject "Entities"
     Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Entra ID" -Status "Getting users and groups" 
 
-    $userCount = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users?`$top=1" -Method GET -ComplexFilter -nopagination)."@odata.count"
+    $userCount = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users/`$count" -Method GET -ComplexFilter -nopagination)
     Write-LogMessage -message "Retrieving metadata for $userCount users..."
     Write-Progress -Id 1 -PercentComplete 1 -Activity "Scanning Entra ID" -Status "Getting users and groups" 
 
