@@ -71,7 +71,6 @@
     
     Write-LogMessage -message "Created $jobsCreated scan jobs for processing users" -level 4
 
-    # Continue with the rest of your function...
     Update-StatisticsObject -category "GroupsAndMembers" -subject "Entities" -Amount $allUsers.Count
     Stop-StatisticsObject -category "GroupsAndMembers" -subject "Entities"
 
