@@ -1,4 +1,4 @@
-﻿Function get-AllEntraPermissions{
+﻿Function get-AllEntraPermissions {
     <#
         Author               = "Jos Lieben (jos@lieben.nu)"
         CompanyName          = "Lieben Consultancy"
@@ -45,63 +45,79 @@
 
     $activity = "Entra ID users"
     $jobsCreated = 0
+    Write-Progress -Id 1 -PercentComplete 2 -Activity "Scanning Entra ID" -Status "Creating scan jobs for users"
     
-    # More robust chunking with verification
+    # Create scan jobs in batches of 100 users
     for ($i = 0; $i -lt $allUsers.Count; $i += 100) {
         $endIndex = [math]::Min($i + 99, $allUsers.Count - 1)
+        $userBatch = $allUsers[$i..$endIndex]
         
-        # Only proceed if we have a valid range
-        if ($i -le $endIndex) {
-            $userBatch = $allUsers[$i..$endIndex]
-            
-            # Verify the batch contains users
-            if ($null -ne $userBatch -and $userBatch.Count -gt 0) {
-                Write-LogMessage -message "Creating scan job for users $i to $endIndex" -level 5
-                
-                New-ScanJob -Title $activity -Target "users_$($i)_$($userCount)" -FunctionToRun "get-EntraUsersAndGroupsBatch" -FunctionArguments @{
-                    "entraUsers" = $userBatch
-                }
-                $jobsCreated++
-            }
-            else {
-                Write-LogMessage -message "Skipping empty batch for users $i to $endIndex" -level 2
-            }
+        # Validate batch before creating job
+        if ($null -eq $userBatch -or $userBatch.Count -eq 0) {
+            Write-LogMessage -message "Empty user batch for range $i to $endIndex, skipping" -level 2
+            continue
         }
+    
+        # Add memory optimization - after processing each 1000 users otherwise memory usage can grow significantly
+        # This is especially important for large tenants with many users
+        if ($i % 1000 -eq 0 -and $i -gt 0) {
+            [System.GC]::Collect()
+            Write-LogMessage -message "Forced garbage collection after processing $i users" -level 4
+        }
+    
+        # Log batch size for debugging
+        Write-LogMessage -message "Creating scan job for users $i to $endIndex (Users: $($userBatch.Count))" -level 4
+        
+        # Debug output the first few users to verify data
+        $idSample = $userBatch | Select-Object -First 3 | ForEach-Object { "$($_.id)" } | Join-String -Separator ", "
+        Write-LogMessage -level 4 -message "Processing users from $i to $endIndex with IDs: $idSample"
+        New-ScanJob -Title $activity -Target "users_$($i)_$($endIndex)" -FunctionToRun "get-EntraUsersAndGroupsBatch" -FunctionArguments @{
+            # Convert complex user objects to simple hashtables that can serialize properly
+            # Only include users with valid properties
+            "entraUsers" = ($userBatch | ForEach-Object {
+                    @{
+                        id                = $_.id
+                        userPrincipalName = $_.userPrincipalName
+                        displayName       = $_.displayName
+                    }
+                })
+            "isTopLevel" = $true
+        }
+        $jobsCreated++
     }
     
     Write-LogMessage -message "Created $jobsCreated scan jobs for processing users" -level 4
-
+    
+    # Update statistics before starting jobs
     Update-StatisticsObject -category "GroupsAndMembers" -subject "Entities" -Amount $allUsers.Count
     Stop-StatisticsObject -category "GroupsAndMembers" -subject "Entities"
-
-    # Only start jobs if we created any
+    
     if ($jobsCreated -gt 0) {
         Start-ScanJobs -Title $activity
     }
     else {
         Write-LogMessage -message "No scan jobs were created - skipping job execution" -level 2
     }
-    
+    # Cleanup before continuing to role scanning
     Remove-Variable -name allUsers -Force -Confirm:$False
-
     [System.GC]::GetTotalMemory($true) | out-null
-
+    
     $global:EntraPermissions = @{}
-    New-StatisticsObject -category "Entra" -subject "Roles"  
+    New-StatisticsObject -category "Entra" -subject "Roles"
 
     $partners = New-GraphQuery -Uri "$($global:octo.graphUrl)/beta/directory/partners" -Method GET
-    foreach($partner in $partners){
+    foreach ($partner in $partners) {
         Update-StatisticsObject -category "Entra" -subject "Roles"
         $permissionSplat = @{
-            targetPath = "/"
-            targetType = "tenant"
-            principalEntraId = $partner.partnerTenantId
+            targetPath        = "/"
+            targetType        = "tenant"
+            principalEntraId  = $partner.partnerTenantId
             principalEntraUpn = $partner.companyName
-            principalSysName = $partner.supportUrl
-            principalType = $partner.companyType
-            principalRole = $partner.contractType
-            through = "Direct"
-            tenure = "Permanent"                    
+            principalSysName  = $partner.supportUrl
+            principalType     = $partner.companyType
+            principalRole     = $partner.contractType
+            through           = "Direct"
+            tenure            = "Permanent"                    
         }            
         New-EntraPermissionEntry @permissionSplat
     }
@@ -110,49 +126,78 @@
 
     #get role definitions
     $roleDefinitions = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/directoryRoleTemplates" -Method GET
-
-
+    
     Write-Progress -Id 1 -PercentComplete 35 -Activity "Scanning Entra ID" -Status "Retrieving flexible (PIM) assigments"
 
     #get eligible role assignments
-    try{
-        $roleEligibilities = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/roleManagement/directory/roleEligibilityScheduleInstances" -Method GET -NoRetry | Where-Object {$_})
-        $roleActivations = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/roleManagement/directory/roleAssignmentScheduleInstances" -Method GET | Where-Object {$_.assignmentType -eq "Activated"})
-    }catch{
+    try {
+        $roleEligibilities = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/roleManagement/directory/roleEligibilityScheduleInstances" -Method GET -NoRetry | Where-Object { $_ })
+        $roleActivations = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/roleManagement/directory/roleAssignmentScheduleInstances?`$filter=assignmentType eq 'Activated'" -Method GET)
+    }
+    catch {
         Write-LogMessage -level 2 -message "Failed to retrieve flexible assignments, this is fine if you don't use PIM and/or don't have P2 licensing."
         $roleEligibilities = @()
     }
 
-    Write-Progress -Id 1 -PercentComplete 45 -Activity "Scanning Entra ID" -Status "Processing flexible (PIM) assigments"
-
+    Write-Progress -Id 1 -PercentComplete 45 -Activity "Scanning Entra ID" -Status "Processing flexible (PIM) assignments"
+    
     $count = 0
-    foreach($roleEligibility in $roleEligibilities){
-        $count++
-        Write-Progress -Id 2 -PercentComplete $(try{$count / $roleEligibilities.Count *100}catch{1}) -Activity "Processing flexible (PIM) assignments" -Status "[$count / $($roleEligibilities.Count)]"
-        $roleDefinition = $roleDefinitions | Where-Object { $_.id -eq $roleEligibility.roleDefinitionId }
-        try{
-            $principal = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/directoryObjects/$($roleEligibility.principalId)" -Method GET
-        }catch{
-            Write-LogMessage -level 2 -message "Failed to resolve principal $($roleEligibility.principalId) to a directory object, was it deleted?" 
-            $principal = $Null
-            continue  
+    # Process all role eligibilities using the new batch functionality
+    $batchResults = New-GraphQuery -Method GET -Uri "$($global:octo.graphUrl)" -UseBatchApi `
+        -BatchItems $roleEligibilities `
+        -BatchSize 20 `
+        -BatchActivity "Processing flexible (PIM) assignments" `
+        -BatchUrlGenerator {
+        param($item)
+        return "/directoryObjects/$($item.principalId)"
+    } `
+        -BatchIdGenerator {
+        param($index)
+        return "principal_$index"
+    } `
+        -ProgressId 2
+    
+    # Process the batch results
+    foreach ($batchResponse in $batchResults) {
+        foreach ($response in $batchResponse.responses) {
+            $count++
+            
+            # Extract index from response ID
+            $index = [int]($response.id -replace 'principal_', '')
+            
+            # Find corresponding eligibility in the current batch
+            $batchStartIndex = $batchResults.IndexOf($batchResponse) * 20
+            $roleEligibility = $roleEligibilities[$batchStartIndex + $index]
+            
+            # Find role definition
+            $roleDefinition = $roleDefinitions | Where-Object { $_.id -eq $roleEligibility.roleDefinitionId }
+            
+            # Check if principal was found
+            if ($response.status -ne 200) {
+                Write-LogMessage -level 2 -message "Failed to resolve principal $($roleEligibility.principalId) to a directory object, was it deleted?"
+                continue
+            }
+            
+            $principal = $response.body
+            
+            Update-StatisticsObject -category "Entra" -subject "Roles"
+            $permissionSplat = @{
+                targetPath        = $roleEligibility.directoryScopeId.ToString()
+                principalEntraId  = $principal.id
+                principalEntraUpn = $principal.userPrincipalName
+                principalSysName  = $principal.displayName
+                principalType     = $principal."@odata.type"
+                principalRole     = $roleDefinition.displayName
+                tenure            = "Eligible"    
+                startDateTime     = $roleEligibility.startDateTime
+                endDateTime       = $roleEligibility.endDateTime                 
+            }            
+            New-EntraPermissionEntry @permissionSplat
         }
-        
-        Update-StatisticsObject -category "Entra" -subject "Roles"
-        $permissionSplat = @{
-            targetPath = $roleEligibility.directoryScopeId
-            principalEntraId = $principal.id
-            principalEntraUpn = $principal.userPrincipalName
-            principalSysName = $principal.displayName
-            principalType = $principal."@odata.type"
-            principalRole = $roleDefinition.displayName
-            tenure = "Eligible"    
-            startDateTime = $roleEligibility.startDateTime
-            endDateTime = $roleEligibility.endDateTime                 
-        }            
-        New-EntraPermissionEntry @permissionSplat
-        Write-Progress -Id 2 -Completed -Activity "Processing flexible (PIM) assignments"
     }
+    
+    Write-Progress -Id 2 -Completed -Activity "Processing flexible (PIM) assignments"
+
 
     Write-Progress -Id 1 -PercentComplete 10 -Activity "Scanning Entra ID" -Status "Retrieving fixed assigments"
 
@@ -161,21 +206,21 @@
 
     Write-Progress -Id 1 -PercentComplete 20 -Activity "Scanning Entra ID" -Status "Processing fixed assigments"
 
-    foreach($roleAssignment in $roleAssignments){
-        if($roleActivations -and $roleActivations.roleAssignmentOriginId -contains $roleAssignment.id){
+    foreach ($roleAssignment in $roleAssignments) {
+        if ($roleActivations -and $roleActivations.roleAssignmentOriginId -contains $roleAssignment.id) {
             Write-LogMessage -level 5 -message "Ignoring $($roleAssignment.id) because it is Eligible as well"
             continue
         }        
         $roleDefinition = $roleDefinitions | Where-Object { $_.id -eq $roleAssignment.roleDefinitionId }
         Update-StatisticsObject -category "Entra" -subject "Roles"
         $permissionSplat = @{
-            targetPath = $roleAssignment.directoryScopeId
-            principalEntraId = $roleAssignment.principal.id
+            targetPath        = $roleAssignment.directoryScopeId
+            principalEntraId  = $roleAssignment.principal.id
             principalEntraUpn = $roleAssignment.principal.userPrincipalName
-            principalSysName = $roleAssignment.principal.displayName
-            principalType = $roleAssignment.principal."@odata.type"
-            principalRole = $roleDefinition.displayName
-            tenure = "Permanent"                    
+            principalSysName  = $roleAssignment.principal.displayName
+            principalType     = $roleAssignment.principal."@odata.type"
+            principalRole     = $roleDefinition.displayName
+            tenure            = "Permanent"                    
         }            
         New-EntraPermissionEntry @permissionSplat
     }
@@ -187,32 +232,32 @@
     Write-Progress -Id 1 -PercentComplete 50 -Activity "Scanning Entra ID" -Status "Getting Service Principals"
     $servicePrincipals = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals?`$expand=appRoleAssignments" -Method GET
     
-    foreach($servicePrincipal in $servicePrincipals){
+    foreach ($servicePrincipal in $servicePrincipals) {
         Update-StatisticsObject -category "Entra" -subject "Roles"
         #skip disabled SPN's
-        if($servicePrincipal.accountEnabled -eq $false -or $servicePrincipal.appRoleAssignments.Count -eq 0){
+        if ($servicePrincipal.accountEnabled -eq $false -or $servicePrincipal.appRoleAssignments.Count -eq 0) {
             continue
         }
-        foreach($appRole in @($servicePrincipal.appRoleAssignments)){
+        foreach ($appRole in @($servicePrincipal.appRoleAssignments)) {
             #skip disabled roles
-            if($appRole.deletedDateTime){
+            if ($appRole.deletedDateTime) {
                 continue
             }
 
-            $appRoleMeta = $Null;$appRoleMeta = @($servicePrincipals.appRoles | Where-Object { $_.id -eq $appRole.appRoleId })[0]
-            if($False -eq $appRoleMeta.isEnabled){
+            $appRoleMeta = $Null; $appRoleMeta = @($servicePrincipals.appRoles | Where-Object { $_.id -eq $appRole.appRoleId })[0]
+            if ($False -eq $appRoleMeta.isEnabled) {
                 continue
             }
 
             $permissionSplat = @{
-                targetPath = "/$($appRole.resourceDisplayName)"
-                targetType = "API"
-                targetId = $appRole.resourceId
+                targetPath       = "/$($appRole.resourceDisplayName)"
+                targetType       = "API"
+                targetId         = $appRole.resourceId
                 principalEntraId = $servicePrincipal.id
                 principalSysName = $servicePrincipal.displayName
-                principalType = $servicePrincipal.servicePrincipalType
-                principalRole = $appRoleMeta.value
-                tenure = "Permanent"             
+                principalType    = $servicePrincipal.servicePrincipalType
+                principalRole    = $appRoleMeta.value
+                tenure           = "Permanent"             
             }   
             New-EntraPermissionEntry @permissionSplat
         }
@@ -222,24 +267,24 @@
 
     Stop-statisticsObject -category "Entra" -subject "Roles"
     
-    $permissionRows = foreach($row in $global:EntraPermissions.Keys){
-        foreach($permission in $global:EntraPermissions.$row){
+    $permissionRows = foreach ($row in $global:EntraPermissions.Keys) {
+        foreach ($permission in $global:EntraPermissions.$row) {
             [PSCustomObject]@{
-                "targetPath" = $row
-                "targetType" = $permission.targetType
-                "targetId" = $permission.targetId
+                "targetPath"       = $row
+                "targetType"       = $permission.targetType
+                "targetId"         = $permission.targetId
                 "principalEntraId" = $permission.principalEntraId
-                "principalSysId" = $permission.principalSysId
+                "principalSysId"   = $permission.principalSysId
                 "principalSysName" = $permission.principalSysName
-                "principalType" = $permission.principalType
-                "principalRole" = $permission.principalRole
-                "through" = $permission.through
-                "parentId" = $permission.parentId
-                "accessType" = $permission.accessType
-                "tenure" = $permission.tenure
-                "startDateTime" = $permission.startDateTime
-                "endDateTime" = $permission.endDateTime
-                "createdDateTime" = $permission.createdDateTime
+                "principalType"    = $permission.principalType
+                "principalRole"    = $permission.principalRole
+                "through"          = $permission.through
+                "parentId"         = $permission.parentId
+                "accessType"       = $permission.accessType
+                "tenure"           = $permission.tenure
+                "startDateTime"    = $permission.startDateTime
+                "endDateTime"      = $permission.endDateTime
+                "createdDateTime"  = $permission.createdDateTime
                 "modifiedDateTime" = $permission.modifiedDateTime
             }
         }
@@ -247,10 +292,11 @@
 
     Add-ToReportQueue -permissions $permissionRows -category "Entra"
     Remove-Variable -Name EntraPermissions -Scope Global -Force -Confirm:$False
-    if(!$skipReportGeneration){
+    if (!$skipReportGeneration) {
         Write-LogMessage -message "Generating report..." -level 4
         Write-Report
-    }else{
+    }
+    else {
         Reset-ReportQueue
     }
 

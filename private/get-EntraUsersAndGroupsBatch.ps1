@@ -6,122 +6,151 @@ function get-EntraUsersAndGroupsBatch {
         Parameters:
     #>        
     Param(
-        [parameter(Mandatory=$true)][object[]]$entraUsers
+        [parameter(Mandatory=$true)][object[]]$entraUsers,
+        [parameter(Mandatory=$false)][bool]$isTopLevel = $false
     )
 
-    if ($null -eq $entraUsers -or $entraUsers.Count -eq 0) {
-        Write-LogMessage -message "No users provided to get-EntraUsersAndGroupsBatch" -level 2
+    # Validate the entraUsers parameter is not null or empty
+    if ($null -eq $entraUsers) {
+        Write-LogMessage -message "Critical error: entraUsers parameter is null" -level 1
         return
     }
+    
+    if ($entraUsers.Count -eq 0) {
+        Write-LogMessage -message "Warning: entraUsers parameter is an empty array" -level 2
+        return
+    }
+    
+    # Add a debug log to see what data we're actually receiving
+    Write-LogMessage -message "Processing batch with $($entraUsers.Count) users. First user ID: $($entraUsers[0].id)" -level 4
+    
     $global:EntraPermissions = @{}
-
     [System.Collections.ArrayList]$entraUserRows = @()
     $count = 0
+
+    # Process owned objects using the advanced batch functionality
+    Write-LogMessage -message "Processing user owned objects in batch mode" -level 4
+    $ownedObjectsBatchResults = New-GraphQuery -Method GET -Uri "$($global:octo.graphUrl)" -UseBatchApi `
+        -BatchItems $entraUsers `
+        -BatchSize 20 `
+        -BatchActivity "Processing user owned objects" `
+        -BatchUrlGenerator {
+            param($user)
+            return "/users/$($user.id)/ownedObjects?`$select=id,displayName,groupTypes,mailEnabled,securityEnabled,membershipRule&`$top=999"
+        } `
+        -BatchIdGenerator {
+            param($index)
+            return "owned_$index"
+        } `
+        -ProgressId 2
     
-    # Take the 100 users sent to this function and split them into batches of 20 due to the Graph API batch limit
-    for ($i = 0; $i -lt $entraUsers.Count; $i += 20) {
-        $batchUsers = $entraUsers[$i..([Math]::Min($i + 19, $entraUsers.Count - 1))]
+    # Process memberships using the advanced batch functionality
+    Write-LogMessage -message "Processing user group memberships in batch mode" -level 4
+    $membershipsBatchResults = New-GraphQuery -Method GET -Uri "$($global:octo.graphUrl)" -UseBatchApi `
+        -BatchItems $entraUsers `
+        -BatchSize 20 `
+        -BatchActivity "Processing user group memberships" `
+        -BatchUrlGenerator {
+            param($user)
+            return "/users/$($user.id)/transitiveMemberOf/microsoft.graph.group?`$select=id,displayName,groupTypes,mailEnabled,securityEnabled,membershipRule&`$top=999"
+        } `
+        -BatchIdGenerator {
+            param($index)
+            return "member_$index"
+        } `
+        -ProgressId 3
+    
+    # Process the batch results
+    Write-LogMessage -message "Processing batch results" -level 4
+    for ($batchIndex = 0; $batchIndex -lt $ownedObjectsBatchResults.Count; $batchIndex++) {
+        $ownedBatch = $ownedObjectsBatchResults[$batchIndex]
+        $membershipBatch = $membershipsBatchResults[$batchIndex]
         
-        Write-Progress -Id 2 -PercentComplete $(($i / $entraUsers.Count) * 100) -Activity "Processing user batch" -Status "Processing users $i to $([Math]::Min($i + 19, $entraUsers.Count - 1))"
+        # Calculate the start index for this batch
+        $batchStartIndex = $batchIndex * 20
         
-        # Create batch requests for owned objects
-        $ownedObjectsRequests = @()
-        foreach ($j in 0..($batchUsers.Count - 1)) {
-            $ownedObjectsRequests += @{
-                id = "owned_$j"
-                method = "GET"
-                url = "/users/$($batchUsers[$j].id)/ownedObjects?`$select=id,displayName,groupTypes,mailEnabled,securityEnabled,membershipRule&`$top=999"
-            }
-        }
-        
-        # Create batch requests for transitive memberships
-        $membershipsRequests = @()
-        foreach ($j in 0..($batchUsers.Count - 1)) {
-            $membershipsRequests += @{
-                id = "member_$j"
-                method = "GET"
-                url = "/users/$($batchUsers[$j].id)/transitiveMemberOf/microsoft.graph.group?`$select=id,displayName,groupTypes,mailEnabled,securityEnabled,membershipRule&`$top=999"
-            }
-        }
-        
-        # Running batch request for Owned Objects
-        $ownedObjectsResponse = New-GraphQuery -Method POST -Uri "$($global:octo.graphbatchUrl)" -Body (@{"requests"=@($ownedObjectsRequests)} | ConvertTo-Json -Depth 10) -NoRetry
-        
-        # Running batch request for Memberships
-        $membershipsResponse = New-GraphQuery -Method POST -Uri "$($global:octo.graphbatchUrl)" -Body (@{"requests"=@($membershipsRequests)} | ConvertTo-Json -Depth 10) -NoRetry
-        
-        foreach ($j in 0..($batchUsers.Count - 1)) {
-            $entraUser = $batchUsers[$j]
+        # Process each user in the batch
+        for ($j = 0; $j -lt [Math]::Min(20, $entraUsers.Count - $batchStartIndex); $j++) {
+            $entraUser = $entraUsers[$batchStartIndex + $j]
             $count++
             
+            # Determine user type
             if($entraUser.userPrincipalName -like "*#EXT#@*") {
                 $principalType = "External User"
             } else {
                 $principalType = "Internal User"
             }
             
-            <#
-                The following code is used to extract the owned objects and memberships from the batch responses.
-                It checks if the response contains a value and assigns it to the respective variable.
-                If not, it initializes it as an empty array to avoid null reference errors and to ensure that previous loop data is not carried over.
-            #>
-            $ownedObjects = $ownedObjectsResponse.responses | Where-Object { $_.id -eq "owned_$j" } | Select-Object -ExpandProperty body
-            if ($ownedObjects.value) { $ownedObjects = $ownedObjects.value } else { $ownedObjects = @() }
-            
-            $memberships = $membershipsResponse.responses | Where-Object { $_.id -eq "member_$j" } | Select-Object -ExpandProperty body
-            if ($memberships.value) { $memberships = $memberships.value } else { $memberships = @() }
-            
-            foreach($membership in $memberships) {
-                $groupType = Get-EntraGroupType -group $membership
-                $entraUserRows.Add([PSCustomObject]@{
-                    "GroupName" = $membership.displayName
-                    "GroupType" = $groupType
-                    "GroupID" = $membership.id
-                    "MemberName" = $entraUser.displayName
-                    "MemberID" = $entraUser.id
-                    "MemberUPN" = $entraUser.userPrincipalName
-                    "MemberType" = $principalType
-                    "Role" = "Member"
-                }) > $Null
+            # Process owned objects for this user
+            $ownedResponse = $ownedBatch.responses | Where-Object { $_.id -eq "owned_$j" }
+            if ($ownedResponse -and $ownedResponse.status -eq 200) {
+                $ownedObjects = $ownedResponse.body.value
+                if ($null -eq $ownedObjects) { $ownedObjects = @() }
+                
+                foreach($ownedObject in $ownedObjects) {
+                    if($ownedObject."@odata.type" -eq "#microsoft.graph.group") {
+                        $groupType = Get-EntraGroupType -group $ownedObject
+                        $entraUserRows.Add([PSCustomObject]@{
+                            "GroupName" = $ownedObject.displayName
+                            "GroupType" = $groupType
+                            "GroupID" = $ownedObject.id
+                            "MemberName" = $entraUser.displayName
+                            "MemberID" = $entraUser.id
+                            "MemberUPN" = $entraUser.userPrincipalName
+                            "MemberType" = $principalType
+                            "Role" = "Owner"
+                        }) > $Null
+                    } else {
+                        $permissionsSplat = @{
+                            targetPath = "/$($ownedObject.displayName)"
+                            targetType = $ownedObject."@odata.type".Split(".")[2]
+                            targetId = $ownedObject.id
+                            principalEntraId = $entraUser.id
+                            principalSysName = $entraUser.displayName
+                            principalType = $principalType
+                            principalRole = "Owner"
+                            through = "Direct"
+                            parentId = ""
+                            accessType = "Allow"
+                            tenure = "Permanent"
+                            startDateTime = ""
+                            endDateTime = ""
+                        }
+                        New-EntraPermissionEntry @permissionsSplat
+                    }
+                }
+            }
+            else {
+                Write-LogMessage -level 2 -message "Failed to get owned objects for user $($entraUser.id), status: $($ownedResponse.status)"
             }
             
-            foreach($ownedObject in $ownedObjects) {
-                if($ownedObject."@odata.type" -eq "#microsoft.graph.group") {
-                    $groupType = Get-EntraGroupType -group $ownedObject
+            # Process memberships for this user
+            $membershipResponse = $membershipBatch.responses | Where-Object { $_.id -eq "member_$j" }
+            if ($membershipResponse -and $membershipResponse.status -eq 200) {
+                $memberships = $membershipResponse.body.value
+                if ($null -eq $memberships) { $memberships = @() }
+                
+                foreach($membership in $memberships) {
+                    $groupType = Get-EntraGroupType -group $membership
                     $entraUserRows.Add([PSCustomObject]@{
-                        "GroupName" = $ownedObject.displayName
+                        "GroupName" = $membership.displayName
                         "GroupType" = $groupType
-                        "GroupID" = $ownedObject.id
+                        "GroupID" = $membership.id
                         "MemberName" = $entraUser.displayName
                         "MemberID" = $entraUser.id
                         "MemberUPN" = $entraUser.userPrincipalName
                         "MemberType" = $principalType
-                        "Role" = "Owner"
+                        "Role" = "Member"
                     }) > $Null
-                } else {
-                    $permissionsSplat = @{
-                        targetPath = "/$($ownedObject.displayName)"
-                        targetType = $ownedObject."@odata.type".Split(".")[2]
-                        targetId = $ownedObject.id
-                        principalEntraId = $entraUser.id
-                        principalSysName = $entraUser.displayName
-                        principalType = $principalType
-                        principalRole = "Owner"
-                        through = "Direct"
-                        parentId = ""
-                        accessType = "Allow"
-                        tenure = "Permanent"
-                        startDateTime = ""
-                        endDateTime = ""
-                    }
-                    New-EntraPermissionEntry @permissionsSplat
                 }
+            }
+            else {
+                Write-LogMessage -level 2 -message "Failed to get memberships for user $($entraUser.id), status: $($membershipResponse.status)"
             }
         }
     }
-
-    Write-Progress -Id 2 -Completed
-
+    
+    Write-LogMessage -message "Processed $count users with batch processing" -level 4
     [System.GC]::GetTotalMemory($true) | out-null
 
     Add-ToReportQueue -permissions $entraUserRows -category "GroupsAndMembers"
