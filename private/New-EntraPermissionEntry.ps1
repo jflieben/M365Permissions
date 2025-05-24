@@ -73,11 +73,11 @@ Function New-EntraPermissionEntry{
     }
 
     Write-LogMessage -level 5 -message "Adding permission $($principalRole) scoped at $targetPath for $($principalEntraUpn) $($principalEntraId)"
-    if(!$global:EntraPermissions.$targetPath){
-        $global:EntraPermissions.$targetPath = @()
+    if(!$global:EntraPermissions[$targetPath]){
+        $global:EntraPermissions[$targetPath] = @()
     }
     
-    $global:EntraPermissions.$targetPath += [PSCustomObject]@{
+    $global:EntraPermissions[$targetPath] += [PSCustomObject]@{
         targetPath = $targetPath
         targetType = $targetType
         targetId = $targetId

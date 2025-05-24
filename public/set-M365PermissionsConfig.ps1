@@ -113,6 +113,7 @@
         'global' {
             $global:octo.idpUrl = "https://login.microsoftonline.com"
             $global:octo.graphUrl = "https://graph.microsoft.com"
+            $global:octo.graphbatchUrl = "https://graph.microsoft.com/v1.0/`$batch"
             $global:octo.sharepointUrl = "sharepoint.com"
             $global:octo.outlookUrl = "outlook.office365.com"
             $global:octo.azureUrl = "https://management.azure.com"
