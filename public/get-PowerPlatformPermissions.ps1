@@ -28,6 +28,10 @@
 
     foreach($environment in $environments){
         Update-StatisticsObject -category "PowerPlatform" -subject "Securables"
+        if($environment.properties.states.runtime.id -eq "Disabled"){
+            Write-LogMessage -message "Skipping $($environment.name) because it is disabled!" -level 3
+            continue
+        }        
         Write-LogMessage -message "Scanning environment $($environment.name)...." -level 4
         Write-Progress -Id 1 -Activity $activity -Status "Scanning environment $($environment.name)...." -PercentComplete 0
         $environmentId = $environment.name            
