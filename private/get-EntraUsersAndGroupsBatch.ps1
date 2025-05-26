@@ -30,35 +30,52 @@ function get-EntraUsersAndGroupsBatch {
 
     # Process owned objects using the advanced batch functionality
     Write-LogMessage -message "Processing user owned objects in batch mode" -level 4
-    $ownedObjectsBatchResults = New-GraphQuery -Method GET -Uri "$($global:octo.graphUrl)" -UseBatchApi `
-        -BatchItems $entraUsers `
-        -BatchSize 20 `
-        -BatchActivity "Processing user owned objects" `
-        -BatchUrlGenerator {
+
+    $batchOwnedObjectsSplat = @{
+        batchItems = $entraUsers
+        batchSize = 20
+        batchActivity = "Processing user owned objects"
+        batchUrlGenerator = {
             param($user)
             return "/users/$($user.id)/ownedObjects?`$select=id,displayName,groupTypes,mailEnabled,securityEnabled,membershipRule&`$top=999"
-        } `
-        -BatchIdGenerator {
+        }
+        batchIdGenerator = {
             param($index)
             return "owned_$index"
-        } `
-        -ProgressId 2
+        }
+        useBatchApi = $true
+        progressId = 2
+    }
+    $ownedObjectsBatchResults = new-GraphBatchQuery @batchOwnedObjectsSplat
+
+    if ($null -eq $ownedObjectsBatchResults) {
+        Write-LogMessage -message "Critical error: ownedObjectsBatchResults is null" -level 1
+        return
+    }
     
     # Process memberships using the advanced batch functionality
     Write-LogMessage -message "Processing user group memberships in batch mode" -level 4
-    $membershipsBatchResults = New-GraphQuery -Method GET -Uri "$($global:octo.graphUrl)" -UseBatchApi `
-        -BatchItems $entraUsers `
-        -BatchSize 20 `
-        -BatchActivity "Processing user group memberships" `
-        -BatchUrlGenerator {
+    $batchMembershipsSplat = @{
+        batchItems = $entraUsers
+        batchSize = 20
+        batchActivity = "Processing user group memberships"
+        batchUrlGenerator = {
             param($user)
             return "/users/$($user.id)/transitiveMemberOf/microsoft.graph.group?`$select=id,displayName,groupTypes,mailEnabled,securityEnabled,membershipRule&`$top=999"
-        } `
-        -BatchIdGenerator {
+        }
+        batchIdGenerator = {
             param($index)
             return "member_$index"
-        } `
-        -ProgressId 3
+        }
+        useBatchApi = $true
+        progressId = 3
+    }
+    $membershipsBatchResults = new-GraphBatchQuery @batchMembershipsSplat
+
+    if ($null -eq $membershipsBatchResults) {
+        Write-LogMessage -message "Critical error: membershipsBatchResults is null" -level 1
+        return
+    }
     
     # Process the batch results
     Write-LogMessage -message "Processing batch results" -level 4

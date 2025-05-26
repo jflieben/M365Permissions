@@ -7,7 +7,11 @@
         Parameters:
     #>        
     Param(
-        [Switch]$skipReportGeneration
+        [Switch]$skipReportGeneration,
+
+        [parameter(Mandatory=$false,DontShow=$true
+        )]
+        [bool]$testMode = $false
     )
 
     Write-LogMessage -message "Starting Entra scan..." -level 4
@@ -41,6 +45,13 @@
     catch {
         Write-LogMessage -message "Failed to retrieve users: $_" -level 2
         $allUsers = @()
+    }
+
+    if ($testMode) {
+        # For testing, we can limit the number of users processed
+        $allUsers = $allUsers[0..999]
+        $userCount = $allUsers.Count
+        Write-LogMessage -message "Test mode enabled, processing only first 1000 users" -level 5
     }
 
     $activity = "Entra ID users"
@@ -143,19 +154,23 @@
     
     $count = 0
     # Process all role eligibilities using the new batch functionality
-    $batchResults = New-GraphQuery -Method GET -Uri "$($global:octo.graphUrl)" -UseBatchApi `
-        -BatchItems $roleEligibilities `
-        -BatchSize 20 `
-        -BatchActivity "Processing flexible (PIM) assignments" `
-        -BatchUrlGenerator {
-        param($item)
-        return "/directoryObjects/$($item.principalId)"
-    } `
-        -BatchIdGenerator {
-        param($index)
-        return "principal_$index"
-    } `
-        -ProgressId 2
+    $batchSplat = @{
+        useBatchApi = $true
+        batchItems = $roleEligibilities
+        batchSize = 20
+        batchActivity = "Processing flexible (PIM) assignments"
+        batchUrlGenerator = {
+            param($item)
+            return "/directoryObjects/$($item.principalId)"
+        }
+        batchIdGenerator = {
+            param($index)
+            return "principal_$index"
+        }
+        progressId = 2
+    }
+    $batchResults = new-GraphBatchQuery @batchSplat
+    Write-LogMessage -message "Processing flexible (PIM) assignments in batches of 20" -level 4
     
     # Process the batch results
     foreach ($batchResponse in $batchResults) {
@@ -182,7 +197,7 @@
             
             Update-StatisticsObject -category "Entra" -subject "Roles"
             $permissionSplat = @{
-                targetPath        = $roleEligibility.directoryScopeId.ToString()
+                targetPath        = if ($null -eq $roleEligibility.directoryScopeId) { "/" } else { $roleEligibility.directoryScopeId.ToString() }
                 principalEntraId  = $principal.id
                 principalEntraUpn = $principal.userPrincipalName
                 principalSysName  = $principal.displayName
