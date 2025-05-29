@@ -73,12 +73,15 @@
 
     if($currentRunVersion -and $previousRunVersion){
         if($currentRunVersion -ne $previousRunVersion){
-            Write-LogMessage -Level 4 -message "Detected version change from $($previousRunVersion) to $($currentRunVersion), applying transitional exclusions"
+            Write-LogMessage -Level 4 -message "Detected version change from $($previousRunVersion) to $($currentRunVersion), checking transitional exclusions"
             $versionChangeExclusions = $versionChangeTransitionalExclusions.$currentRunVersion
             if($versionChangeExclusions){
                 foreach($key in $versionChangeExclusions.Keys){
+                    Write-LogMessage -Level 4 -message "Applying transitional exclusions for $($key): $($versionChangeExclusions.$key -join ', ')"
                     $excludeProps.$key += $versionChangeExclusions.$key
                 }
+            }else{
+                Write-LogMessage -Level 4 -message "No transitional exclusions found for $($previousRunVersion) to $($currentRunVersion)"
             }
         }
     }
