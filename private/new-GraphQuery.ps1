@@ -118,7 +118,7 @@ function New-GraphQuery {
                             }
                         }catch {}
                     }
-                    if($delay -ge 0){
+                    if($delay -le 0){
                         $delay = [math]::Pow(5, $attempts)
                     }
                     Start-Sleep -Seconds (1 + $delay)
@@ -170,7 +170,7 @@ function New-GraphQuery {
                                 }
                             }catch {}
                         }
-                        if($delay -ge 0){
+                        if($delay -le 0){
                             $delay = [math]::Pow(5, $attempts)
                         }
                         Start-Sleep -Seconds (1 + $delay)
