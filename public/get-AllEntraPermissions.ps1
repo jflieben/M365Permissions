@@ -7,7 +7,9 @@
         Parameters:
     #>        
     Param(
-        [Switch]$skipReportGeneration
+        [Switch]$skipReportGeneration,
+        [parameter(Mandatory=$false,DontShow=$true)]
+        [bool]$testMode = $false
     )
 
     Write-LogMessage -message "Starting Entra scan..." -level 4
@@ -15,12 +17,37 @@
     New-StatisticsObject -category "GroupsAndMembers" -subject "Entities"
     Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Entra ID" -Status "Getting users and groups" 
 
-    $userCount = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users?`$top=1" -Method GET -ComplexFilter -nopagination)."@odata.count"
-    Write-LogMessage -message "Retrieving metadata for $userCount users..."
+    try {
+        $userCount = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users/`$count" -Method GET -ComplexFilter)
+        Write-LogMessage -message "Retrieving metadata for $userCount users..." -level 4
+    }catch {
+        Write-LogMessage -message "Failed to retrieve user count: $_" -level 2
+        $userCount = 0
+    }
+
     Write-Progress -Id 1 -PercentComplete 1 -Activity "Scanning Entra ID" -Status "Getting users and groups" 
 
-    $allUsers = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users?`$select=id,userPrincipalName,displayName" -Method GET
-    Write-LogMessage -message "Got metadata for $userCount users"
+    # Get users with proper error handling
+    try {
+        $allUsers = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users?`$select=id,userPrincipalName,displayName" -Method GET
+        Write-LogMessage -message "Got metadata for $($allUsers.Count) users" -level 4
+
+        # Verify we have users
+        if ($null -eq $allUsers -or $allUsers.Count -eq 0) {
+            Write-LogMessage -message "No users retrieved from Graph API" -level 2
+            $allUsers = @()
+        }
+    }catch {
+        Write-LogMessage -message "Failed to retrieve users: $_" -level 2
+        $allUsers = @()
+    }
+
+    if ($testMode) {
+        # For testing, we can limit the number of users processed
+        $allUsers = $allUsers[0..999]
+        $userCount = $allUsers.Count
+        Write-LogMessage -message "Test mode enabled, processing only first 1000 users" -level 5
+    }    
 
     $activity = "Entra ID users"
     for ($i = 0; $i -lt $allUsers.Count; $i += 100) {

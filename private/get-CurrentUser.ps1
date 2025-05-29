@@ -6,15 +6,15 @@ function Get-CurrentUser {
     #>     
 
     if($global:octo.userConfig.authMode -eq "Delegated"){
-        return New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/me" -NoPagination -Method GET
+        return New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/me" -Method GET
     }elseif($global:octo.userConfig.authMode -eq "ServicePrincipal"){
-        $spnMetaData = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals(appId='$($global:octo.userConfig.LCClientId)')" -NoPagination -Method GET 
+        $spnMetaData = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals(appId='$($global:octo.userConfig.LCClientId)')" -Method GET 
         return @{
             userPrincipalName = $spnMetaData.displayName
         }
     }else{
         if($global:octo.autDetectedClientId){
-            $spnMetaData = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals(appId='$($global:octo.autDetectedClientId)')" -NoPagination -Method GET 
+            $spnMetaData = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/servicePrincipals(appId='$($global:octo.autDetectedClientId)')" -Method GET 
             return @{
                 userPrincipalName = $spnMetaData.displayName
             }

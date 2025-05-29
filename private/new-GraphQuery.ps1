@@ -180,10 +180,7 @@ function New-GraphQuery {
                     $Data = $Data | ConvertFrom-Json -AsHashtable
                 }
 
-                if($NoPagination){
-                    $totalResults+=$Data.count                
-                    ($Data)
-                }elseif($Data.psobject.properties.name -icontains 'value' -or $Data.Keys -icontains 'value'){
+                if($Data.psobject.properties.name -icontains 'value' -or $Data.Keys -icontains 'value'){
                     $totalResults+=$Data.value.count
                     ($Data.value)
                 }else{
