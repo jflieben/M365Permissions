@@ -91,9 +91,8 @@ function New-GraphQuery {
                     [System.GC]::GetTotalMemory($true) | out-null   
                     $Data = (Invoke-RestMethod -Uri $nextURL -Method $Method -Headers $headers -Body $Body -ContentType $ContentType -ErrorAction Stop -Verbose:$False)
                     $attempts = $MaxAttempts
-                }
-                catch {
-                    if($_.Exception.Message -like "*404 (Not Found)*"){
+                }catch {
+                    if($_.Exception.Message -like "*404 (Not Found)*" -or $_.Exception.Message -like "*Request_ResourceNotFound*" -or $_.Exception.Message -like "*Resource*does not exist*"){
                         Write-LogMessage -level 6 -message "Not retrying: $($_)"
                         $nextUrl = $Null
                         throw $_
@@ -106,11 +105,23 @@ function New-GraphQuery {
                                 throw $_
                             }
                         }
-                    }                        
+                    }                   
                     if ($attempts -ge $MaxAttempts) { 
                         Throw $_
                     }
-                    Start-Sleep -Seconds (1 + (3 * $attempts))
+                    $delay = 0
+                    if ($_.Exception.Response.StatusCode -eq 429){
+                        try {
+                            $retryAfter = $_.Exception.Response.Headers.GetValues("Retry-After")
+                            if ($retryAfter -and $retryAfter.Count -gt 0) {
+                                $delay = [int]$retryAfter[0]
+                            }
+                        }catch {}
+                    }
+                    if($delay -ge 0){
+                        $delay = [math]::Pow(5, $attempts)
+                    }
+                    Start-Sleep -Seconds (1 + $delay)
                 }     
             }
         }catch {
@@ -132,7 +143,7 @@ function New-GraphQuery {
                         $attempts = $MaxAttempts
                     }
                     catch {
-                        if($_.Exception.Message -like "*404 (Not Found)*"){
+                        if($_.Exception.Message -like "*404 (Not Found)*" -or $_.Exception.Message -like "*Request_ResourceNotFound*" -or $_.Exception.Message -like "*Resource*does not exist*"){
                             Write-LogMessage -level 6 -message "Not retrying: $($_)"
                             $nextUrl = $Null
                             throw $_
@@ -150,7 +161,19 @@ function New-GraphQuery {
                             $nextURL = $null
                             Throw $_
                         }
-                        Start-Sleep -Seconds (1 + (3 * $attempts))
+                        $delay = 0
+                        if ($_.Exception.Response.StatusCode -eq 429){
+                            try {
+                                $retryAfter = $_.Exception.Response.Headers.GetValues("Retry-After")
+                                if ($retryAfter -and $retryAfter.Count -gt 0) {
+                                    $delay = [int]$retryAfter[0]
+                                }
+                            }catch {}
+                        }
+                        if($delay -ge 0){
+                            $delay = [math]::Pow(5, $attempts)
+                        }
+                        Start-Sleep -Seconds (1 + $delay)
                     }
                 }
                 if($resource -like "*$($global:octo.sharepointUrl)*" -and $Data.PSObject.TypeNames -notcontains "System.Management.Automation.PSCustomObject"){
