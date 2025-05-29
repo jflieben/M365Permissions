@@ -44,9 +44,13 @@
 
     if ($testMode) {
         # For testing, we can limit the number of users processed
-        $allUsers = $allUsers[0..999]
+        if ($allUsers.Count -ge 1000) {
+            $allUsers = $allUsers[0..999]
+            Write-LogMessage -message "Test mode enabled, processing only first 1000 users" -level 5
+        } else {
+            Write-LogMessage -message "Test mode enabled, but fewer than 1000 users available. Processing all $($allUsers.Count) users" -level 5
+        }
         $userCount = $allUsers.Count
-        Write-LogMessage -message "Test mode enabled, processing only first 1000 users" -level 5
     }    
 
     $activity = "Entra ID users"
