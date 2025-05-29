@@ -51,15 +51,38 @@
 
     $activity = "Entra ID users"
     for ($i = 0; $i -lt $allUsers.Count; $i += 100) {
-        New-ScanJob -Title $activity -Target "users_$($i)_$($userCount)" -FunctionToRun "get-EntraUsersAndGroupsBatch" -FunctionArguments @{
-            "entraUsers" = ($allUsers[$i..([math]::Min($i + 99, $allUsers.Count - 1))])
+        $endIndex = [math]::Min($i + 99, $allUsers.Count - 1)
+        $userBatch = $allUsers[$i..$endIndex]
+        if ($null -eq $userBatch -or $userBatch.Count -eq 0) {
+            Write-LogMessage -message "Empty user batch for range $i to $endIndex, skipping" -level 2
+            continue
+        }
+        if ($i % 1000 -eq 0 -and $i -gt 0) {
+            [System.GC]::Collect()
+            Write-LogMessage -message "Forced garbage collection after processing $i users" -level 4
         }        
+        Write-LogMessage -message "Creating scan job for users $i to $endIndex (Users: $($userBatch.Count))" -level 4
+
+        New-ScanJob -Title $activity -Target "users_$($i)_$($endIndex)" -FunctionToRun "get-EntraUsersAndGroupsBatch" -FunctionArguments @{
+            # Convert complex user objects to simple hashtables that can serialize properly
+            # Only include users with valid properties
+            "entraUsers" = ($userBatch | ForEach-Object {
+                    @{
+                        id                = $_.id
+                        userPrincipalName = $_.userPrincipalName
+                        displayName       = $_.displayName
+                    }
+                })
+        }    
     }
 
     Update-StatisticsObject -category "GroupsAndMembers" -subject "Entities" -Amount $allUsers.Count
     Stop-StatisticsObject -category "GroupsAndMembers" -subject "Entities"
 
-    Start-ScanJobs -Title $activity
+    if($allUsers.Count -gt 0){
+        Start-ScanJobs -Title $activity
+    }
+
     Remove-Variable -name allUsers -Force -Confirm:$False
 
     [System.GC]::GetTotalMemory($true) | out-null
@@ -89,19 +112,18 @@
     #get role definitions
     $roleDefinitions = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/directoryRoleTemplates" -Method GET
 
-
     Write-Progress -Id 1 -PercentComplete 35 -Activity "Scanning Entra ID" -Status "Retrieving flexible (PIM) assigments"
 
     #get eligible role assignments
     try{
         $roleEligibilities = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/roleManagement/directory/roleEligibilityScheduleInstances" -Method GET -NoRetry | Where-Object {$_})
-        $roleActivations = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/roleManagement/directory/roleAssignmentScheduleInstances" -Method GET | Where-Object {$_.assignmentType -eq "Activated"})
+        $roleActivations = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/roleManagement/directory/roleAssignmentScheduleInstances?`$filter=assignmentType eq 'Activated'" -Method GET)
     }catch{
         Write-LogMessage -level 2 -message "Failed to retrieve flexible assignments, this is fine if you don't use PIM and/or don't have P2 licensing."
         $roleEligibilities = @()
     }
 
-    Write-Progress -Id 1 -PercentComplete 45 -Activity "Scanning Entra ID" -Status "Processing flexible (PIM) assigments"
+    Write-Progress -Id 1 -PercentComplete 45 -Activity "Scanning Entra ID" -Status "Processing flexible (PIM) assignments"
 
     $count = 0
     foreach($roleEligibility in $roleEligibilities){
