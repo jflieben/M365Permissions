@@ -43,13 +43,8 @@ function get-SpOPermissionEntry{
         Write-LogMessage -level 5 -message "Adjusting permission on $($objectId) from AllUsers to AllInternalUsers as the site does not allow external sharing"
     }
     if($localEntity.AadObjectIdd -eq "Anonymous" -and !$global:siteSharingMode.Anonymous){
-        if($global:siteSharingMode.External){
-            Write-LogMessage -level 5 -message "Adjusting permission on $($objectId) from Anonymous to AllUsers as the site does not allow anonymous sharing"
-            $localEntity.AadObjectIdd = "AllUsers"
-        }else{
-            Write-LogMessage -level 5 -message "Adjusting permission on $($objectId) from Anonymous to AllInternalUsers as the site does not allow external sharing"
-            $localEntity.AadObjectIdd = "AllInternalUsers"
-        }
+        Write-LogMessage -level 5 -message "Skipping permission on $($objectId) because this site does not allow anonymous sharing"
+        return $Null
     }
 
     return [PSCustomObject]@{
