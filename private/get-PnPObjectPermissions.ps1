@@ -43,7 +43,11 @@ Function get-PnPObjectPermissions{
         If($itemData.FileSystemObjectType -eq 1){
             $obj.Title = $itemData.Folder.Name
             $obj.Url = "$($siteUrl.Split($global:octo.sharepointUrl)[0])$($global:octo.sharepointUrl)$($itemData.Folder.ServerRelativeUrl)"
-            $obj.Type = "Folder"
+            if($itemData.Folder.ProgID -and $itemData.Folder.ProgID -eq "OneNote.Notebook"){
+                $obj.Type = "Onenote Notebook"
+            }else{
+                $obj.Type = "Folder"
+            }         
             $obj.id = $Object.ID
         }Else{
             If($Null -ne $itemData.File.Name){
