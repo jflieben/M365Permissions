@@ -113,6 +113,7 @@
         'global' {
             $global:octo.idpUrl = "https://login.microsoftonline.com"
             $global:octo.graphUrl = "https://graph.microsoft.com"
+            $global:octo.graphbatchUrl = "https://graph.microsoft.com/v1.0/`$batch"
             $global:octo.sharepointUrl = "sharepoint.com"
             $global:octo.outlookUrl = "outlook.office365.com"
             $global:octo.azureUrl = "https://management.azure.com"
@@ -126,6 +127,7 @@
         'usgov' {
             $global:octo.idpUrl = "https://login.microsoftonline.us"
             $global:octo.graphUrl = "https://graph.microsoft.us"
+            $global:octo.graphbatchUrl = "https://graph.microsoft.us/v1.0/`$batch"
             $global:octo.sharepointUrl = "sharepoint.us"
             $global:octo.outlookUrl = "outlook.office365.us"
             $global:octo.azureUrl = "https://management.usgovcloudapi.net"
@@ -139,6 +141,7 @@
         'usdod' {
             $global:octo.idpUrl = "https://login.microsoftonline.us"
             $global:octo.graphUrl = "https://dod-graph.microsoft.us"
+            $global:octo.graphbatchUrl = "https://dod-graph.microsoft.us/v1.0/`$batch"
             $global:octo.sharepointUrl = "sharepoint-mil.us"
             $global:octo.outlookUrl = "outlook-dod.office365.us"
             $global:octo.azureUrl = "https://management.usgovcloudapi.net" #not sure if this one is even remotely correct
@@ -152,6 +155,7 @@
         'china' {
             $global:octo.idpUrl = "https://login.chinacloudapi.cn"
             $global:octo.graphUrl = "https://microsoftgraph.chinacloudapi.cn"
+            $global:octo.graphbatchUrl = "https://microsoftgraph.chinacloudapi.cn/v1.0/`$batch"
             $global:octo.sharepointUrl = "sharepoint.cn"
             $global:octo.outlookUrl = "partner.outlook.cn"
             $global:octo.azureUrl = "https://management.chinacloudapi.cn"

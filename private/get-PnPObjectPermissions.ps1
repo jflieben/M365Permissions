@@ -43,7 +43,11 @@ Function get-PnPObjectPermissions{
         If($itemData.FileSystemObjectType -eq 1){
             $obj.Title = $itemData.Folder.Name
             $obj.Url = "$($siteUrl.Split($global:octo.sharepointUrl)[0])$($global:octo.sharepointUrl)$($itemData.Folder.ServerRelativeUrl)"
-            $obj.Type = "Folder"
+            if($itemData.Folder.ProgID -and $itemData.Folder.ProgID -eq "OneNote.Notebook"){
+                $obj.Type = "Onenote Notebook"
+            }else{
+                $obj.Type = "Folder"
+            }         
             $obj.id = $Object.ID
         }Else{
             If($Null -ne $itemData.File.Name){
@@ -69,7 +73,13 @@ Function get-PnPObjectPermissions{
                 $obj.id = $Object.Id
                 Update-StatisticsObject -Category $Category -Subject $siteUrl
                 $graphSite = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/sites/$($Object.Url.Replace("https://",'').Replace($global:octo.sharepointUrl,"$($global:octo.sharepointUrl):"))" -Method GET
-                $graphSiteLevelPermissions = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/sites/$($graphSite.id)/permissions" -Method GET
+                if($graphSite.parentReference){
+                    #this is a subsite, for which Graph does not support app level permission enumeration
+                    Write-LogMessage -level 5 -message "This is a subsite, skipping SPN permission enumeration"
+                    $graphSiteLevelPermissions = @()
+                }else{
+                    $graphSiteLevelPermissions = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/sites/$($graphSite.id)/permissions" -Method GET
+                }
                 foreach($graphSiteLevelPermission in $graphSiteLevelPermissions){
                     if($graphSiteLevelPermission.id){
                         #grab the associated role

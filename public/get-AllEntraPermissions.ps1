@@ -7,7 +7,9 @@
         Parameters:
     #>        
     Param(
-        [Switch]$skipReportGeneration
+        [Switch]$skipReportGeneration,
+        [parameter(Mandatory=$false,DontShow=$true)]
+        [bool]$testMode = $false
     )
 
     Write-LogMessage -message "Starting Entra scan..." -level 4
@@ -15,24 +17,76 @@
     New-StatisticsObject -category "GroupsAndMembers" -subject "Entities"
     Write-Progress -Id 1 -PercentComplete 0 -Activity "Scanning Entra ID" -Status "Getting users and groups" 
 
-    $userCount = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users?`$top=1" -Method GET -ComplexFilter -nopagination)."@odata.count"
-    Write-LogMessage -message "Retrieving metadata for $userCount users..."
+    try {
+        $userCount = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users/`$count" -Method GET -ComplexFilter)
+        Write-LogMessage -message "Retrieving metadata for $userCount users..." -level 4
+    }catch {
+        Write-LogMessage -message "Failed to retrieve user count: $_" -level 2
+        $userCount = 0
+    }
+
     Write-Progress -Id 1 -PercentComplete 1 -Activity "Scanning Entra ID" -Status "Getting users and groups" 
 
-    $allUsers = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users?`$select=id,userPrincipalName,displayName" -Method GET
-    Write-LogMessage -message "Got metadata for $userCount users"
+    # Get users with proper error handling
+    try {
+        $allUsers = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/users?`$select=id,userPrincipalName,displayName" -Method GET
+        Write-LogMessage -message "Got metadata for $($allUsers.Count) users" -level 4
+
+        # Verify we have users
+        if ($null -eq $allUsers -or $allUsers.Count -eq 0) {
+            Write-LogMessage -message "No users retrieved from Graph API" -level 2
+            $allUsers = @()
+        }
+    }catch {
+        Write-LogMessage -message "Failed to retrieve users: $_" -level 2
+        $allUsers = @()
+    }
+
+    if ($testMode) {
+        # For testing, we can limit the number of users processed
+        if ($allUsers.Count -ge 1000) {
+            $allUsers = $allUsers[0..999]
+            Write-LogMessage -message "Test mode enabled, processing only first 1000 users" -level 5
+        } else {
+            Write-LogMessage -message "Test mode enabled, but fewer than 1000 users available. Processing all $($allUsers.Count) users" -level 5
+        }
+        $userCount = $allUsers.Count
+    }    
 
     $activity = "Entra ID users"
     for ($i = 0; $i -lt $allUsers.Count; $i += 100) {
-        New-ScanJob -Title $activity -Target "users_$($i)_$($userCount)" -FunctionToRun "get-EntraUsersAndGroupsBatch" -FunctionArguments @{
-            "entraUsers" = ($allUsers[$i..([math]::Min($i + 99, $allUsers.Count - 1))])
+        $endIndex = [math]::Min($i + 99, $allUsers.Count - 1)
+        $userBatch = $allUsers[$i..$endIndex]
+        if ($null -eq $userBatch -or $userBatch.Count -eq 0) {
+            Write-LogMessage -message "Empty user batch for range $i to $endIndex, skipping" -level 2
+            continue
+        }
+        if ($i % 1000 -eq 0 -and $i -gt 0) {
+            [System.GC]::Collect()
+            Write-LogMessage -message "Forced garbage collection after processing $i users" -level 4
         }        
+        Write-LogMessage -message "Creating scan job for users $i to $endIndex (Users: $($userBatch.Count))" -level 4
+
+        New-ScanJob -Title $activity -Target "users_$($i)_$($endIndex)" -FunctionToRun "get-EntraUsersAndGroupsBatch" -FunctionArguments @{
+            # Convert complex user objects to simple hashtables that can serialize properly
+            # Only include users with valid properties
+            "entraUsers" = ($userBatch | ForEach-Object {
+                    @{
+                        id                = $_.id
+                        userPrincipalName = $_.userPrincipalName
+                        displayName       = $_.displayName
+                    }
+                })
+        }    
     }
 
     Update-StatisticsObject -category "GroupsAndMembers" -subject "Entities" -Amount $allUsers.Count
     Stop-StatisticsObject -category "GroupsAndMembers" -subject "Entities"
 
-    Start-ScanJobs -Title $activity
+    if($allUsers.Count -gt 0){
+        Start-ScanJobs -Title $activity
+    }
+
     Remove-Variable -name allUsers -Force -Confirm:$False
 
     [System.GC]::GetTotalMemory($true) | out-null
@@ -62,19 +116,18 @@
     #get role definitions
     $roleDefinitions = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/directoryRoleTemplates" -Method GET
 
-
     Write-Progress -Id 1 -PercentComplete 35 -Activity "Scanning Entra ID" -Status "Retrieving flexible (PIM) assigments"
 
     #get eligible role assignments
     try{
         $roleEligibilities = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/roleManagement/directory/roleEligibilityScheduleInstances" -Method GET -NoRetry | Where-Object {$_})
-        $roleActivations = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/roleManagement/directory/roleAssignmentScheduleInstances" -Method GET | Where-Object {$_.assignmentType -eq "Activated"})
+        $roleActivations = (New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/roleManagement/directory/roleAssignmentScheduleInstances?`$filter=assignmentType eq 'Activated'" -Method GET)
     }catch{
         Write-LogMessage -level 2 -message "Failed to retrieve flexible assignments, this is fine if you don't use PIM and/or don't have P2 licensing."
         $roleEligibilities = @()
     }
 
-    Write-Progress -Id 1 -PercentComplete 45 -Activity "Scanning Entra ID" -Status "Processing flexible (PIM) assigments"
+    Write-Progress -Id 1 -PercentComplete 45 -Activity "Scanning Entra ID" -Status "Processing flexible (PIM) assignments"
 
     $count = 0
     foreach($roleEligibility in $roleEligibilities){

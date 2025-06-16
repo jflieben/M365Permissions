@@ -9,7 +9,6 @@ function New-ExOQuery {
     Param(
         [parameter(Mandatory = $True)]$cmdlet,
         $cmdParams,
-        [Switch]$NoPagination,
         $retryCount = 3,
         [Array]$nonRetryErrors = @()       
     )
@@ -72,9 +71,7 @@ function New-ExOQuery {
                     Start-Sleep -Seconds $sleepTime
                 }
             }
-            if($NoPagination){
-                $nextURL = $null
-            }elseif($Data.'@odata.nextLink'){
+            if($Data.'@odata.nextLink'){
                 $nextURL = $Data.'@odata.nextLink'  
             }elseif($Data.'odata.nextLink'){
                 $nextURL = $Data.'odata.nextLink'  

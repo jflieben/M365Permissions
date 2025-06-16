@@ -59,7 +59,12 @@ Function New-EntraPermissionEntry{
         $targetType = "administrativeUnit"
         $targetId = $targetPath.Split("/")[2]
         if(!$global:entraAdminUnitMapping.$targetId){
-            $global:entraAdminUnitMapping.$targetId = (New-GraphQuery -Method GET -Uri "$($global:octo.graphUrl)/v1.0/directory/administrativeUnits/$targetId").displayName
+            try{
+                $global:entraAdminUnitMapping.$targetId = (New-GraphQuery -Method GET -Uri "$($global:octo.graphUrl)/v1.0/directory/administrativeUnits/$targetId").displayName
+            }catch{
+                Write-LogMessage -level 5 -message "Skipping permission $($principalRole) scoped at $targetPath for $($principalSysName) as the administrative unit could not be found"
+                return $Null
+            }
         }
         $targetPath = $targetPath.Replace($targetId, $global:entraAdminUnitMapping.$targetId)
     }elseif($targetPath -eq "/"){

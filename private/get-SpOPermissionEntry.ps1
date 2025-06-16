@@ -38,6 +38,15 @@ function get-SpOPermissionEntry{
         $objectId = $object.Id
     }
 
+    if($localEntity.AadObjectId -eq "AllUsers" -and !$global:siteSharingMode.External){
+        $localEntity.AadObjectId = "AllInternalUsers"
+        Write-LogMessage -level 5 -message "Adjusting permission on $($objectId) from AllUsers to AllInternalUsers as the site does not allow external sharing"
+    }
+    if($localEntity.AadObjectIdd -eq "Anonymous" -and !$global:siteSharingMode.Anonymous){
+        Write-LogMessage -level 5 -message "Skipping permission on $($objectId) because this site does not allow anonymous sharing"
+        return $Null
+    }
+
     return [PSCustomObject]@{
         "targetType" = $objectType
         "targetId" = $objectId

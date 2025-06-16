@@ -48,6 +48,31 @@
 
     $site = $site | Select-Object -First 1
 
+    Write-LogMessage -message "Site sharing mode: $($site.SharingCapability)" -level 4
+    $global:siteSharingMode = @{
+        "Anonymous" = $false
+        "External" = $false
+    }
+
+    switch($site.SharingCapability){
+        "ExternalUserAndGuestSharing" {
+                $global:siteSharingMode["External"] = $true
+                $global:siteSharingMode["Anonymous"] = $true
+        }
+        "ExternalUserSharingOnly" {
+                $global:siteSharingMode["External"] = $true
+                $global:siteSharingMode["Anonymous"] = $false
+        }
+        "ExistingExternalUserSharingOnly" {
+                $global:siteSharingMode["External"] = $true
+                $global:siteSharingMode["Anonymous"] = $false
+        }
+        "Disabled" {
+                $global:siteSharingMode["External"] = $false
+                $global:siteSharingMode["Anonymous"] = $false
+        }
+    }
+
     if($site.IsTeamsConnected -and !$isParallel){
         try{
             Write-LogMessage -message "Retrieving channels for this site/team..." -level 4
