@@ -193,6 +193,27 @@
 
     Write-Progress -Id 2 -Completed -Activity "Analyzing securables..."
 
+    $anonPublishedReports = New-GraphQuery -Uri "https://api.powerbi.com/v1.0/myorg/admin/widelySharedArtifacts/publishedToWeb?`$top=5000'" -Method GET -resource "https://api.fabric.microsoft.com"
+    for($s = 0; $s -lt $anonPublishedReports.ArtifactAccessEntities.count; $s++){
+        Write-Progress -Id 2 -PercentComplete $(Try{ ($s/$anonPublishedReports.ArtifactAccessEntities.count)*100 } catch {0}) -Activity "Analyzing anonymous reports..." -Status "$($s+1)/$($anonPublishedReports.ArtifactAccessEntities.count) $($anonPublishedReports.ArtifactAccessEntities[$s].displayName)"
+        $metaData = $Null;$metaData = get-PBIUserMetaData -user $user
+        $permissionSplat = @{
+            targetPath = "/webpublished/$($anonPublishedReports.ArtifactAccessEntities[$s].displayName)"
+            targetType = $anonPublishedReports.ArtifactAccessEntities[$s].artifactType
+            targetId = $anonPublishedReports.ArtifactAccessEntities[$s].artifactId
+            principalEntraId = "Anonymous"
+            principalEntraUpn = "Anonymous"
+            principalSysId = "Anonymous"
+            principalSysName = "Anonymous"
+            principalType = $anonPublishedReports.ArtifactAccessEntities[$s].shareType
+            principalRole = if($anonPublishedReports.ArtifactAccessEntities[$s].accessRight -eq "None"){"Read"}else{$anonPublishedReports.ArtifactAccessEntities[$s].accessRight}
+            through = $anonPublishedReports.ArtifactAccessEntities[$s].shareType
+        }
+        New-PBIPermissionEntry @permissionSplat    
+    }
+    
+    Write-Progress -Id 2 -Completed -Activity "Analyzing anonymous reports..."
+
     Stop-StatisticsObject -category "PowerBI" -subject "Securables"
 
     Write-Progress -Id 1 -PercentComplete 90 -Activity $activity -Status "Writing report..."
