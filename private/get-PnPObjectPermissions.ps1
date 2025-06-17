@@ -240,17 +240,24 @@ Function get-PnPObjectPermissions{
                 #grab top level info of the list first
                 get-PnPObjectPermissions -Object $List -siteUrl $siteUrl -Category $Category
 
-                try{
-                    (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $List;Property = @("Title", "HasUniqueRoleAssignments", "DefaultDisplayFormUrl"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
-                }catch{
-                    (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $List;Property = @("Title", "HasUniqueRoleAssignments", "RootFolder"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
-                    $List.DefaultDisplayFormUrl = "Lists/$($List.RootFolder.Name)"
-                }
+                (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $List;Property = @("HasUniqueRoleAssignments"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
 
                 if($List.HasUniqueRoleAssignments -eq $False){
                     Write-LogMessage -level 5 -message "Skipping $($List.Title) List as it fully inherits permissions from parent"
                     continue
-                }     
+                }   
+
+                try{
+                    (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $List;Property = @("Title","DefaultDisplayFormUrl"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
+                }catch{
+                    try{
+                        (New-RetryCommand -Command 'Get-PnPProperty' -Arguments @{ClientObject = $List;Property = @("Title", "RootFolder"); Connection = (Get-SpOConnection -Type User -Url $siteUrl)})
+                        $List.DefaultDisplayFormUrl = "Lists/$($List.RootFolder.Name)"
+                    }catch{
+                        Write-LogMessage -level 5 -message "Failed to retrieve Title and DefaultDisplayFormUrl for $($List.Id.Guid) because $_" -ErrorAction Continue
+                        $List.DefaultDisplayFormUrl = "Lists/$($List.Id.Guid)"
+                    }
+                }
 
                 Write-LogMessage -level 5 -message "List contains $($List.ItemCount) items"
                 $allListItems = $Null; $allListItems = New-GraphQuery -resource "https://www.$($global:octo.sharepointUrl)" -Uri "$($Object.Url)/_api/web/lists/getbyid('$($List.Id.Guid)')/items?`$select=ID,HasUniqueRoleAssignments&`$top=5000&`$format=json" -Method GET -expectedTotalResults $List.ItemCount
