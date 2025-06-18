@@ -2,22 +2,18 @@ function get-PBIUserMetaData{
     Param(
         [Parameter(Mandatory=$true)]$user
     )
+  
     $retVal = [PSCustomObject]@{
         principalType = "Internal User"
         principalEntraId = $user.graphId
         principalEntraUpn = $user.identifier
     }
-    if($user.identifier -like "*#EXT#@*"){
+    if($user.identifier -like "*#EXT#@*" -or $user.PrincipalType -like "*Guest*"){
         $retVal.principalType = "External User"
     }
     if($user.userType -eq ""){ #special groups
-        if($user.displayName -eq "Whole Organization"){
-            $retVal.principalType = "AllInternalUsers"
-            $retVal.principalEntraId = "AllInternalUsers"
-        }else{
-            $retVal.principalType = $user.displayName
-            $retVal.principalEntraId = $user.displayName
-        }
+        $retVal.principalType = $user.displayName
+        $retVal.principalEntraId = $user.displayName
     }
     if($user.PrincipalType -eq "Group"){
         $retVal.principalType = "EntraSecurityGroup"
@@ -27,6 +23,10 @@ function get-PBIUserMetaData{
         $retVal.principalEntraUpn = $user.graphId
         $retVal.principalType = "Service Principal"
     }
+    if($user.displayName -eq "Whole Organization"){
+        $retVal.principalType = "AllInternalUsers"
+        $retVal.principalEntraId = "AllInternalUsers"
+    }    
 
     return $retVal
 }
