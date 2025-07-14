@@ -61,7 +61,10 @@
 
     Please note that this module is provided AS-IS, no guarantees or warranties provided. Use at your own risk
     
-    Free for non-commercial use, see https://www.lieben.nu/liebensraum/commercial-use/ for commercial use"
+    Free for non-commercial use, see https://www.lieben.nu/liebensraum/commercial-use/ for commercial use
+    
+    For an Enterprise, Azure native version of this module see https://www.m365permissions.com
+    "
 
     # Minimum version of the Windows PowerShell engine required by this module
     PowerShellVersion    = '7.4'

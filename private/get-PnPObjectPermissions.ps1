@@ -263,7 +263,7 @@ Function get-PnPObjectPermissions{
                 $allListItems = $Null; $allListItems = New-GraphQuery -resource "https://www.$($global:octo.sharepointUrl)" -Uri "$($Object.Url)/_api/web/lists/getbyid('$($List.Id.Guid)')/items?`$select=ID,HasUniqueRoleAssignments&`$top=5000&`$format=json" -Method GET -expectedTotalResults $List.ItemCount
                 $allUniqueListItemIDs = $Null; $allUniqueListItemIDs = @($allListItems | Where-Object { $_.HasUniqueRoleAssignments -eq $True }) | select -ExpandProperty Id
                 if($allUniqueListItemIDs.Count -gt 10000){
-                    Throw "List $($List.Title) has too many ($($allUniqueListItemIDs.Count)) items with unique permissions. Please use the MSSQL/.NET backed M365Permissions Cloud as it can handle unlimited items."
+                    Throw "List $($List.Title) has too many ($($allUniqueListItemIDs.Count)) items with unique permissions. Please use the enterprise version at www.m365permissions.com as it can handle unlimited items."
                 }
 
                 for($a=0;$a -lt $allUniqueListItemIDs.Count;$a++){
