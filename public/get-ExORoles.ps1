@@ -17,48 +17,65 @@
     New-StatisticsObject -category "ExoRoles" -subject "AdminRoles"
 
     $assignedManagementRoles = $Null;$assignedManagementRoles = (New-ExOQuery -cmdlet "Get-ManagementRoleAssignment" -cmdParams @{GetEffectiveUsers = $True;Enabled = $True})
-
     Write-Progress -Id 2 -PercentComplete 5 -Activity "Scanning Exchange Roles" -Status "Parsing role assignments"
-
-    $identityCache = @{}
     $count = 0
-    foreach($assignedManagementRole in $assignedManagementRoles){
+    foreach($uniqueUser in $assignedManagementRoles | Select-Object -ExpandProperty EffectiveUserName -Unique){
         $count++
         Write-Progress -Id 3 -PercentComplete (($count/$assignedManagementRoles.Count)*100) -Activity "Scanning Roles" -Status "Examining role $($count) of $($assignedManagementRoles.Count)"
-        Update-StatisticsObject -category "ExoRoles" -subject "AdminRoles"
+        
+        $identifierEncoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($uniqueUser))   
         try{
-            $mailbox = $Null; $mailbox = $identityCache.$($assignedManagementRole.EffectiveUserName)
-            if($Null -eq $mailbox){
-                $identifierEncoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($assignedManagementRole.EffectiveUserName))   
-                $mailbox = $Null; $mailbox = New-GraphQuery -resource "https://$($global:octo.outlookUrl)" -Method GET -Uri "https://$($global:octo.outlookUrl)/adminapi/beta/$($global:octo.OnMicrosoft)/Mailbox('$($identifierEncoded)')?isEncoded=true" -MaxAttempts 1 | select -first 1
-                if(!$mailbox){
-                    $identityCache.$($assignedManagementRole.EffectiveUserName) = $False
-                }else{
-                    $identityCache.$($assignedManagementRole.EffectiveUserName) = $mailbox
+            $mailbox = $Null; $mailbox = New-GraphQuery -resource "https://outlook.office365.com" -Method GET -Uri "https://outlook.office365.com/adminapi/beta/$($global:octo.OnMicrosoft)/Mailbox('$($identifierEncoded)')?isEncoded=true" -MaxAttempts 2 | select -first 1
+        }catch{
+            $mailbox = $null;
+        }
+        if($mailbox){
+            #process role group assignments
+            $groupAssignments = $assignedManagementRoles | Where-Object { $_.EffectiveUserName -eq $uniqueUser -and $_.RoleAssigneeType -eq "RoleGroup" -and $_.Enabled} | Group-Object -Property RoleAssignee
+            foreach($group in $groupAssignments){
+                $assignment = $group.Group | select-object -first 1
+                $scopes = @($assignment.RecipientReadScope, $assignment.RecipientWriteScope) | select-object -Unique
+                foreach($scope in $scopes){      
+                    Update-StatisticsObject -category "ExoRoles" -subject "AdminRoles"             
+                    $splat = @{
+                        targetPath = "/ExchangeOnline/$scope"
+                        targetType = "ExchangeRole"
+                        targetId = $assignment.RoleAssigneeName
+                        principalEntraId = $mailbox.ExternalDirectoryObjectId
+                        principalEntraUpn = $mailbox.UserPrincipalName
+                        principalSysId = $mailbox.Guid
+                        principalSysName = $mailbox.DisplayName
+                        principalType = $mailbox.RecipientTypeDetails                
+                        principalRole = $assignment.RoleAssigneeName
+                        through = "Role Group"
+                    }
+                    New-ExOPermissionEntry @splat
                 }
             }
-        }catch{
-            $identityCache.$($assignedManagementRole.EffectiveUserName) = $False
-        }
-        if($false -eq $identityCache.$($assignedManagementRole.EffectiveUserName)){
-            #mailbox not found, but its a guid (instead of e.g. a group) which are deleted mailboxes and can be ignored
-            Write-LogMessage -level 5 -message "Skipping role assignment for $($assignedManagementRole.EffectiveUserName) as it is an orphaned guid (deleted)"
-        }else{
-            $splat = @{
-                targetPath = "/"
-                targetType = "ExchangeRole"
-                targetId = $assignedManagementRole.Id
-                principalEntraId = $mailbox.ExternalDirectoryObjectId
-                principalEntraUpn = $mailbox.UserPrincipalName
-                principalSysId = $mailbox.Guid
-                principalSysName = $mailbox.DisplayName
-                principalType = $mailbox.RecipientTypeDetails                
-                principalRole = "$($assignedManagementRole.Role) ($($assignedManagementRole.RoleAssignmentDelegationType))"
-                through = "$($assignedManagementRole.RoleAssignee)"
+
+            #process direct assignments
+            $directAssignments = $assignedManagementRoles | Where-Object { $_.EffectiveUserName -eq $uniqueUser -and $_.RoleAssigneeType -ne "RoleGroup" -and $_.Enabled} | Group-Object -Property Role
+            foreach($group in $directAssignments){
+                $assignment = $group.Group | select-object -first 1
+                $scopes = @($assignment.RecipientReadScope, $assignment.RecipientWriteScope) | select-object -Unique
+                foreach($scope in $scopes){
+                    Update-StatisticsObject -category "ExoRoles" -subject "AdminRoles"
+                    $splat = @{
+                        targetPath = "/ExchangeOnline/$scope"
+                        targetType = "ExchangeRole"
+                        targetId = $assignment.Role
+                        principalEntraId = $mailbox.ExternalDirectoryObjectId
+                        principalEntraUpn = $mailbox.UserPrincipalName
+                        principalSysId = $mailbox.Guid
+                        principalSysName = $mailbox.DisplayName
+                        principalType = $mailbox.RecipientTypeDetails                
+                        principalRole = $assignment.Role
+                        through = "Direct"
+                    }
+                    New-ExOPermissionEntry @splat
+                }
             }
-            New-ExOPermissionEntry @splat
-        }
-        
+        }                    
     }
 
     Write-Progress -Id 3 -Completed -Activity "Scanning Roles"
