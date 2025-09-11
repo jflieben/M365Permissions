@@ -4,7 +4,9 @@ function get-SpOAadObjectId{
     )
     
     try{
-        $aadObjectId = $loginName.Split("|")[-1].Replace("_o","") #owner notation in SPO should be stripped as this invalidates the GUID
+        $aadObjectId = $loginName.Split("|")[-1].Replace("_o","",'OrdinalIgnoreCase') #owner notation in SPO should be stripped as this invalidates the GUID
+        $aadObjectId = $aadObjectId.Replace("urn%3aspo%3aguest#","",'OrdinalIgnoreCase') #clean legacy guest user type login name so it can be resolved
+        $aadObjectId = $aadObjectId.Replace("urn:spo:guest#","",'OrdinalIgnoreCase') #clean legacy guest user type login name so it can be resolved
     }catch{
         return $Null
     }

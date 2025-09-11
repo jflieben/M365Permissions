@@ -3,9 +3,6 @@
         Author               = "Jos Lieben (jos@lieben.nu)"
         CompanyName          = "Lieben Consultancy"
         Copyright            = "https://www.lieben.nu/liebensraum/commercial-use/"
-        
-        Parameters:
-        -includeFolderLevelPermissions: if set, folder level permissions for each mailbox will be retrieved. This can be (very) slow
     #>        
     Param(
     )
