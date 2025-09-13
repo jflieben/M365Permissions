@@ -12,10 +12,6 @@
     .LINK
     https://www.lieben.nu/liebensraum/m365permissions
 
-    .ROADMAP
-    1.1.x check defender xdr options
-    1.1.x support for Sharepoint AsApp authorizations    
-
 #>                        
 
 $helperFunctions = @{

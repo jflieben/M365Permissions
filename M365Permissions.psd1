@@ -3,7 +3,7 @@
     RootModule           = 'M365Permissions.psm1'
 
     # Version number of this module.
-    ModuleVersion        = "1.2.3"
+    ModuleVersion        = "1.2.4"
     
     # Supported PSEditions
     CompatiblePSEditions = @('Core')
@@ -26,6 +26,8 @@
     # Description of the functionality provided by this module
     Description          = "
     SUMMARY:
+
+    Free non-commercial version of https://www.m365permissions.com
 
     Report on permissions in a Microsoft 365 tenant. Provides a 360° view of what a given identity can see and do.
 
@@ -63,7 +65,7 @@
     
     Free for non-commercial use, see https://www.lieben.nu/liebensraum/commercial-use/ for commercial use
     
-    For an Enterprise, Azure native version of this module see https://www.m365permissions.com
+    For an integrated Enterprise, Azure native version of this module see https://www.m365permissions.com
     "
 
     # Minimum version of the Windows PowerShell engine required by this module

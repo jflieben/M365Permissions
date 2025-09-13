@@ -75,10 +75,11 @@ Function Get-PnPGroupMembers{
     }else{
         #SPO Group
         try{
-            $spoGroupMembers=$Null; $spoGroupMembers = (New-RetryCommand -Command 'Get-PnPGroupMember' -Arguments @{Group = $group.Title; Connection =$siteConn})
+            $spoGroupMembers=$Null; $spoGroupMembers = (New-RetryCommand -Command 'Get-PnPGroupMember' -Arguments @{Group = $group.Title; Connection =$siteConn} -ignoreableErrors @("cannot be found"))
         }catch{
-            Throw "Failed to get members for $($group.Title) because $_"
-        }
+            $spoGroupMembers=$Null;
+            Write-LogMessage -level 5 -message "Failed to get members for group $($group.Title) in site $($siteConn.Url): $($_.Exception.Message)"
+        } 
         foreach($spoGroupMember in $spoGroupMembers){
             $harmonizedMember = $Null; $harmonizedMember = Get-SpOHarmonizedEntity -entity $spoGroupMember
             if($harmonizedMember -and $global:octo.PnPGroupCache.$($localGroupName).LoginName -notcontains $harmonizedMember.LoginName){
