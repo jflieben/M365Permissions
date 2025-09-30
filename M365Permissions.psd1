@@ -27,9 +27,9 @@
     Description          = "
     SUMMARY:
 
-    Free non-commercial version of https://www.m365permissions.com
+    This is the free (for non-commercial use) version of https://www.m365permissions.com
 
-    Report on permissions in a Microsoft 365 tenant. Provides a 360° view of what a given identity can see and do.
+    Reports on permissions in a Microsoft 365 tenant. Provides a 360° view of what a given identity can see and do.
 
     INSTALLATION:
 
@@ -65,7 +65,7 @@
     
     Free for non-commercial use, see https://www.lieben.nu/liebensraum/commercial-use/ for commercial use
     
-    For an integrated Enterprise, Azure native version of this module see https://www.m365permissions.com
+    For an integrated and unlimited Azure native application for Enterprises, see https://www.m365permissions.com
     "
 
     # Minimum version of the Windows PowerShell engine required by this module
