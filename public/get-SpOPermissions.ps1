@@ -48,6 +48,10 @@
 
     $site = $site | Select-Object -First 1
 
+    if($site.ArchiveStatus -in @("FullyArchived","RecentlyArchived","Reactivating")){
+        Throw "Site is archived in $($site.ArchiveStatus) mode and will thus not be scanned"
+    }    
+
     Write-LogMessage -message "Site sharing mode: $($site.SharingCapability)" -level 4
     $global:siteSharingMode = @{
         "Anonymous" = $false

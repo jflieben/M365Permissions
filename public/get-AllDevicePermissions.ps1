@@ -17,7 +17,7 @@
     Write-Progress -Id 1 -PercentComplete 0 -Activity $activity -Status "Getting CloudPCs" 
 
     try{
-        [Array]$allCloudPCs = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/deviceManagement/virtualEndpoint/cloudPCs" -Method GET
+        [Array]$allCloudPCs = New-GraphQuery -Uri "$($global:octo.graphUrl)/v1.0/deviceManagement/virtualEndpoint/cloudPCs" -Method GET -MaxAttempts 3
     }catch{
         Write-Error $_ -ErrorAction Continue
         $allCloudPCs = @()

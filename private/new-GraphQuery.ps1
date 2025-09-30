@@ -93,14 +93,14 @@ function New-GraphQuery {
                     $attempts = $MaxAttempts
                 }catch {
                     if($_.Exception.Message -like "*404 (Not Found)*" -or $_.Exception.Message -like "*Request_ResourceNotFound*" -or $_.Exception.Message -like "*Resource*does not exist*"){
-                        Write-LogMessage -level 6 -message "Not retrying: $($_)"
+                        Write-LogMessage -level 6 -message "Not retrying 404"
                         $nextUrl = $Null
                         throw $_
                     }                    
                     if($ignoreableErrors){
                         foreach($ignoreableError in $ignoreableErrors){
                             if($_.Exception.Message -like "*$ignoreableError*"){
-                                Write-LogMessage -level 6 -message "Ignoring error: $($_)"
+                                Write-LogMessage -level 6 -message "Ignoring error: $ignoreableError"
                                 $nextUrl = $Null
                                 throw $_
                             }
@@ -144,14 +144,14 @@ function New-GraphQuery {
                     }
                     catch {
                         if($_.Exception.Message -like "*404 (Not Found)*" -or $_.Exception.Message -like "*Request_ResourceNotFound*" -or $_.Exception.Message -like "*Resource*does not exist*"){
-                            Write-LogMessage -level 6 -message "Not retrying: $($_)"
+                            Write-LogMessage -level 6 -message "Not retrying 404"
                             $nextUrl = $Null
                             throw $_
                         }                        
                         if($ignoreableErrors){
                             foreach($ignoreableError in $ignoreableErrors){
                                 if($_.Exception.Message -like "*$ignoreableError*"){
-                                    Write-LogMessage -level 6 -message "Ignoring error: $($_)"
+                                    Write-LogMessage -level 6 -message "Ignoring error: $ignoreableError"
                                     $nextUrl = $Null
                                     throw $_
                                 }
