@@ -24,19 +24,21 @@ Function get-PnPObjectPermissions{
             [Parameter(Mandatory=$true)]$acl
         )
         switch($acl.Id){
+            1073741926{"LimitedEdit"}
+            1073741925{"LimitedView"}
+            1073741924{"Review"}            
+            1073741833{"Limited Access - Web Only"}
+            1073741832{"Limited View"}
+            1073741830{"Edit"}
             1073741829{"Full Control"}
             1073741828{"Design"}
-            1073741830{"Edit"}
             1073741827{"Contribute"}
             1073741826{"Read"}
             1073741825{"Limited"}
-            1073741926{"LimitedView"}
-            1073741927{"LimitedEdit"}
-            1073741924{"Create subsites"}
-            1073741925{"View Only"}
+            1073741824{"View Only"}
             default{$acl.Name}
         }
-    }
+    }    
 
     if($Object.ListGuid){
         $itemData = New-GraphQuery -resource "https://www.$($global:octo.sharepointUrl)" -Uri "$($siteUrl)/_api/web/lists/getbyid('$($Object.ListGuid)')/items($($Object.ID))?`$expand=File,Folder,RoleAssignments/Member,RoleAssignments/RoleDefinitionBindings&`$select=FileSystemObjectType,Folder,File,Id,Title,RoleAssignments&`$format=json" -Method GET
