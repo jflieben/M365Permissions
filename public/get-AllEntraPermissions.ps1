@@ -222,6 +222,35 @@
         }
     }
 
+    try{
+        Write-LogMessage -level 4 -message "Getting root level Azure assignments..."
+        $azureSuperAdmins = New-GraphQuery -Uri "https://management.azure.com/providers/Microsoft.Authorization/roleAssignments?`$filter=atScope()&api-version=2018-07-01" -Method GET -resource "https://management.azure.com/" -MaxAttempts 2
+        Write-LogMessage -level 4 -message "Getting role definitions..."
+        $roleDefinitions = New-GraphQuery -Uri 'https://management.azure.com/providers/Microsoft.Authorization/roleDefinitions?api-version=2022-04-01' -Method GET -resource "https://management.azure.com/"
+    }catch{
+        Write-LogMessage -level 3 -message "Failed to retrieve Azure Super Admins, caller probably does not have sufficient permissions"
+        $azureSuperAdmins = @()
+    }
+
+    foreach($azureSuperadmin in $azureSuperAdmins.properties){
+        $role = $Null; $role = $roleDefinitions | Where-Object {$_.name -eq $azureSuperAdmin.roleDefinitionId.Split("/")[-1]}
+        if(!$role){
+            $roleName = "Legacy Role - Doublecheck!"
+        }else{
+            $roleName = $role.properties.roleName
+        }
+        $permissionSplat = @{
+            targetPath = "/Azure"
+            targetType = "AzureRole"
+            principalEntraId = $azureSuperadmin.principalId
+            principalType = $azureSuperadmin.principalType
+            principalRole = $roleName
+            tenure = "Permanent"
+            startDateTime = $azureSuperadmin.createdOn       
+        }   
+        New-EntraPermissionEntry @permissionSplat        
+    }
+
     Remove-Variable servicePrincipals -Force -Confirm:$False
 
     Stop-statisticsObject -category "Entra" -subject "Roles"
