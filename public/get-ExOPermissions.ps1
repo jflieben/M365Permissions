@@ -142,7 +142,39 @@
                 if($folder.ItemsInFolder -lt 1){
                     Write-LogMessage -level 5 -message "Ignoring folder $($folder.Name) as it is empty"
                     continue
-                }           
+                }  
+                
+                #calendar folder types have some additional meta data we want
+                if($folder.FolderType -eq "Calendar"){
+                    try{
+                        Write-LogMessage -Level 3 -message "Getting calendar publishing info"
+                        $calendarPublishInfo = $Null; $calendarPublishInfo = New-ExoQuery -cmdlet "Get-MailboxCalendarFolder" -cmdParams @{
+                            Identity = "$($recipient.Identity):$($folder.FolderId)"
+                        }
+                    }catch{
+                        Write-LogMessage -Level 3 -message "Unable to retrieve calendar publishing info"
+                    }
+                    if($calendarPublishInfo){
+                        if($calendarPublishInfo.PublishEnabled){
+                            #calendar is being published
+                            $splat = @{
+                                targetPath = "/$($recipient.PrimarySmtpAddress)$($folder.FolderPath)"
+                                targetType = "MailboxFolder"
+                                targetId = $folder.FolderId
+                                principalEntraId = "Anonymous"
+                                principalEntraUpn = "Anonymous"
+                                principalSysId = "Anonymous"
+                                principalSysName = "Anonymous"
+                                principalType = "Anonymous"
+                                principalRole = $calendarPublishInfo.DetailLevel
+                                through = "PublicUrl"
+                                accessType = "Allow"
+                                tenure = "Permanent"
+                            }
+                            New-ExOPermissionEntry @splat
+                        }
+                    }
+                }                
                 
                 try{
                     $folderIdEncoded = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($folder.FolderId))
