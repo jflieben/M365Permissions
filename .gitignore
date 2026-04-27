@@ -1,0 +1,44 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.vs/
+*.DotSettings.user
+
+# Build output
+module/lib/
+publish/
+.tmp_lib/
+module_test/
+_diag.ps1
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+Thumbs.db
+.DS_Store
+
+# NuGet
+*.nupkg
+packages/
+
+# Test results
+TestResults/
+coverage/
+
+# PowerShell
+*.psm1.bak
+
+# Secrets
+*.pfx
+*.key
+appsettings.*.json
+
+# Non public
+CHANGELOG.MD
+READMEINTERNAL.MD
+

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M365Permissions V2</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="logo.png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <nav id="navbar">
+        <div class="nav-brand">
+            <img src="logo.png" alt="M365Permissions" class="nav-logo-img">
+            <span class="nav-version" id="navVersion"></span>
+        </div>
+        <div class="nav-links">
+            <a href="#/" class="nav-link" data-page="dashboard">Dashboard</a>
+            <a href="#/scan" class="nav-link" data-page="scan">Scan</a>
+            <a href="#/results" class="nav-link" data-page="results">Results</a>
+            <a href="#/compare" class="nav-link" data-page="compare">Compare</a>
+            <a href="#/user-lookup" class="nav-link" data-page="user-lookup">User Lookup</a>
+            <a href="#/trends" class="nav-link" data-page="trends">Trends</a>
+            <a href="#/audit" class="nav-link" data-page="audit">Audit</a>
+            <a href="#/policies" class="nav-link" data-page="policies">Policies</a>
+            <a href="#/settings" class="nav-link" data-page="settings">Settings</a>
+        </div>
+        <div class="nav-actions">
+            <span id="connectionStatus" class="status-badge disconnected">Disconnected</span>
+            <button id="disconnectBtn" class="btn-icon" title="Disconnect and switch tenant" style="display:none" onclick="window.m365.disconnect()">⏏</button>
+            <button id="themeToggle" class="btn-icon" title="Toggle theme">🌙</button>
+        </div>
+    </nav>
+
+    <main id="app"></main>
+
+    <footer class="site-footer">
+        <span>© 2025 <a href="https://m365permissions.com" target="_blank" rel="noopener">m365permissions.com</a></span>
+    </footer>
+
+    <div id="toast-container"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+using M365Permissions.Engine.Models;
+
+namespace M365Permissions.Engine.Scanning;
+
+/// <summary>
+/// Classifies permission entries by risk level (Critical / High / Medium / Low / Info).
+/// Applied as a post-processing step after each scan batch.
+/// </summary>
+public static class RiskClassifier
+{
+    // ── Admin roles considered Critical ────────────────────────
+    private static readonly HashSet<string> CriticalAdminRoles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Global Administrator", "Company Administrator",
+        "Exchange Administrator", "SharePoint Administrator",
+        "Teams Administrator", "Security Administrator",
+        "Privileged Role Administrator", "Privileged Authentication Administrator",
+        "User Administrator", "Application Administrator",
+        "Cloud Application Administrator", "Intune Administrator",
+        "Authentication Administrator", "Billing Administrator",
+        "Conditional Access Administrator", "Compliance Administrator"
+    };
+
+    // ── Critical Azure RBAC roles ──────────────────────────────
+    private static readonly HashSet<string> CriticalAzureRoles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Owner", "Contributor", "User Access Administrator"
+    };
+
+    // ── High-risk Graph / app permissions ──────────────────────
+    private static readonly HashSet<string> HighRiskAppPermissions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Mail.ReadWrite", "Mail.ReadWrite.All", "Mail.Send",
+        "Files.ReadWrite.All", "Sites.ReadWrite.All", "Sites.FullControl.All",
+        "Directory.ReadWrite.All", "RoleManagement.ReadWrite.Directory",
+        "AppRoleAssignment.ReadWrite.All", "Application.ReadWrite.All",
+        "User.ReadWrite.All", "Group.ReadWrite.All",
+        "MailboxSettings.ReadWrite", "Calendars.ReadWrite",
+        "Exchange.ManageAsApp"
+    };
+
+    // ── Everyone / All Users identifiers ───────────────────────
+    private static readonly HashSet<string> BroadPrincipals = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "Everyone", "Everyone except external users",
+        "All Users", "AllInternalUsers", "Anonymous",
+        "c:0(.s|true", "c:0-.f|rolemanager|spo-grid-all-users"
+    };
+
+    /// <summary>
+    /// Classify a single permission entry. Sets RiskLevel and RiskReason.
+    /// </summary>
+    public static void Classify(PermissionEntry entry)
+    {
+        var (level, reason) = EvaluateRisk(entry);
+        entry.RiskLevel = level;
+        entry.RiskReason = reason;
+    }
+
+    /// <summary>
+    /// Classify a batch of permission entries.
+    /// </summary>
+    public static void ClassifyBatch(IReadOnlyList<PermissionEntry> entries)
+    {
+        foreach (var entry in entries) Classify(entry);
+    }
+
+    private static (string Level, string Reason) EvaluateRisk(PermissionEntry e)
+    {
+        // ── Critical: Active admin roles ───────────────────────
+        if (e.Category == "Entra" && e.Tenure == "Permanent" &&
+            (e.Through == "DirectoryRole" || e.Through == "Direct") &&
+            CriticalAdminRoles.Contains(e.TargetPath))
+        {
+            return ("Critical", $"Permanent active {e.TargetPath} role");
+        }
+
+        // ── Critical: Full Control on root site ────────────────
+        if (e.Category == "SharePoint" &&
+            e.PrincipalRole.Contains("Full Control", StringComparison.OrdinalIgnoreCase) &&
+            BroadPrincipals.Any(bp => e.PrincipalSysName.Contains(bp, StringComparison.OrdinalIgnoreCase)))
+        {
+            return ("Critical", "Full Control granted to Everyone/All Users");
+        }
+
+        // ── High: PIM-eligible admin roles ─────────────────────
+        if (e.Category == "Entra" && e.Tenure == "Eligible" &&
+            CriticalAdminRoles.Contains(e.TargetPath))
+        {
+            return ("High", $"PIM-eligible {e.TargetPath} role");
+        }
+
+        // ── Critical: Azure subscription-level Owner/Contributor ─
+        if (e.Category == "Azure" && CriticalAzureRoles.Contains(e.PrincipalRole) &&
+            e.TargetType == "Subscription")
+        {
+            return ("Critical", $"{e.PrincipalRole} at subscription scope");
+        }
+
+        // ── High: Azure Owner/Contributor at resource group ────
+        if (e.Category == "Azure" && CriticalAzureRoles.Contains(e.PrincipalRole) &&
+            e.TargetType == "ResourceGroup")
+        {
+            return ("High", $"{e.PrincipalRole} at resource group scope");
+        }
+
+        // ── High: FullAccess to mailbox ────────────────────────
+        if (e.Category == "Exchange" && e.PrincipalRole.Equals("FullAccess", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("High", $"FullAccess to mailbox {e.TargetPath}");
+        }
+
+        // ── High: SendAs permission ────────────────────────────
+        if (e.Category == "Exchange" && e.PrincipalRole.Contains("SendAs", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("High", $"SendAs permission on {e.TargetPath}");
+        }
+
+        // ── High: Anonymous sharing links ──────────────────────
+        if ((e.Category == "SharePoint" || e.Category == "OneDrive") &&
+            e.Through.Contains("Anonymous", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("High", "Anonymous sharing link");
+        }
+
+        // ── High: Everyone / All Users permissions ─────────────
+        if (BroadPrincipals.Any(bp =>
+            e.PrincipalSysName.Contains(bp, StringComparison.OrdinalIgnoreCase) ||
+            e.PrincipalEntraUpn.Contains(bp, StringComparison.OrdinalIgnoreCase)))
+        {
+            return ("High", $"Permission granted to broad principal: {e.PrincipalSysName}");
+        }
+
+        // ── High: Broad application permissions ────────────────
+        if (e.Category == "Entra" && e.Through == "ApplicationPermission" &&
+            HighRiskAppPermissions.Any(p => e.PrincipalRole.Contains(p, StringComparison.OrdinalIgnoreCase)))
+        {
+            return ("High", $"High-risk application permission: {e.PrincipalRole}");
+        }
+
+        // ── High: Admin-consented OAuth2 grants ────────────────
+        if (e.Category == "Entra" && e.Through == "OAuth2Grant" &&
+            e.Tenure == "AllPrincipals" &&
+            HighRiskAppPermissions.Any(p => e.PrincipalRole.Contains(p, StringComparison.OrdinalIgnoreCase)))
+        {
+            return ("High", $"Admin-consented OAuth2 grant: {e.PrincipalRole}");
+        }
+
+        // ── Medium: Guest / external user access ───────────────
+        if (e.PrincipalType.Contains("Guest", StringComparison.OrdinalIgnoreCase) ||
+            e.PrincipalType.Contains("External", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("Medium", "External/guest user access");
+        }
+
+        // ── Medium: Permanent privileged role (should be PIM) ──
+        if (e.Category == "Entra" && e.Tenure == "Permanent" &&
+            e.Through == "DirectoryRole" && !CriticalAdminRoles.Contains(e.TargetPath) &&
+            e.TargetType == "DirectoryRole")
+        {
+            return ("Medium", $"Permanent directory role — consider PIM: {e.TargetPath}");
+        }
+
+        // ── Medium: Organization-wide sharing links ────────────
+        if ((e.Category == "SharePoint" || e.Category == "OneDrive") &&
+            e.Through.Contains("Organization", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("Medium", "Organization-wide sharing link");
+        }
+
+        // ── Medium: Site Owner / Full Control ──────────────────
+        if (e.Category == "SharePoint" &&
+            (e.PrincipalRole.Contains("Full Control", StringComparison.OrdinalIgnoreCase) ||
+             e.PrincipalRole.Equals("Owner", StringComparison.OrdinalIgnoreCase)))
+        {
+            return ("Medium", $"Site owner / Full Control on {e.TargetPath}");
+        }
+
+        // ── Medium: Power Automate / PowerBI broad sharing ─────
+        if ((e.Category == "PowerAutomate" || e.Category == "PowerBI") &&
+            e.PrincipalRole.Equals("Owner", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("Medium", $"{e.Category} owner: {e.TargetPath}");
+        }
+
+        // ── Low: Standard member/contributor permissions ───────
+        if (e.PrincipalRole.Contains("Member", StringComparison.OrdinalIgnoreCase) ||
+            e.PrincipalRole.Contains("Contribute", StringComparison.OrdinalIgnoreCase) ||
+            e.PrincipalRole.Contains("Edit", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("Low", "Standard member/contributor access");
+        }
+
+        // ── Info: Read-only / Visitor ──────────────────────────
+        if (e.PrincipalRole.Contains("Read", StringComparison.OrdinalIgnoreCase) ||
+            e.PrincipalRole.Contains("View", StringComparison.OrdinalIgnoreCase) ||
+            e.PrincipalRole.Contains("Visitor", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("Info", "Read-only access");
+        }
+
+        // ── Low: Default fallback ──────────────────────────────
+        return ("Low", "Standard permission");
+    }
+}

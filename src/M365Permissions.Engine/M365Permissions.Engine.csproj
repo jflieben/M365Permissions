@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>M365Permissions.Engine</RootNamespace>
+    <AssemblyName>M365Permissions.Engine</AssemblyName>
+    <Version>2.0.2</Version>
+    <Authors>Jos Lieben</Authors>
+    <Description>Core engine for M365Permissions — SQLite storage, HTTP server, Graph/REST API clients, scanning, export</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.11" />
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Database\Schema.sql" />
+  </ItemGroup>
+
+</Project>
